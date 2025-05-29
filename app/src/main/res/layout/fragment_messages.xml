@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     xmlns:tools="http://schemas.android.com/tools"
+     android:layout_height="match_parent"
+     android:layout_width="match_parent"
+     tools:context=".ui.messages.MessagesFragment">
+
+    <androidx.coordinatorlayout.widget.CoordinatorLayout
+         android:layout_height="match_parent"
+         android:layout_width="match_parent"
+         android:background="@color/surface">
+
+        <com.google.android.material.appbar.AppBarLayout
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             android:background="@color/surface"
+             app:elevation="0dp"
+             android:id="@+id/appbar">
+
+            <androidx.appcompat.widget.Toolbar
+                 android:layout_height="?attr/actionBarSize"
+                 android:layout_width="match_parent"
+                 android:paddingEnd="8dp"
+                 app:layout_scrollFlags="scroll|enterAlways"
+                 android:paddingStart="8dp"
+                 android:id="@+id/toolbar">
+
+                <LinearLayout
+                     android:layout_height="match_parent"
+                     android:layout_width="match_parent"
+                     android:gravity="center_vertical"
+                     android:orientation="horizontal">
+
+                    <de.hdodenhof.circleimageview.CircleImageView
+                         android:layout_height="32dp"
+                         android:layout_width="32dp"
+                         android:id="@+id/iv_user_avatar" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="wrap_content"
+                         android:textSize="20sp"
+                         android:textColor="@color/text_primary"
+                         android:layout_marginStart="14dp"
+                         android:id="@+id/tv_app_name"
+                         android:text="Messages"
+                         android:textStyle="bold" />
+
+                    <View
+                         android:layout_height="0dp"
+                         android:layout_width="0dp"
+                         android:layout_weight="1" />
+
+                    <ImageButton
+                        android:layout_height="24dp"
+                        android:layout_width="24dp"
+                        android:src="@drawable/ic_settings"
+                        android:id="@+id/iv_settings" />
+
+                </LinearLayout>
+
+            </androidx.appcompat.widget.Toolbar>
+
+            <com.google.android.material.tabs.TabLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:background="@drawable/nav_background"
+                 app:tabMode="fixed"
+                 app:layout_scrollFlags="enterAlways"
+                 app:tabIndicatorColor="@color/secondary"
+                 app:tabIndicatorHeight="3dp"
+                 android:id="@+id/tabLayout" />
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <androidx.viewpager2.widget.ViewPager2
+             android:layout_height="match_parent"
+             android:layout_width="match_parent"
+             app:layout_behavior="@string/appbar_scrolling_view_behavior"
+             android:nestedScrollingEnabled="true"
+             android:overScrollMode="never"
+             android:id="@+id/viewPager" />
+
+    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         android:src="@drawable/ic_add_chat"
+         app:backgroundTint="@color/secondary"
+         android:layout_margin="16dp"
+         app:tint="@android:color/white"
+         android:layout_alignParentEnd="true"
+         android:layout_alignParentBottom="true"
+         android:id="@+id/fab_create_new" />
+
+</RelativeLayout>

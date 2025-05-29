@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:tools="http://schemas.android.com/tools">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:gravity="start"
+         android:orientation="horizontal"
+         android:paddingBottom="4dp"
+         android:paddingStart="8dp"
+         tools:ignore="RtlHardcoded">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+             android:layout_height="36dp"
+             android:layout_width="36dp"
+             android:visibility="gone"
+             android:layout_marginEnd="8dp"
+             android:src="@drawable/ic_default_avatar"
+             android:contentDescription="@string/user_avatar"
+             android:id="@+id/avatar" />
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:orientation="vertical">
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:visibility="gone"
+                 android:layout_marginBottom="4dp"
+                 android:textSize="12sp"
+                 android:textColor="@color/grey"
+                 android:id="@+id/text_sender"
+                 android:text="John Doe" />
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:background="@drawable/bubble_received"
+                 android:padding="12dp"
+                 android:orientation="horizontal">
+
+                <ImageView
+                     android:layout_height="24dp"
+                     android:layout_width="24dp"
+                     android:src="@drawable/ic_play"
+                     android:contentDescription="@string/play_button"
+                     android:id="@+id/btn_play"
+                     android:layout_gravity="center_vertical" />
+
+                <ProgressBar
+                     android:layout_height="20dp"
+                     android:layout_width="120dp"
+                     android:layout_marginEnd="12dp"
+                     style="?android:attr/progressBarStyleHorizontal"
+                     android:layout_marginStart="12dp"
+                     android:progress="50"
+                     android:progressDrawable="@drawable/waveform_progress"
+                     android:id="@+id/progress_waveform" />
+
+                <TextView
+                     android:layout_height="wrap_content"
+                     android:layout_width="wrap_content"
+                     android:textSize="14sp"
+                     android:textColor="@color/text_secondary"
+                     android:id="@+id/text_duration"
+                     android:text="2:34" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</layout>

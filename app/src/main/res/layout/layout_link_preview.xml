@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     xmlns:tools="http://schemas.android.com/tools"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     app:strokeColor="@color/nav_background_stroke"
+     app:strokeWidth="0.5dp"
+     app:cardBackgroundColor="@color/surface"
+     android:layout_marginTop="8dp"
+     app:cardCornerRadius="8dp"
+     android:id="@+id/layoutLinkPreview">
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:padding="8dp"
+         android:orientation="horizontal">
+
+        <ImageView
+             android:layout_height="96dp"
+             android:layout_width="96dp"
+             android:scaleType="centerCrop"
+             android:contentDescription="Link preview image"
+             tools:src="@drawable/ic_cover_placeholder"
+             android:id="@+id/ivLinkImage" />
+
+        <LinearLayout
+             android:layout_height="match_parent"
+             android:layout_width="0dp"
+             android:paddingVertical="4dp"
+             android:orientation="vertical"
+             android:layout_marginStart="12dp"
+             android:layout_weight="1">
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:ellipsize="end"
+                 android:textSize="14sp"
+                 android:textColor="@color/text_primary"
+                 tools:text="Sample Website Title"
+                 android:maxLines="2"
+                 android:id="@+id/tvLinkTitle" />
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:ellipsize="end"
+                 android:textSize="12sp"
+                 android:textColor="@color/text_secondary"
+                 android:layout_marginTop="4dp"
+                 tools:text="This is a sample description of the linked website content that might be shown in the preview"
+                 android:maxLines="2"
+                 android:id="@+id/tvLinkDescription" />
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:textSize="12sp"
+                 android:textColor="@color/twitter_primary"
+                 android:layout_marginTop="4dp"
+                 tools:text="example.com"
+                 android:id="@+id/tvLinkDomain" />
+
+        </LinearLayout>
+
+        <ImageButton
+             android:layout_height="24dp"
+             android:layout_width="24dp"
+             android:src="@drawable/ic_close"
+             android:background="?attr/selectableItemBackgroundBorderless"
+             app:tint="@color/text_secondary"
+             android:layout_marginStart="8dp"
+             android:id="@+id/btnRemoveLink" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

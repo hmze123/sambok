@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="match_parent"
+    android:layout_width="match_parent"
+    android:background="@color/background"
+    android:fitsSystemWindows="true">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_height="wrap_content"
+        android:layout_width="0dp"
+        android:background="@color/surface"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:elevation="0dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:id="@+id/appbar">
+
+        <androidx.appcompat.widget.Toolbar
+            android:layout_height="?attr/actionBarSize"
+            android:layout_width="match_parent"
+            android:paddingEnd="8dp"
+            app:layout_scrollFlags="scroll|enterAlways"
+            android:paddingStart="8dp"
+            android:id="@+id/toolbar">
+
+            <LinearLayout
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_height="30dp"
+                    android:layout_width="30dp"
+                    android:src="@drawable/ic_back"
+                    android:contentDescription="Back button"
+                    android:id="@+id/iv_back" />
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:layout_height="32dp"
+                    android:layout_width="32dp"
+                    app:civ_border_width="2dp"
+                    app:civ_border_color="@color/twitter_background"
+                    android:layout_marginStart="16dp"
+                    android:id="@+id/ivAvatar" />
+
+                <TextView
+                    android:layout_height="wrap_content"
+                    android:layout_width="wrap_content"
+                    android:textSize="20sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_marginStart="8dp"
+                    android:id="@+id/tv_app_name"
+                    android:textStyle="bold" />
+
+                <ImageView
+                    android:layout_height="16dp"
+                    android:layout_width="16dp"
+                    android:visibility="gone"
+                    android:src="@drawable/ic_verified"
+                    android:contentDescription="Verified badge"
+                    android:layout_marginStart="4dp"
+                    android:id="@+id/iv_verified" />
+
+                <View
+                    android:layout_height="0dp"
+                    android:layout_width="0dp"
+                    android:layout_weight="1" />
+
+                <ImageButton
+                    android:layout_height="30dp"
+                    android:layout_width="30dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_more_vert"
+                    app:tint="@color/text_primary"
+                    android:tint="@color/text_secondary"
+                    android:id="@+id/btnMenu" />
+
+            </LinearLayout>
+
+        </androidx.appcompat.widget.Toolbar>
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:layout_height="0dp"
+        android:layout_width="0dp"
+        app:layout_constraintStart_toStartOf="parent"
+        android:paddingBottom="72dp"
+        android:clipToPadding="false"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:nestedScrollingEnabled="true"
+        app:layout_constraintBottom_toTopOf="@id/inputSection"
+        app:layout_constraintTop_toBottomOf="@id/appbar"
+        android:id="@+id/recyclerView" />
+
+    <include
+        layout="@layout/inputchatlayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:id="@+id/inputSection" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,16 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="media_item_margin">4dp</dimen>
+    <dimen name="media_item_corner_radius">8dp</dimen>
+    <dimen name="media_transition_duration">300</dimen>
+    <dimen name="comment_spacing">4dp</dimen>
+    <dimen name="reply_indentation">24dp</dimen>
+    <dimen name="search_bar_elevation">4dp</dimen>
+    <dimen name="search_bar_radius">8dp</dimen>
+    <dimen name="user_item_padding">16dp</dimen>
+    <dimen name="message_padding">8dp</dimen>
+    <dimen name="message_corner_radius">12dp</dimen>
+    <dimen name="media_max_width">300dp</dimen>
+</resources>

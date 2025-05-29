@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     android:background="@color/surface"
+     android:elevation="8dp"
+     android:paddingBottom="8dp"
+     android:paddingTop="2dp">
+
+    <TextView
+         android:layout_height="wrap_content"
+         android:layout_width="wrap_content"
+         app:layout_constraintTop_toTopOf="parent"
+         app:layout_constraintStart_toStartOf="parent"
+         android:textSize="14sp"
+         android:textColor="@color/text_secondary"
+         android:layout_marginTop="4dp"
+         android:layout_marginStart="16dp"
+         android:id="@+id/replyHeader"
+         android:text="Replying to @username" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:paddingVertical="8dp"
+         app:layout_constraintTop_toBottomOf="@id/replyHeader"
+         android:id="@+id/mainContent">
+
+        <de.hdodenhof.circleimageview.CircleImageView
+             android:layout_height="30dp"
+             android:layout_width="30dp"
+             android:src="@drawable/ic_default_avatar"
+             app:layout_constraintTop_toTopOf="parent"
+             app:layout_constraintStart_toStartOf="parent"
+             android:layout_marginStart="16dp"
+             android:id="@+id/userImage" />
+
+        <EditText
+             android:layout_height="wrap_content"
+             android:layout_width="0dp"
+             android:layout_marginEnd="12dp"
+             android:textSize="16sp"
+             android:textColor="@color/text_primary"
+             app:layout_constraintStart_toEndOf="@id/userImage"
+             app:layout_constraintEnd_toStartOf="@id/mediaPreview"
+             app:layout_constraintBottom_toBottomOf="parent"
+             android:layout_marginStart="12dp"
+             android:background="@null"
+             android:hint="Post your reply"
+             app:layout_constraintTop_toTopOf="parent"
+             android:textColorHint="@color/text_secondary"
+             android:maxLines="5"
+             android:inputType="textMultiLine"
+             android:id="@+id/postInput" />
+
+        <include
+             layout="@layout/item_media_preview"
+             android:visibility="gone"
+             android:layout_marginEnd="16dp"
+             app:layout_constraintTop_toTopOf="parent"
+             android:layout_width="64dp"
+             android:layout_height="64dp"
+             app:layout_constraintEnd_toEndOf="parent"
+             android:id="@+id/mediaPreview" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <LinearLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:gravity="center_vertical"
+         android:paddingVertical="8dp"
+         android:orientation="horizontal"
+         app:layout_constraintStart_toStartOf="parent"
+         app:layout_constraintEnd_toEndOf="parent"
+         android:layout_marginTop="8dp"
+         app:layout_constraintTop_toBottomOf="@id/mainContent"
+         android:id="@+id/bottomToolbar">
+
+        <ImageButton
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             android:src="@drawable/ic_add_photo"
+             android:background="?attr/selectableItemBackgroundBorderless"
+             android:tint="@color/twitter_primary"
+             android:id="@+id/addMedia" />
+
+        <ImageButton
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             android:src="@drawable/ic_gif"
+             android:background="?attr/selectableItemBackgroundBorderless"
+             android:layout_marginHorizontal="4dp"
+             android:tint="@color/twitter_primary"
+             android:id="@+id/addGif" />
+
+        <ImageButton
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             android:src="@drawable/ic_poll"
+             android:background="?attr/selectableItemBackgroundBorderless"
+             android:tint="@color/twitter_primary"
+             android:id="@+id/addPoll" />
+
+        <View
+             android:layout_height="0dp"
+             android:layout_width="0dp"
+             android:layout_weight="1" />
+
+        <TextView
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             android:layout_marginEnd="16dp"
+             android:textSize="14sp"
+             android:textColor="@color/text_secondary"
+             android:id="@+id/charCounter"
+             android:text="500" />
+
+        <com.google.android.material.button.MaterialButton
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             app:icon="@drawable/ic_send"
+             android:layout_marginEnd="4dp"
+             app:iconTint="@android:color/white"
+             android:backgroundTint="@color/twitter_primary"
+             style="@style/Widget.MaterialComponents.Button.Icon"
+             android:enabled="false"
+             android:id="@+id/postButton" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

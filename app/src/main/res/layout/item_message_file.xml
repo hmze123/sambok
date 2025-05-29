@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:padding="8dp">
+
+        <ProgressBar
+             android:layout_height="48dp"
+             android:layout_width="48dp"
+             android:visibility="gone"
+             android:id="@+id/progressBar"
+             android:layout_gravity="center" />
+
+        <com.google.android.material.card.MaterialCardView
+             android:layout_height="wrap_content"
+             android:layout_width="match_parent"
+             app:cardCornerRadius="12dp">
+
+            <LinearLayout
+                 android:layout_height="wrap_content"
+                 android:layout_width="match_parent"
+                 android:padding="16dp"
+                 android:orientation="horizontal">
+
+                <ImageView
+                     android:layout_height="40dp"
+                     android:layout_width="40dp"
+                     android:src="@drawable/ic_file_generic"
+                     android:id="@+id/fileIcon" />
+
+                <LinearLayout
+                     android:layout_height="wrap_content"
+                     android:layout_width="0dp"
+                     android:orientation="vertical"
+                     android:layout_marginStart="16dp"
+                     android:layout_weight="1">
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="match_parent"
+                         android:ellipsize="end"
+                         android:textSize="16sp"
+                         android:maxLines="1"
+                         android:id="@+id/fileName" />
+
+                    <TextView
+                         android:layout_height="wrap_content"
+                         android:layout_width="match_parent"
+                         android:textSize="12sp"
+                         android:id="@+id/fileSize" />
+
+                </LinearLayout>
+
+                <ImageButton
+                     android:layout_height="40dp"
+                     android:layout_width="40dp"
+                     android:src="@drawable/ic_download"
+                     android:contentDescription="Download file"
+                     android:id="@+id/downloadButton" />
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <LinearLayout
+             android:layout_height="wrap_content"
+             android:layout_width="wrap_content"
+             app:layout_constraintEnd_toEndOf="parent"
+             android:layout_marginTop="4dp"
+             app:layout_constraintTop_toBottomOf="@id/cardView">
+
+            <TextView
+                 android:layout_height="wrap_content"
+                 android:layout_width="wrap_content"
+                 android:textSize="10sp"
+                 android:id="@+id/textTime" />
+
+            <ImageView
+                 android:layout_height="14dp"
+                 android:layout_width="14dp"
+                 android:visibility="gone"
+                 android:layout_marginStart="4dp"
+                 android:id="@+id/statusIndicator" />
+
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</layout>

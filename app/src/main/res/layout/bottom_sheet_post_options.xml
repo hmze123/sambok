@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     android:background="@color/surface"
+     android:orientation="vertical"
+     android:paddingBottom="12dp"
+     android:paddingTop="8dp">
+
+    <View
+         android:layout_height="4dp"
+         android:layout_width="40dp"
+         android:layout_marginBottom="12dp"
+         android:background="@drawable/bg_bottom_sheet_handle"
+         android:layout_marginTop="4dp"
+         android:layout_gravity="center_horizontal" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         app:iconTint="@color/text_secondary"
+         android:textColor="@color/text_primary"
+         android:icon="@drawable/ic_report"
+         android:gravity="start|center_vertical"
+         android:background="?android:attr/selectableItemBackground"
+         android:insetTop="12dp"
+         android:insetBottom="12dp"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:id="@+id/option_report"
+         android:text="Report Post" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         app:iconTint="@color/text_secondary"
+         android:textColor="@color/text_primary"
+         android:icon="@drawable/ic_share"
+         android:gravity="start|center_vertical"
+         android:background="?android:attr/selectableItemBackground"
+         android:insetTop="12dp"
+         android:insetBottom="12dp"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:id="@+id/option_share"
+         android:text="Share Post" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         app:iconTint="@color/text_secondary"
+         android:textColor="@color/text_primary"
+         android:icon="@drawable/ic_link"
+         android:gravity="start|center_vertical"
+         android:background="?android:attr/selectableItemBackground"
+         android:insetTop="12dp"
+         android:insetBottom="12dp"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:id="@+id/option_copy_link"
+         android:text="Copy Link" />
+
+    <View
+         android:layout_height="1dp"
+         android:layout_width="match_parent"
+         android:layout_marginVertical="6dp"
+         android:background="@color/nav_background_stroke" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         app:iconTint="@color/text_secondary"
+         android:textColor="@color/text_primary"
+         android:icon="@drawable/ic_bookmark_outline"
+         android:gravity="start|center_vertical"
+         android:background="?android:attr/selectableItemBackground"
+         android:insetTop="12dp"
+         android:insetBottom="12dp"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:id="@+id/option_save"
+         android:text="Save to Bookmarks" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:visibility="gone"
+         android:gravity="start|center_vertical"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:icon="@drawable/ic_edit"
+         android:id="@+id/option_edit"
+         android:text="Edit Post" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:visibility="gone"
+         android:gravity="start|center_vertical"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:icon="@drawable/ic_delete"
+         android:id="@+id/option_delete"
+         android:text="Delete Post" />
+
+    <com.google.android.material.button.MaterialButton
+         android:layout_height="wrap_content"
+         android:layout_width="match_parent"
+         android:visibility="gone"
+         android:gravity="start|center_vertical"
+         style="@style/Widget.Starry.BottomSheetOption"
+         android:icon="@drawable/ic_shield"
+         android:id="@+id/option_moderate"
+         android:text="Moderate Post" />
+
+</LinearLayout>

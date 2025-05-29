@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Midnight Gray Theme -->
+    <color name="primary">#FF2D55</color> <!-- Vibrant amber -->
+    <color name="secondary">#03DAC6</color> <!-- Medium gray -->
+    <color name="background">#121212</color> <!-- True black base -->
+    <color name="surface">#1E1E1E</color> <!-- Elevated surfaces -->
+    <color name="text_primary">#FFFFFF</color> <!-- Pure white text -->
+    <color name="text_secondary">#BDBDBD</color> <!-- Soft gray text -->
+
+    <!-- Component Colors -->
+    <color name="card_bg">#252525</color> <!-- Card background -->
+    <color name="nav_background_stroke">#33FFFFFF</color>
+    <color name="divider">#2A2A2A</color> <!-- Subtle dividers -->
+    <color name="link_color">#FFC107</color> <!-- Amber for links -->
+
+    <!-- Functional Colors -->
+    <color name="error_red">#FF6E6E</color>
+    <color name="red">#FF7043</color> <!-- Amber-red -->
+    <color name="yellow">#FFD600</color> <!-- Bright yellow -->
+    <color name="green">#81C784</color> <!-- Soft green -->
+    <color name="white">#EEEEEE</color> <!-- Off-white -->
+    <color name="grey">#616161</color>
+
+    <!-- Dark Mode Message Bubbles -->
+    <color name="sent_message_bg">#1E3A5F</color> <!-- Deep navy blue -->
+    <color name="received_message_bg">#2A2A2A</color> <!-- Dark gray -->
+    <color name="sent_message_text">#BBDEFB</color> <!-- Light blue text -->
+    <color name="received_message_text">#F5F5F5</color> <!-- Light gray/white text -->
+
+    <color name="ic_launcher_background">#212121</color>
+    <color name="ic_launcher_foreground">#FF2D55</color>
+</resources>

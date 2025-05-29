@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Add internet permission for Firebase -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <application
+        android:largeHeap="true"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:name=".StarryApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Starry"
+        tools:targetApi="31">
+
+        <!-- Main Activity -->
+        <activity
+            android:name=".activities.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <!-- Auth Activities -->
+        <activity
+            android:name=".auth.LoginActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Twitter"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".auth.SignUpActivity"
+            android:theme="@style/Theme.Twitter"
+            android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+
+        <activity
+            android:name=".activities.ComposePostActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.PostDetailActivity"
+            android:theme="@style/Theme.Starry"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="https"
+                    android:host="yourdomain.com"
+                    android:pathPrefix="/posts/" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".activities.ProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.EditProfileActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.ChatActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+
+        <activity
+            android:name=".activities.CreateGroupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.ReportActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+         <activity
+            android:name=".activities.InAppBrowserActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
+        <activity
+            android:name=".activities.MediaViewerActivity"
+            android:theme="@style/FullScreenTheme"
+            android:windowSoftInputMode="adjustNothing"
+            android:configChanges="orientation|screenSize" />
+
+        <meta-data
+            android:name="com.google.android.gms.version"
+            android:value="@integer/google_play_services_version" />
+
+        <!-- Add Firebase Authentication service -->
+        <service
+            android:name="com.google.firebase.auth.PhoneAuthProvider"
+            android:exported="false" />
+
+    </application>
+</manifest>

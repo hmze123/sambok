@@ -1,0 +1,11 @@
+<resources>
+    <string-array name="theme_entries">
+        <item>BlueSky Theme</item>
+        <item>Twitter Theme</item>
+    </string-array>
+
+    <string-array name="theme_values">
+        <item>bluesky</item>
+        <item>twitter</item>
+    </string-array>
+</resources>

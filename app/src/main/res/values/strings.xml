@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- App Info -->
+    <string name="app_name">Starry</string>
+
+    <!-- Media & Link Preview -->
+    <string name="link_preview_failed">Failed to fetch link preview</string>
+    <string name="loading_preview">Loading preview…</string>
+    <string name="no_title">No title available</string>
+
+    <!-- Navigation Titles -->
+    <string name="title_home">Home</string>
+    <string name="title_messages">Messages</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="title_search">Search</string>
+
+    <!-- Post Actions -->
+    <string name="cant_add_images_to_video_post">Cannot add images to video posts</string>
+    <string name="cant_mix_video_images">Cannot mix videos with images</string>
+    <string name="char_limit_exceeded">Exceeds character limit</string>
+    <string name="edit_post">Edit Post</string>
+    <string name="max_images_error">Maximum %d images allowed</string>
+    <string name="max_media_limit">Maximum %d images allowed</string>
+    <string name="media_access_error">Error accessing selected media</string>
+    <string name="media_upload_failed">Media upload failed</string>
+    <string name="multiple_videos_error">Cannot add multiple videos</string>
+    <string name="post">Post</string>
+    <string name="post_deleted">Post Deleted</string>
+    <string name="post_empty_error">Post cannot be empty</string>
+    <string name="post_failed">Post failed</string>
+    <string name="post_success">Posted successfully</string>
+    <string name="post_updated">Post updated</string>
+    <string name="single_video_allowed">Select only one video</string>
+    <string name="update_failed">Update failed</string>
+    <string name="video_post_single_media">Video posts can only contain one video</string>
+
+    <!-- Replies -->
+    <string name="hide_replies">Hide replies</string>
+    <string name="replying_to">Replying to</string>
+    <string name="replying_to_author">Replying to Author</string>
+    <string name="replying_to_user">Replying to %1$s</string>
+    <string name="show_replies">Show replies</string>
+    <string name="show_replies_format">Show %d replies</string>
+
+    <!-- Search -->
+    <string name="action_retry">Retry</string>
+    <string name="error_search_failed">Search failed. Please try again.</string>
+    <string name="search_hint">Search users</string>
+
+    <!-- UI / Misc -->
+    <string name="audio_duration">Duration: %s</string>
+    <string name="author">Author</string>
+    <string name="back">Back</string>
+    <string name="char_count_format">%1$d/%2$d</string>
+    <string name="coming_soon">Coming Soon!\nFollow users to see their posts here.</string>
+    <string name="file_message">File</string>
+    <string name="menu">Menu</string>
+    <string name="message">Message</string>
+    <string name="message_status">Message status</string>
+    <string name="no_messages">No messages yet</string>
+    <string name="pause_button">Pause</string>
+    <string name="photo_message">Sent a photo</string>
+    <string name="play_button">Play</string>
+    <string name="see_more">See More</string>
+    <string name="show_original">Show Original</string>
+    <string name="total_votes">%d votes</string>
+    <string name="translate">Translate</string>
+    <string name="user_avatar">User avatar</string>
+    <string name="video_message">Sent a video</string>
+
+    <!-- User Profile -->
+    <string name="edit_profile">Edit Profile</string>
+    <string name="follow">Follow</string>
+    <string name="followers">Followers</string>
+    <string name="following">Following</string>
+    <string name="no_changes_detected">No changes detected</string>
+    <string name="user_load_failed">Failed to load user data</string>
+    <string name="username">Username</string>
+
+</resources>

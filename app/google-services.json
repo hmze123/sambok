@@ -1,0 +1,69 @@
+{
+  "project_info": {
+    "project_number": "627904740884",
+    "firebase_url": "https://anirealm-af84e-default-rtdb.firebaseio.com",
+    "project_id": "anirealm-af84e",
+    "storage_bucket": "anirealm-af84e.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627904740884:android:4ec771a813bcf287a03101",
+        "android_client_info": {
+          "package_name": "com.spidroid.horizon"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDE9L6KgL5-I4sMvNKd2oMcunF-F1Ad0XE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627904740884:android:cd188517fef687f6a03101",
+        "android_client_info": {
+          "package_name": "com.spidroid.starry"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDE9L6KgL5-I4sMvNKd2oMcunF-F1Ad0XE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     xmlns:app="http://schemas.android.com/apk/res-auto"
+     android:layout_height="wrap_content"
+     android:layout_width="match_parent"
+     android:layout_marginBottom="8dp"
+     android:gravity="center_vertical"
+     android:orientation="horizontal">
+
+    <ImageView
+         android:layout_height="24dp"
+         android:layout_width="24dp"
+         android:layout_marginEnd="8dp"
+         app:tint="@color/text_secondary"
+         android:id="@+id/ivPlatform" />
+
+    <com.google.android.material.textfield.TextInputEditText
+         android:layout_height="wrap_content"
+         android:layout_width="0dp"
+         android:hint="URL"
+         android:layout_weight="1"
+         android:inputType="textUri"
+         android:id="@+id/etUrl" />
+
+    <ImageButton
+         android:layout_height="24dp"
+         android:layout_width="24dp"
+         android:src="@drawable/ic_close"
+         app:tint="@color/text_secondary"
+         android:id="@+id/btnRemove" />
+
+</LinearLayout>
