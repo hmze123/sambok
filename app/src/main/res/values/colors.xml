@@ -1,21 +1,84 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary">#6200EE</color> <color name="secondary">#03DAC6</color> <color name="background">#F8F9FA</color> <color name="surface">#FFFFFF</color> <color name="text_primary">#212121</color> <color name="text_secondary">#757575</color> <color name="card_bg">#FFFFFF</color> <color name="nav_background_stroke">#E0E0E0</color> <color name="divider">#E0E0E0</color> <color name="link_color">#2196F3</color> <color name="error_red">#B00020</color>
-    <color name="red">#E53935</color> <color name="yellow">#FDD835</color> <color name="green">#4CAF50</color> <color name="white">#FFFFFF</color> <color name="grey">#9E9E9E</color> <color name="sent_message_bg">#E8EAF6</color> <color name="received_message_bg">#F5F5F5</color> <color name="sent_message_text">#212121</color> <color name="received_message_text">#212121</color> <color name="twitter_primary">#1D9BF0</color>
+    <color name="m3_primary">#00658E</color>
+    <color name="m3_onPrimary">#FFFFFF</color>
+    <color name="m3_primaryContainer">#C7E7FF</color>
+    <color name="m3_onPrimaryContainer">#001E2E</color>
+
+    <color name="m3_secondary">#E91E63</color>
+    <color name="m3_onSecondary">#FFFFFF</color>
+    <color name="m3_secondaryContainer">#FFD9E2</color>
+    <color name="m3_onSecondaryContainer">#3E001D</color>
+
+    <color name="m3_tertiary">#7D5260</color>
+    <color name="m3_onTertiary">#FFFFFF</color>
+    <color name="m3_tertiaryContainer">#FFD8E4</color>
+    <color name="m3_onTertiaryContainer">#31111D</color>
+
+    <color name="m3_error">#B3261E</color>
+    <color name="m3_onError">#FFFFFF</color>
+    <color name="m3_errorContainer">#F9DEDC</color>
+    <color name="m3_onErrorContainer">#410E0B</color>
+
+    <color name="m3_background">#FCFCFF</color>
+    <color name="m3_onBackground">#1A1C1E</color>
+
+    <color name="m3_surface">#FCFCFF</color>
+    <color name="m3_onSurface">#1A1C1E</color>
+    <color name="m3_surfaceVariant">#DDE3EA</color>
+    <color name="m3_onSurfaceVariant">#41484D</color>
+
+    <color name="m3_surfaceContainerLowest">#FFFFFF</color>
+    <color name="m3_surfaceContainerLow">#F7F9FC</color>
+    <color name="m3_surfaceContainer">#F1F4F7</color>
+    <color name="m3_surfaceContainerHigh">#EBEFF2</color>
+    <color name="m3_surfaceContainerHighest">#E6E9EC</color> <color name="m3_surface_container_highest">#E6E9EC</color> <color name="m3_outline">#71787E</color>
+    <color name="m3_outlineVariant">#C1C7CE</color>
+
+    <color name="m3_inverseSurface">#2F3033</color>
+    <color name="m3_inverseOnSurface">#F0F0F3</color>
+    <color name="m3_inversePrimary">#8FCDFF</color>
+
+    <color name="primary">@color/m3_primary</color>
+    <color name="secondary">@color/m3_secondary</color>
+    <color name="background">@color/m3_background</color>
+    <color name="surface">@color/m3_surface</color>
+    <color name="text_primary">@color/m3_onSurface</color>
+    <color name="text_secondary">@color/m3_onSurfaceVariant</color>
+    <color name="card_bg">@color/m3_surfaceContainerLow</color>
+    <color name="nav_background_stroke">@color/m3_outlineVariant</color>
+    <color name="divider">@color/m3_outlineVariant</color>
+    <color name="link_color">@color/m3_primary</color>
+    <color name="error_red">@color/m3_error</color>
+
+    <color name="red">#D32F2F</color>
+    <color name="yellow">#FFC107</color>
+    <color name="green">#4CAF50</color>
+    <color name="white">#FFFFFF</color>
+    <color name="grey">#B0BEC5</color>
+
+    <color name="sent_message_bg">@color/m3_primaryContainer</color>
+    <color name="received_message_bg">@color/m3_surfaceContainerHighest</color>
+    <color name="sent_message_text">@color/m3_onPrimaryContainer</color>
+    <color name="received_message_text">@color/m3_onSurface</color>
+
+    <color name="twitter_primary">#1DA1F2</color>
     <color name="twitter_background">#FFFFFF</color>
-    <color name="twitter_surface">#F7F9F9</color>
+    <color name="twitter_surface">#E7ECF0</color>
 
-    <color name="ic_launcher_background">@color/surface</color>
-    <color name="ic_launcher_foreground">@color/primary</color>
-    <color name="story_ring_unseen">#C13584</color>
-    <color name="story_ring_seen">#AAAAAA</color>
+    <color name="ic_launcher_background">@color/m3_primaryContainer</color>
+    <color name="ic_launcher_foreground">@color/m3_onPrimaryContainer</color>
 
-    <color name="blue">#2196F3</color> <color name="warning_orange">#FF9800</color>
-    <color name="m3_primary">@color/primary</color> <color name="m3_surface_container_highest">#E6E0E9</color> <color name="poll_progress">@color/green</color>
-    <color name="message_time">@color/text_secondary</color>
-    <color name="poll_stroke">@color/text_secondary</color>
-    <color name="poll_expired">@color/text_secondary</color>
-    <color name="sender_name">@color/text_secondary</color>
-    <color name="reply_preview_text">@color/text_secondary</color>
+    <color name="story_ring_unseen">@color/m3_secondary</color>
+    <color name="story_ring_seen">@color/m3_outline</color>
 
+    <color name="blue">@color/m3_primary</color>
+    <color name="warning_orange">#FFA726</color>
+
+    <color name="poll_progress">@color/m3_primary</color>
+    <color name="message_time">@color/m3_onSurfaceVariant</color>
+    <color name="poll_stroke">@color/m3_outline</color>
+    <color name="poll_expired">@color/m3_onSurfaceVariant</color>
+    <color name="sender_name">@color/m3_onSurfaceVariant</color>
+    <color name="reply_preview_text">@color/m3_onSurfaceVariant</color>
 </resources>

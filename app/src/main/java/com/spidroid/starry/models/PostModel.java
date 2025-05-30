@@ -20,6 +20,8 @@ public class PostModel implements Parcelable {
   public static final String TYPE_VIDEO = "video";
   public static final String TYPE_POLL = "poll";
   public static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "mkv", "webm");
+  // *** التعديل هنا: إضافة الثابت MAX_CONTENT_LENGTH ***
+  public static final int MAX_CONTENT_LENGTH = 280; // الحد الأقصى لطول نص المنشور (مثل تويتر)
 
   private String postId;
   private String authorId;
@@ -129,7 +131,6 @@ public class PostModel implements Parcelable {
     return TYPE_IMAGE.equals(contentType);
   }
 
-  // *** الدالة الجديدة التي تم إضافتها لحل المشكلة ***
   @Exclude
   public String getFirstMediaUrl() {
     return (mediaUrls != null && !mediaUrls.isEmpty()) ? mediaUrls.get(0) : null;
