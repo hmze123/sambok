@@ -22,6 +22,7 @@ import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
@@ -53,6 +54,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import androidx.constraintlayout.widget.ConstraintLayout;
+
 
 public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
@@ -60,48 +63,45 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
   private static final Pattern HASHTAG_PATTERN = Pattern.compile("#(\\w+)");
   private static final Pattern URL_PATTERN = Pattern.compile("(?i)\\bhttps?://[^\\s]+\\b");
+
   private static final int TYPE_POST = 0;
   private static final int TYPE_SUGGESTION = 1;
-  private static final int TYPE_IMAGE_POST = 2;
-  private static final int TYPE_VIDEO_POST = 3;
 
   private final Context context;
   private final PostInteractionListener listener;
-  private final SnapHelper snapHelper = new PagerSnapHelper();
 
   private static final DiffUtil.ItemCallback<PostModel> DIFF_CALLBACK =
-      new DiffUtil.ItemCallback<PostModel>() {
-        @Override
-        public boolean areItemsTheSame(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
-          return oldItem.getPostId().equals(newItem.getPostId());
-        }
+          new DiffUtil.ItemCallback<PostModel>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
+              return oldItem.getPostId().equals(newItem.getPostId());
+            }
 
-        @Override
-        public boolean areContentsTheSame(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
-          return oldItem.equals(newItem);
-        }
+            @Override
+            public boolean areContentsTheSame(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
+              return oldItem.equals(newItem);
+            }
 
-        @Nullable
-        @Override
-        public Object getChangePayload(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
-          Bundle payload = new Bundle();
-          if (oldItem.isLiked() != newItem.isLiked())
-            payload.putBoolean("liked", newItem.isLiked());
-          if (oldItem.getLikeCount() != newItem.getLikeCount())
-            payload.putLong("likeCount", newItem.getLikeCount());
-          if (oldItem.isReposted() != newItem.isReposted())
-            payload.putBoolean("reposted", newItem.isReposted());
-          if (oldItem.getRepostCount() != newItem.getRepostCount())
-            payload.putLong("repostCount", newItem.getRepostCount());
-          if (oldItem.isBookmarked() != newItem.isBookmarked())
-            payload.putBoolean("bookmarked", newItem.isBookmarked());
-          if (oldItem.getBookmarkCount() != newItem.getBookmarkCount())
-            payload.putLong("bookmarkCount", newItem.getBookmarkCount());
-          if (oldItem.getReplyCount() != newItem.getReplyCount())
-            payload.putLong("replyCount", newItem.getReplyCount());
-          return payload.isEmpty() ? null : payload;
-        }
-      };
+            @Nullable
+            @Override
+            public Object getChangePayload(@NonNull PostModel oldItem, @NonNull PostModel newItem) {
+              Bundle payload = new Bundle();
+              if (oldItem.isLiked() != newItem.isLiked()) payload.putBoolean("liked", newItem.isLiked());
+              if (oldItem.getLikeCount() != newItem.getLikeCount())
+                payload.putLong("likeCount", newItem.getLikeCount());
+              if (oldItem.isReposted() != newItem.isReposted())
+                payload.putBoolean("reposted", newItem.isReposted());
+              if (oldItem.getRepostCount() != newItem.getRepostCount())
+                payload.putLong("repostCount", newItem.getRepostCount());
+              if (oldItem.isBookmarked() != newItem.isBookmarked())
+                payload.putBoolean("bookmarked", newItem.isBookmarked());
+              if (oldItem.getBookmarkCount() != newItem.getBookmarkCount())
+                payload.putLong("bookmarkCount", newItem.getBookmarkCount());
+              if (oldItem.getReplyCount() != newItem.getReplyCount())
+                payload.putLong("replyCount", newItem.getReplyCount());
+              return payload.isEmpty() ? null : payload;
+            }
+          };
 
   public PostAdapter(Context context, PostInteractionListener listener) {
     this.context = context;
@@ -121,9 +121,6 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
   public int getItemViewType(int position) {
     Object item = items.get(position);
     if (item instanceof PostModel) {
-      PostModel post = (PostModel) item;
-      if (post.isImagePost()) return TYPE_IMAGE_POST;
-      if (post.isVideoPost()) return TYPE_VIDEO_POST;
       return TYPE_POST;
     }
     return TYPE_SUGGESTION;
@@ -133,21 +130,10 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
   @Override
   public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
     LayoutInflater inflater = LayoutInflater.from(parent.getContext());
-    switch (viewType) {
-      case TYPE_IMAGE_POST:
-        // استدعاء المُنشئ الصحيح لـ ImagePostViewHolder الذي يرث من BasePostViewHolder
-        return new ImagePostViewHolder(inflater.inflate(R.layout.item_post_image, parent, false), listener, context);
-      case TYPE_VIDEO_POST:
-        // استدعاء المُنشئ الصحيح لـ VideoPostViewHolder الذي يرث من BasePostViewHolder
-        return new VideoPostViewHolder(inflater.inflate(R.layout.item_post_video, parent, false), listener, context);
-      case TYPE_POST:
-        // استدعاء المُنشئ الصحيح لـ PostViewHolder الذي يرث من BasePostViewHolder
-        return new PostViewHolder(inflater.inflate(R.layout.item_post, parent, false), listener, context);
-      case TYPE_SUGGESTION:
-      default:
-        return new UserSuggestionViewHolder(
-            inflater.inflate(R.layout.item_user_suggestion, parent, false));
+    if (viewType == TYPE_POST) {
+      return new PostViewHolder(inflater.inflate(R.layout.item_post, parent, false), listener, context);
     }
+    return new UserSuggestionViewHolder(inflater.inflate(R.layout.item_user_suggestion, parent, false));
   }
 
   @Override
@@ -155,31 +141,38 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     return items.size();
   }
 
-  // جعل PostViewHolder يرث من BasePostViewHolder
-  class PostViewHolder extends BasePostViewHolder {
-    // لم تعد بحاجة لـ interactionHandler هنا، لأنه في BasePostViewHolder
+  @Override
+  public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+    Object item = items.get(position);
+    if (holder instanceof PostViewHolder && item instanceof PostModel) {
+      ((PostViewHolder) holder).bindCommon((PostModel) item);
+    } else if (holder instanceof UserSuggestionViewHolder && item instanceof UserModel) {
+      ((UserSuggestionViewHolder) holder).bind((UserModel) item, listener);
+    }
+  }
+
+  public static class PostViewHolder extends BasePostViewHolder {
     private final CircleImageView ivAuthorAvatar;
     private final TextView tvAuthorName, tvUsername, tvTimestamp, tvPostContent;
     private final TextView tvLikeCount, tvCommentCount, tvRepostCount, tvBookmarkCount;
     private final ImageButton btnLike, btnComment, btnRepost, btnBookmark, btnMenu;
     private final RecyclerView rvMedia;
     private final TextView tvMediaCounter;
-    private final CardView mediaContainer;
-    private final ImageView ivMediaTypeIndicator;
-    private final View layoutLinkPreview;
-    private final ImageView ivLinkImage;
-    private final FrameLayout videoLayout;
+    private final FrameLayout mediaContainer;
+    private final RelativeLayout videoLayout;
     private final ImageView ivVideoThumbnail;
     private final ImageButton btnPlay;
-    private final LinearLayout postLayout;
+    private final TextView tvVideoDuration;
+    private final ConstraintLayout postLayout;
+    private final View layoutLinkPreview;
+    private final ImageView ivLinkImage;
     private final TextView tvLinkTitle, tvLinkDescription, tvLinkDomain;
     private PostMediaAdapter mediaAdapter;
+    private final SnapHelper snapHelper = new PagerSnapHelper();
+
 
     PostViewHolder(@NonNull View itemView, PostInteractionListener listener, Context context) {
-      super(itemView, listener, context); // استدعاء مُنشئ BasePostViewHolder
-
-      // لا داعي لتهيئة interactionHandler هنا، فهو في BasePostViewHolder
-      // ولا داعي لتهيئة this.context و this.listener هنا، فهو في BasePostViewHolder
+      super(itemView, listener, context);
 
       ivAuthorAvatar = itemView.findViewById(R.id.ivAuthorAvatar);
       tvAuthorName = itemView.findViewById(R.id.tvAuthorName);
@@ -187,18 +180,21 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
       tvTimestamp = itemView.findViewById(R.id.tvTimestamp);
       tvPostContent = itemView.findViewById(R.id.tvPostContent);
       postLayout = itemView.findViewById(R.id.postLayout);
-      videoLayout = itemView.findViewById(R.id.videoLayout);
+
       mediaContainer = itemView.findViewById(R.id.mediaContainer);
+      rvMedia = itemView.findViewById(R.id.rvMedia);
+      videoLayout = itemView.findViewById(R.id.videoLayout);
       ivVideoThumbnail = itemView.findViewById(R.id.ivVideoThumbnail);
       btnPlay = itemView.findViewById(R.id.btnPlay);
-      rvMedia = itemView.findViewById(R.id.rvMedia);
+      tvVideoDuration = itemView.findViewById(R.id.tvVideoDuration);
       tvMediaCounter = itemView.findViewById(R.id.tvMediaCounter);
-      ivMediaTypeIndicator = itemView.findViewById(R.id.ivMediaTypeIndicator);
+
       layoutLinkPreview = itemView.findViewById(R.id.layoutLinkPreview);
-      ivLinkImage = itemView.findViewById(R.id.ivLinkImage);
-      tvLinkTitle = itemView.findViewById(R.id.tvLinkTitle);
-      tvLinkDescription = itemView.findViewById(R.id.tvLinkDescription);
-      tvLinkDomain = itemView.findViewById(R.id.tvLinkDomain);
+      ivLinkImage = layoutLinkPreview.findViewById(R.id.ivLinkImage);
+      tvLinkTitle = layoutLinkPreview.findViewById(R.id.tvLinkTitle);
+      tvLinkDescription = layoutLinkPreview.findViewById(R.id.tvLinkDescription);
+      tvLinkDomain = layoutLinkPreview.findViewById(R.id.tvLinkDomain);
+
       btnLike = itemView.findViewById(R.id.btnLike);
       btnComment = itemView.findViewById(R.id.btnComment);
       btnRepost = itemView.findViewById(R.id.btnRepost);
@@ -210,27 +206,25 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
       tvBookmarkCount = itemView.findViewById(R.id.tvBookmarkCount);
 
       mediaAdapter =
-          new PostMediaAdapter(
-              Collections.emptyList(),
-              new PostMediaAdapter.ImageInteractionListener() {
-                @Override
-                public void onImageClicked(String imageUrl, int position) {
-                  if (listener != null) {
-                    List<String> items = mediaAdapter.getImageUrls();
-                    listener.onMediaClicked(new ArrayList<>(items), position);
-                  }
-                }
-              });
+              new PostMediaAdapter(
+                      Collections.emptyList(),
+                      new PostMediaAdapter.ImageInteractionListener() {
+                        @Override
+                        public void onImageClicked(String imageUrl, int position) {
+                          if (listener != null) {
+                            List<String> items = mediaAdapter.getImageUrls();
+                            listener.onMediaClicked(new ArrayList<>(items), position);
+                          }
+                        }
+                      });
 
       LinearLayoutManager layoutManager =
-          new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false);
+              new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false);
       rvMedia.setLayoutManager(layoutManager);
       rvMedia.setAdapter(mediaAdapter);
-      new PagerSnapHelper().attachToRecyclerView(rvMedia);
-      // interactionHandler تم تهيئته في BasePostViewHolder
+      snapHelper.attachToRecyclerView(rvMedia);
     }
 
-    // استخدام bindCommon بدلاً من bind مباشرة للتماثل مع الفئات الأخرى
     @Override
     public void bindCommon(PostModel post) {
       tvAuthorName.setText(post.getAuthorDisplayName());
@@ -238,21 +232,28 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
       tvTimestamp.setText(getRelativeTime(post.getCreatedAt()));
 
       Glide.with(itemView.getContext())
-          .load(post.getAuthorAvatarUrl())
-          .diskCacheStrategy(DiskCacheStrategy.ALL)
-          .placeholder(R.drawable.ic_default_avatar)
-          .error(R.drawable.ic_default_avatar)
-          .into(ivAuthorAvatar);
+              .load(post.getAuthorAvatarUrl())
+              .diskCacheStrategy(DiskCacheStrategy.ALL)
+              .placeholder(R.drawable.ic_default_avatar)
+              .error(R.drawable.ic_default_avatar)
+              .into(ivAuthorAvatar);
 
-      itemView
-          .findViewById(R.id.ivVerified)
-          .setVisibility(post.isAuthorVerified() ? View.VISIBLE : View.GONE);
+      itemView.findViewById(R.id.ivVerified).setVisibility(post.isAuthorVerified() ? View.VISIBLE : View.GONE);
       applyTextStyling(tvPostContent, post.getContent(), post);
 
-      if (post.isVideoPost()) {
+      // الحصول على قائمة الوسائط مرة واحدة والتحقق منها هنا
+      List<String> mediaUrls = post.getMediaUrls();
+
+      if (post.isImagePost() && mediaUrls != null && !mediaUrls.isEmpty()) {
+        mediaContainer.setVisibility(View.VISIBLE);
+        rvMedia.setVisibility(View.VISIBLE);
+        videoLayout.setVisibility(View.GONE);
+        updateMedia(mediaUrls);
+      } else if (post.isVideoPost() && mediaUrls != null && !mediaUrls.isEmpty()) {
+        mediaContainer.setVisibility(View.VISIBLE);
+        rvMedia.setVisibility(View.GONE);
+        videoLayout.setVisibility(View.VISIBLE);
         setupVideoPost(post);
-      } else if (post.isImagePost()) {
-        setupImagePost(post);
       } else {
         mediaContainer.setVisibility(View.GONE);
       }
@@ -266,7 +267,6 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
       updateButtonState(btnRepost, post.isReposted(), R.drawable.ic_repost_filled);
       updateButtonState(btnBookmark, post.isBookmarked(), R.drawable.ic_bookmark_filled);
 
-      updateMedia(post.getMediaUrls());
       setupLinkPreview(post.getLinkPreviews());
       setupClickListeners(post);
       interactionHandler.bind(post);
@@ -298,8 +298,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private void applyTextStyling(TextView textView, String content, PostModel post) {
       if (post.getCachedSpannable() == null) {
         SpannableStringBuilder spannableBuilder = new SpannableStringBuilder();
-        String displayContent =
-            post.isTranslated() ? post.getTranslatedContent() : post.getContent();
+        String displayContent = post.isTranslated() ? post.getTranslatedContent() : post.getContent();
 
         if (!post.isExpanded() && displayContent.length() > 300) {
           String truncated = displayContent.substring(0, 300) + "... ";
@@ -309,18 +308,18 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
           SpannableString seeMore = new SpannableString(context.getString(R.string.see_more));
           ClickableSpan seeMoreSpan =
-              new ClickableSpan() {
-                @Override
-                public void onClick(@NonNull View widget) {
-                  if (listener != null) listener.onSeeMoreClicked(post);
-                }
+                  new ClickableSpan() {
+                    @Override
+                    public void onClick(@NonNull View widget) {
+                      if (listener != null) listener.onSeeMoreClicked(post);
+                    }
 
-                @Override
-                public void updateDrawState(@NonNull TextPaint ds) {
-                  ds.setColor(ContextCompat.getColor(context, R.color.primary));
-                  ds.setUnderlineText(false);
-                }
-              };
+                    @Override
+                    public void updateDrawState(@NonNull TextPaint ds) {
+                      ds.setColor(ContextCompat.getColor(context, R.color.primary));
+                      ds.setUnderlineText(false);
+                    }
+                  };
           seeMore.setSpan(seeMoreSpan, 0, seeMore.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
           spannableBuilder.append(seeMore);
         } else {
@@ -333,38 +332,37 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         if (!post.isTranslated()) {
           translateSpanText = new SpannableString(" • " + context.getString(R.string.translate));
           ClickableSpan translateSpan =
-              new ClickableSpan() {
-                @Override
-                public void onClick(@NonNull View widget) {
-                  if (listener != null) listener.onTranslateClicked(post);
-                }
+                  new ClickableSpan() {
+                    @Override
+                    public void onClick(@NonNull View widget) {
+                      if (listener != null) listener.onTranslateClicked(post);
+                    }
 
-                @Override
-                public void updateDrawState(@NonNull TextPaint ds) {
-                  ds.setColor(ContextCompat.getColor(context, R.color.primary));
-                  ds.setUnderlineText(false);
-                }
-              };
+                    @Override
+                    public void updateDrawState(@NonNull TextPaint ds) {
+                      ds.setColor(ContextCompat.getColor(context, R.color.primary));
+                      ds.setUnderlineText(false);
+                    }
+                  };
           translateSpanText.setSpan(
-              translateSpan, 3, translateSpanText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                  translateSpan, 3, translateSpanText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         } else {
-          translateSpanText =
-              new SpannableString(" • " + context.getString(R.string.show_original));
+          translateSpanText = new SpannableString(" • " + context.getString(R.string.show_original));
           ClickableSpan originalSpan =
-              new ClickableSpan() {
-                @Override
-                public void onClick(@NonNull View widget) {
-                  if (listener != null) listener.onShowOriginalClicked(post);
-                }
+                  new ClickableSpan() {
+                    @Override
+                    public void onClick(@NonNull View widget) {
+                      if (listener != null) listener.onShowOriginalClicked(post);
+                    }
 
-                @Override
-                public void updateDrawState(@NonNull TextPaint ds) {
-                  ds.setColor(ContextCompat.getColor(context, R.color.primary));
-                  ds.setUnderlineText(false);
-                }
-              };
+                    @Override
+                    public void updateDrawState(@NonNull TextPaint ds) {
+                      ds.setColor(ContextCompat.getColor(context, R.color.primary));
+                      ds.setUnderlineText(false);
+                    }
+                  };
           translateSpanText.setSpan(
-              originalSpan, 3, translateSpanText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                  originalSpan, 3, translateSpanText.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
         }
         spannableBuilder.append(translateSpanText);
 
@@ -382,29 +380,29 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int end = matcher.end();
 
         spannable.setSpan(
-            new ForegroundColorSpan(ContextCompat.getColor(context, R.color.primary)),
-            start,
-            end,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                new ForegroundColorSpan(ContextCompat.getColor(context, R.color.primary)),
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         spannable.setSpan(
-            new ClickableSpan() {
-              @Override
-              public void onClick(@NonNull View widget) {
-                if (listener != null) {
-                  listener.onHashtagClicked(matcher.group(1));
-                }
-              }
+                new ClickableSpan() {
+                  @Override
+                  public void onClick(@NonNull View widget) {
+                    if (listener != null) {
+                      listener.onHashtagClicked(matcher.group(1));
+                    }
+                  }
 
-              @Override
-              public void updateDrawState(@NonNull TextPaint ds) {
-                super.updateDrawState(ds);
-                ds.setUnderlineText(false);
-              }
-            },
-            start,
-            end,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                  @Override
+                  public void updateDrawState(@NonNull TextPaint ds) {
+                    super.updateDrawState(ds);
+                    ds.setUnderlineText(false);
+                  }
+                },
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
       }
     }
 
@@ -415,94 +413,87 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         int end = matcher.end();
 
         spannable.setSpan(
-            new ForegroundColorSpan(ContextCompat.getColor(context, R.color.link_color)),
-            start,
-            end,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                new ForegroundColorSpan(ContextCompat.getColor(context, R.color.link_color)),
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
 
         final String url = spannable.subSequence(start, end).toString();
         spannable.setSpan(
-            new ClickableSpan() {
-              @Override
-              public void onClick(@NonNull View widget) {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                context.startActivity(intent);
-              }
+                new ClickableSpan() {
+                  @Override
+                  public void onClick(@NonNull View widget) {
+                    Intent intent = new Intent(context, InAppBrowserActivity.class);
+                    intent.putExtra(InAppBrowserActivity.EXTRA_URL, url);
 
-              @Override
-              public void updateDrawState(@NonNull TextPaint ds) {
-                super.updateDrawState(ds);
-                ds.setUnderlineText(false);
-              }
-            },
-            start,
-            end,
-            Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+                    ActivityOptions options =
+                            ActivityOptions.makeCustomAnimation(
+                                    context, android.R.anim.fade_in, android.R.anim.fade_out);
+                    context.startActivity(intent, options.toBundle());
+                  }
+
+                  @Override
+                  public void updateDrawState(@NonNull TextPaint ds) {
+                    super.updateDrawState(ds);
+                    ds.setUnderlineText(false);
+                  }
+                },
+                start,
+                end,
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
       }
     }
 
     private void setupVideoPost(PostModel post) {
-      mediaContainer.setVisibility(View.VISIBLE);
-      rvMedia.setVisibility(View.GONE);
-      videoLayout.setVisibility(View.VISIBLE);
-
       String videoUrl = post.getFirstMediaUrl();
       Glide.with(context)
-          .load(videoUrl)
-          .placeholder(R.drawable.ic_video_placeholder)
-          .into(ivVideoThumbnail);
+              .load(videoUrl)
+              .placeholder(R.drawable.ic_video_placeholder)
+              .into(ivVideoThumbnail);
+
+      if (post.getVideoDuration() > 0) {
+        tvVideoDuration.setText(formatDuration(post.getVideoDuration()));
+        tvVideoDuration.setVisibility(View.VISIBLE);
+      } else {
+        tvVideoDuration.setVisibility(View.GONE);
+      }
 
       btnPlay.setOnClickListener(
-          v -> {
-            if (listener != null) listener.onVideoPlayClicked(videoUrl);
-          });
+              v -> {
+                if (listener != null) listener.onVideoPlayClicked(videoUrl);
+              });
     }
 
-    private void setupImagePost(PostModel post) {
-      mediaContainer.setVisibility(View.VISIBLE);
-      videoLayout.setVisibility(View.GONE);
-      rvMedia.setVisibility(View.VISIBLE);
-
-      updateMedia(post.getMediaUrls());
+    private String formatDuration(long milliseconds) {
+      long seconds = milliseconds / 1000;
+      return String.format("%02d:%02d", (seconds % 3600) / 60, seconds % 60);
     }
 
     private void updateMedia(List<String> mediaUrls) {
       List<String> validUrls =
-          mediaUrls != null
-              ? mediaUrls.stream()
-                  .filter(url -> url != null && !url.isEmpty())
-                  .collect(Collectors.toList())
-              : Collections.emptyList();
-
-      View mediaContainer = itemView.findViewById(R.id.mediaContainer);
-      mediaContainer.setVisibility(validUrls.isEmpty() ? View.GONE : View.VISIBLE);
+              mediaUrls != null
+                      ? mediaUrls.stream()
+                      .filter(url -> url != null && !url.isEmpty())
+                      .collect(Collectors.toList())
+                      : Collections.emptyList();
 
       if (!validUrls.isEmpty()) {
         mediaAdapter.updateUrls(validUrls);
         tvMediaCounter.setVisibility(validUrls.size() > 1 ? View.VISIBLE : View.GONE);
 
         rvMedia.addOnScrollListener(
-            new RecyclerView.OnScrollListener() {
-              @Override
-              public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                LinearLayoutManager layoutManager =
-                    (LinearLayoutManager) recyclerView.getLayoutManager();
-                int currentPosition = layoutManager.findFirstVisibleItemPosition() + 1;
-                tvMediaCounter.setText(currentPosition + "/" + validUrls.size());
-              }
-            });
+                new RecyclerView.OnScrollListener() {
+                  @Override
+                  public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                    super.onScrolled(recyclerView, dx, dy);
+                    LinearLayoutManager layoutManager =
+                            (LinearLayoutManager) recyclerView.getLayoutManager();
+                    int currentPosition = layoutManager.findFirstVisibleItemPosition() + 1;
+                    tvMediaCounter.setText(currentPosition + "/" + validUrls.size());
+                  }
+                });
 
         tvMediaCounter.setText("1/" + validUrls.size());
-
-        boolean hasVideo =
-            validUrls.stream()
-                .anyMatch(
-                    url -> PostModel.VIDEO_EXTENSIONS.contains(PostModel.getFileExtension(url)));
-        ivMediaTypeIndicator.setVisibility(hasVideo ? View.VISIBLE : View.GONE);
-        if (hasVideo) {
-            ivMediaTypeIndicator.setImageResource(R.drawable.ic_video_placeholder);
-        }
       }
     }
 
@@ -520,7 +511,7 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
       layoutLinkPreview.setVisibility(View.VISIBLE);
       tvLinkTitle.setText(
-          firstPreview.getTitle() != null ? firstPreview.getTitle() : "Link Preview");
+              firstPreview.getTitle() != null ? firstPreview.getTitle() : "Link Preview");
 
       if (firstPreview.getDescription() != null && !firstPreview.getDescription().isEmpty()) {
         tvLinkDescription.setText(firstPreview.getDescription());
@@ -529,111 +520,117 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         tvLinkDescription.setVisibility(View.GONE);
       }
 
-      tvLinkDomain.setText(Uri.parse(firstPreview.getUrl()).getHost());
+      String domain = null;
+      try {
+        Uri uri = Uri.parse(firstPreview.getUrl());
+        if (uri != null) {
+          domain = uri.getHost();
+        }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+      tvLinkDomain.setText(domain != null ? domain : "");
 
       if (firstPreview.getImageUrl() != null) {
         Glide.with(context)
-            .load(firstPreview.getImageUrl())
-            .placeholder(R.drawable.ic_cover_placeholder)
-            .into(ivLinkImage);
+                .load(firstPreview.getImageUrl())
+                .placeholder(R.drawable.ic_cover_placeholder)
+                .into(ivLinkImage);
       } else {
         Glide.with(context).load(R.drawable.ic_cover_placeholder).into(ivLinkImage);
       }
 
       layoutLinkPreview.setOnClickListener(
-          v -> {
-            String url = null;
-
-            try {
-              url = firstPreview.getUrl();
-
-              if (url == null || url.isEmpty()) {
-                Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show();
-                return;
-              }
-
-              Intent intent = new Intent(context, InAppBrowserActivity.class);
-              intent.putExtra(InAppBrowserActivity.EXTRA_URL, url);
-
-              ActivityOptions options =
-                  ActivityOptions.makeCustomAnimation(
-                      context, android.R.anim.fade_in, android.R.anim.fade_out);
-              context.startActivity(intent, options.toBundle());
-
-            } catch (ActivityNotFoundException e) {
-              if (url != null) {
-                Intent fallbackIntent =
-                    new Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        .addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                                | Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER);
-
+              v -> {
+                String url = null;
                 try {
-                  context.startActivity(fallbackIntent);
-                } catch (ActivityNotFoundException ex) {
-                  Toast.makeText(context, "No browser installed", Toast.LENGTH_SHORT).show();
+                  url = firstPreview.getUrl();
+
+                  if (url == null || url.isEmpty()) {
+                    Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show();
+                    return;
+                  }
+
+                  Intent intent = new Intent(context, InAppBrowserActivity.class);
+                  intent.putExtra(InAppBrowserActivity.EXTRA_URL, url);
+
+                  ActivityOptions options =
+                          ActivityOptions.makeCustomAnimation(
+                                  context, android.R.anim.fade_in, android.R.anim.fade_out);
+                  context.startActivity(intent, options.toBundle());
+
+                } catch (ActivityNotFoundException e) {
+                  if (url != null) {
+                    Intent fallbackIntent =
+                            new Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER);
+
+                    try {
+                      context.startActivity(fallbackIntent);
+                    } catch (ActivityNotFoundException ex) {
+                      Toast.makeText(context, "No browser installed", Toast.LENGTH_SHORT).show();
+                    }
+                  } else {
+                    Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show();
+                  }
+                } catch (Exception e) {
+                  Toast.makeText(context, "Error opening link", Toast.LENGTH_SHORT).show();
                 }
-              } else {
-                Toast.makeText(context, "Invalid URL", Toast.LENGTH_SHORT).show();
-              }
-            } catch (Exception e) {
-              Toast.makeText(context, "Error opening link", Toast.LENGTH_SHORT).show();
-            }
-          });
+              });
     }
 
     private void setupClickListeners(PostModel post) {
       ivAuthorAvatar.setOnClickListener(
-          v -> {
-            Intent intent = new Intent(context, ProfileActivity.class);
-            intent.putExtra("userId", post.getAuthorId());
-            context.startActivity(intent);
-          });
+              v -> {
+                Intent intent = new Intent(context, ProfileActivity.class);
+                intent.putExtra("userId", post.getAuthorId());
+                context.startActivity(intent);
+              });
 
       postLayout.setOnClickListener(
-          v -> {
-            if (listener != null) listener.onLayoutClicked(post);
-          });
+              v -> {
+                if (listener != null) listener.onLayoutClicked(post);
+              });
 
       btnLike.setOnClickListener(
-          v -> {
-            post.toggleLike();
-            updateButtonState(btnLike, post.isLiked(), R.drawable.ic_like_filled);
-            tvLikeCount.setText(formatCount(post.getLikeCount()));
-            if (listener != null) listener.onLikeClicked(post);
-          });
+              v -> {
+                post.toggleLike();
+                updateButtonState(btnLike, post.isLiked(), R.drawable.ic_like_filled);
+                tvLikeCount.setText(formatCount(post.getLikeCount()));
+                if (listener != null) listener.onLikeClicked(post);
+              });
 
       btnRepost.setOnClickListener(
-          v -> {
-            post.toggleRepost();
-            updateButtonState(btnRepost, post.isReposted(), R.drawable.ic_repost_filled);
-            tvRepostCount.setText(formatCount(post.getRepostCount()));
-            if (listener != null) listener.onRepostClicked(post);
-          });
+              v -> {
+                post.toggleRepost();
+                updateButtonState(btnRepost, post.isReposted(), R.drawable.ic_repost_filled);
+                tvRepostCount.setText(formatCount(post.getRepostCount()));
+                if (listener != null) listener.onRepostClicked(post);
+              });
 
       btnBookmark.setOnClickListener(
-          v -> {
-            post.toggleBookmark();
-            updateButtonState(btnBookmark, post.isBookmarked(), R.drawable.ic_bookmark_filled);
-            tvBookmarkCount.setText(formatCount(post.getBookmarkCount()));
-            if (listener != null) listener.onBookmarkClicked(post);
-          });
+              v -> {
+                post.toggleBookmark();
+                updateButtonState(btnBookmark, post.isBookmarked(), R.drawable.ic_bookmark_filled);
+                tvBookmarkCount.setText(formatCount(post.getBookmarkCount()));
+                if (listener != null) listener.onBookmarkClicked(post);
+              });
 
       btnComment.setOnClickListener(
-          v -> {
-            if (listener != null) listener.onCommentClicked(post);
-          });
+              v -> {
+                if (listener != null) listener.onCommentClicked(post);
+              });
 
       btnMenu.setOnClickListener(
-          v -> {
-            if (listener != null) listener.onMenuClicked(post, v);
-          });
+              v -> {
+                if (listener != null) listener.onMenuClicked(post, v);
+              });
 
       itemView.setOnLongClickListener(
-          v -> {
-            if (listener != null) listener.onPostLongClicked(post);
-            return true;
-          });
+              v -> {
+                if (listener != null) listener.onPostLongClicked(post);
+                return true;
+              });
     }
 
     private void updateButtonState(ImageButton button, boolean isActive, int filledRes) {
@@ -675,100 +672,8 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     private String getRelativeTime(Date date) {
       long now = System.currentTimeMillis();
       return DateUtils.getRelativeTimeSpanString(
-              date.getTime(), now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
-          .toString();
-    }
-  }
-
-  class ImagePostViewHolder extends BasePostViewHolder {
-    private final RecyclerView rvMedia;
-    private final TextView tvMediaCounter;
-    private PostMediaAdapter mediaAdapter;
-
-    ImagePostViewHolder(@NonNull View itemView, PostInteractionListener listener, Context context) {
-      super(itemView, listener, context); // استدعاء مُنشئ BasePostViewHolder
-
-      rvMedia = itemView.findViewById(R.id.rvMedia);
-      tvMediaCounter = itemView.findViewById(R.id.tvMediaCounter);
-
-      mediaAdapter =
-          new PostMediaAdapter(
-              Collections.emptyList(),
-              new PostMediaAdapter.ImageInteractionListener() {
-                @Override
-                public void onImageClicked(String imageUrl, int position) {
-                  if (listener != null) {
-                    listener.onMediaClicked(
-                        new ArrayList<>(mediaAdapter.getImageUrls()), position);
-                  }
-                }
-              });
-
-      LinearLayoutManager layoutManager =
-          new LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false);
-      rvMedia.setLayoutManager(layoutManager);
-      rvMedia.setAdapter(mediaAdapter);
-      new PagerSnapHelper().attachToRecyclerView(rvMedia);
-    }
-
-    @Override
-    public void bindCommon(PostModel post) {
-      interactionHandler.bind(post);
-      updateMedia(post.getMediaUrls());
-    }
-
-    private void updateMedia(List<String> mediaUrls) {
-      List<String> validUrls =
-          mediaUrls.stream()
-              .filter(url -> url != null && !url.isEmpty())
-              .collect(Collectors.toList());
-
-      if (!validUrls.isEmpty()) {
-        mediaAdapter.updateUrls(validUrls);
-        tvMediaCounter.setVisibility(validUrls.size() > 1 ? View.VISIBLE : View.GONE);
-
-        rvMedia.addOnScrollListener(
-            new RecyclerView.OnScrollListener() {
-              @Override
-              public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                LinearLayoutManager layoutManager =
-                    (LinearLayoutManager) recyclerView.getLayoutManager();
-                int currentPosition = layoutManager.findFirstVisibleItemPosition() + 1;
-                tvMediaCounter.setText(currentPosition + "/" + validUrls.size());
-              }
-            });
-        tvMediaCounter.setText("1/" + validUrls.size());
-      }
-    }
-  }
-
-  class VideoPostViewHolder extends BasePostViewHolder {
-    private final FrameLayout videoLayout;
-    private final ImageView ivVideoThumbnail;
-    private final ImageButton btnPlay;
-
-    VideoPostViewHolder(@NonNull View itemView, PostInteractionListener listener, Context context) {
-      super(itemView, listener, context); // استدعاء مُنشئ BasePostViewHolder
-
-      videoLayout = itemView.findViewById(R.id.videoLayout);
-      ivVideoThumbnail = itemView.findViewById(R.id.ivVideoThumbnail);
-      btnPlay = itemView.findViewById(R.id.btnPlay);
-    }
-
-    @Override
-    public void bindCommon(PostModel post) {
-      interactionHandler.bind(post);
-      String videoUrl = post.getFirstMediaUrl();
-      Glide.with(context)
-          .load(videoUrl)
-          .placeholder(R.drawable.ic_video_placeholder)
-          .into(ivVideoThumbnail);
-
-      btnPlay.setOnClickListener(
-          v -> {
-            if (listener != null) listener.onVideoPlayClicked(videoUrl);
-          });
+                      date.getTime(), now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)
+              .toString();
     }
   }
 
@@ -790,27 +695,12 @@ public class PostAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
       displayName.setText(user.getDisplayName());
 
       Glide.with(itemView)
-          .load(user.getProfileImageUrl())
-          .placeholder(R.drawable.ic_default_avatar)
-          .into(profileImage);
+              .load(user.getProfileImageUrl())
+              .placeholder(R.drawable.ic_default_avatar)
+              .into(profileImage);
 
       followButton.setOnClickListener(v -> listener.onFollowClicked(user));
       itemView.setOnClickListener(v -> listener.onUserClicked(user));
-    }
-  }
-
-  @Override
-  public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-    Object item = items.get(position);
-    if (holder instanceof PostViewHolder && item instanceof PostModel) {
-      ((PostViewHolder) holder).bindCommon((PostModel) item); // استخدام bindCommon
-    } else if (holder instanceof ImagePostViewHolder && item instanceof PostModel) {
-        ((ImagePostViewHolder) holder).bindCommon((PostModel) item);
-    } else if (holder instanceof VideoPostViewHolder && item instanceof PostModel) {
-        ((VideoPostViewHolder) holder).bindCommon((PostModel) item);
-    }
-    else if (holder instanceof UserSuggestionViewHolder && item instanceof UserModel) {
-      ((UserSuggestionViewHolder) holder).bind((UserModel) item, listener);
     }
   }
 

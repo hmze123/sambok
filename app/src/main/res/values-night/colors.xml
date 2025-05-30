@@ -1,33 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Midnight Gray Theme -->
-    <color name="primary">#FF2D55</color> <!-- Vibrant amber -->
-    <color name="secondary">#03DAC6</color> <!-- Medium gray -->
-    <color name="background">#121212</color> <!-- True black base -->
-    <color name="surface">#1E1E1E</color> <!-- Elevated surfaces -->
-    <color name="text_primary">#FFFFFF</color> <!-- Pure white text -->
-    <color name="text_secondary">#BDBDBD</color> <!-- Soft gray text -->
+    <color name="primary">#BB86FC</color> <color name="secondary">#03DAC6</color> <color name="background">#121212</color> <color name="surface">#1F1F1F</color> <color name="text_primary">#FFFFFF</color> <color name="text_secondary">#B0B0B0</color> <color name="card_bg">#2C2C2C</color> <color name="nav_background_stroke">#3A3A3A</color> <color name="divider">#3A3A3A</color> <color name="link_color">#64B5F6</color> <color name="error_red">#CF6679</color>
+    <color name="red">#EF5350</color> <color name="yellow">#FFEE58</color> <color name="green">#66BB6A</color> <color name="white">#FFFFFF</color> <color name="grey">#7B7B7B</color> <color name="sent_message_bg">#3F51B5</color> <color name="received_message_bg">#424242</color> <color name="sent_message_text">#FFFFFF</color> <color name="received_message_text">#FFFFFF</color> <color name="twitter_primary">#1D9BF0</color>
+    <color name="twitter_background">#000000</color>
+    <color name="twitter_surface">#121212</color>
 
-    <!-- Component Colors -->
-    <color name="card_bg">#252525</color> <!-- Card background -->
-    <color name="nav_background_stroke">#33FFFFFF</color>
-    <color name="divider">#2A2A2A</color> <!-- Subtle dividers -->
-    <color name="link_color">#FFC107</color> <!-- Amber for links -->
+    <color name="ic_launcher_background">@color/background</color>
+    <color name="ic_launcher_foreground">@color/primary</color>
 
-    <!-- Functional Colors -->
-    <color name="error_red">#FF6E6E</color>
-    <color name="red">#FF7043</color> <!-- Amber-red -->
-    <color name="yellow">#FFD600</color> <!-- Bright yellow -->
-    <color name="green">#81C784</color> <!-- Soft green -->
-    <color name="white">#EEEEEE</color> <!-- Off-white -->
-    <color name="grey">#616161</color>
+    <color name="blue">#64B5F6</color> <color name="warning_orange">#FFB74D</color>
+    <color name="m3_primary">@color/primary</color>
+    <color name="m3_surface_container_highest">#424242</color>
 
-    <!-- Dark Mode Message Bubbles -->
-    <color name="sent_message_bg">#1E3A5F</color> <!-- Deep navy blue -->
-    <color name="received_message_bg">#2A2A2A</color> <!-- Dark gray -->
-    <color name="sent_message_text">#BBDEFB</color> <!-- Light blue text -->
-    <color name="received_message_text">#F5F5F5</color> <!-- Light gray/white text -->
+    <color name="poll_progress">@color/green</color>
+    <color name="message_time">@color/text_secondary</color>
+    <color name="poll_stroke">@color/text_secondary</color>
+    <color name="poll_expired">@color/text_secondary</color>
+    <color name="sender_name">@color/text_secondary</color>
+    <color name="reply_preview_text">@color/text_secondary</color>
 
-    <color name="ic_launcher_background">#212121</color>
-    <color name="ic_launcher_foreground">#FF2D55</color>
 </resources>

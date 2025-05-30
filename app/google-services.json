@@ -1,66 +1,26 @@
 {
   "project_info": {
-    "project_number": "627904740884",
-    "firebase_url": "https://anirealm-af84e-default-rtdb.firebaseio.com",
-    "project_id": "anirealm-af84e",
-    "storage_bucket": "anirealm-af84e.appspot.com"
+    "project_number": "33028588720",
+    "project_id": "starry-app-8d8cb",
+    "storage_bucket": "starry-app-8d8cb.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:627904740884:android:4ec771a813bcf287a03101",
-        "android_client_info": {
-          "package_name": "com.spidroid.horizon"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDE9L6KgL5-I4sMvNKd2oMcunF-F1Ad0XE"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:627904740884:android:cd188517fef687f6a03101",
+        "mobilesdk_app_id": "1:33028588720:android:cb68229c9be07bc6f16775",
         "android_client_info": {
           "package_name": "com.spidroid.starry"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDE9L6KgL5-I4sMvNKd2oMcunF-F1Ad0XE"
+          "current_key": "AIzaSyAEY-mfNUQ0WFbCBi9pD7gRCjsjOdtoP40"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "627904740884-b29rcvr6k9vu9dcj7dsl8bq8vaaie3dm.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

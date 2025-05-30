@@ -25,7 +25,7 @@ public class UserModel implements Parcelable {
   public static final String SOCIAL_FACEBOOK = "facebook";
   public static final String SOCIAL_LINKEDIN = "linkedin";
   private static final Pattern URL_PATTERN =
-      Pattern.compile("^(https?://)?([\\w-]+\\.)+[\\w-]+(/\\S*)?$");
+          Pattern.compile("^(https?://)?([\\w-]+\\.)+[\\w-]+(/\\S*)?$");
 
   // Core Fields
   private String userId;
@@ -223,9 +223,9 @@ public class UserModel implements Parcelable {
 
   private boolean isValidPlatform(String platform) {
     return platform.equalsIgnoreCase(SOCIAL_TWITTER)
-        || platform.equalsIgnoreCase(SOCIAL_INSTAGRAM)
-        || platform.equalsIgnoreCase(SOCIAL_FACEBOOK)
-        || platform.equalsIgnoreCase(SOCIAL_LINKEDIN);
+            || platform.equalsIgnoreCase(SOCIAL_INSTAGRAM)
+            || platform.equalsIgnoreCase(SOCIAL_FACEBOOK)
+            || platform.equalsIgnoreCase(SOCIAL_LINKEDIN);
   }
 
   private boolean isValidUrl(String url) {
@@ -403,6 +403,11 @@ public class UserModel implements Parcelable {
       this.showActivityStatus = showActivityStatus;
     }
 
+    // التعديل هنا: إضافة دالة setAllowDMsFromEveryone
+    public void setAllowDMsFromEveryone(boolean allowDMsFromEveryone) {
+      this.allowDMsFromEveryone = allowDMsFromEveryone;
+    }
+
     @Override
     public int describeContents() {
       return 0;
@@ -425,17 +430,17 @@ public class UserModel implements Parcelable {
     }
 
     public static final Creator<PrivacySettings> CREATOR =
-        new Creator<PrivacySettings>() {
-          @Override
-          public PrivacySettings createFromParcel(Parcel in) {
-            return new PrivacySettings(in);
-          }
+            new Creator<PrivacySettings>() {
+              @Override
+              public PrivacySettings createFromParcel(Parcel in) {
+                return new PrivacySettings(in);
+              }
 
-          @Override
-          public PrivacySettings[] newArray(int size) {
-            return new PrivacySettings[size];
-          }
-        };
+              @Override
+              public PrivacySettings[] newArray(int size) {
+                return new PrivacySettings[size];
+              }
+            };
   }
 
   // LoginDevice inner class with enhanced security
@@ -492,17 +497,17 @@ public class UserModel implements Parcelable {
     }
 
     public static final Creator<LoginDevice> CREATOR =
-        new Creator<LoginDevice>() {
-          @Override
-          public LoginDevice createFromParcel(Parcel in) {
-            return new LoginDevice(in);
-          }
+            new Creator<LoginDevice>() {
+              @Override
+              public LoginDevice createFromParcel(Parcel in) {
+                return new LoginDevice(in);
+              }
 
-          @Override
-          public LoginDevice[] newArray(int size) {
-            return new LoginDevice[size];
-          }
-        };
+              @Override
+              public LoginDevice[] newArray(int size) {
+                return new LoginDevice[size];
+              }
+            };
 
     @Override
     public int describeContents() {
@@ -523,17 +528,17 @@ public class UserModel implements Parcelable {
 
   // Parcelable creator
   public static final Creator<UserModel> CREATOR =
-      new Creator<UserModel>() {
-        @Override
-        public UserModel createFromParcel(Parcel in) {
-          return new UserModel(in);
-        }
+          new Creator<UserModel>() {
+            @Override
+            public UserModel createFromParcel(Parcel in) {
+              return new UserModel(in);
+            }
 
-        @Override
-        public UserModel[] newArray(int size) {
-          return new UserModel[size];
-        }
-      };
+            @Override
+            public UserModel[] newArray(int size) {
+              return new UserModel[size];
+            }
+          };
 
   @Override
   public int describeContents() {

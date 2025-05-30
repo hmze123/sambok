@@ -96,14 +96,14 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
   // Contracts
   private final ActivityResultLauncher<String> mediaPicker =
-      registerForActivityResult(
-          new ActivityResultContracts.GetContent(),
-          uri -> {
-            if (uri != null) {
-              currentMediaUri = uri;
-              showMediaPreview(uri);
-            }
-          });
+          registerForActivityResult(
+                  new ActivityResultContracts.GetContent(),
+                  uri -> {
+                    if (uri != null) {
+                      currentMediaUri = uri;
+                      showMediaPreview(uri);
+                    }
+                  });
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -131,21 +131,21 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     // Listen for user's deleted messages
     if (currentUserId != null) {
       userDeletedMessagesListener =
-          db.collection("users")
-              .document(currentUserId)
-              .collection("deleted_messages")
-              .addSnapshotListener(
-                  (snapshots, error) -> {
-                    if (error != null) {
-                      Log.e(TAG, "Error listening to deleted messages", error);
-                      return;
-                    }
+              db.collection("users")
+                      .document(currentUserId)
+                      .collection("deleted_messages")
+                      .addSnapshotListener(
+                              (snapshots, error) -> {
+                                if (error != null) {
+                                  Log.e(TAG, "Error listening to deleted messages", error);
+                                  return;
+                                }
 
-                    userDeletedMessageIds.clear();
-                    for (QueryDocumentSnapshot doc : snapshots) {
-                      userDeletedMessageIds.add(doc.getId());
-                    }
-                  });
+                                userDeletedMessageIds.clear();
+                                for (QueryDocumentSnapshot doc : snapshots) {
+                                  userDeletedMessageIds.add(doc.getId());
+                                }
+                              });
     }
   }
 
@@ -199,52 +199,52 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
     // Real-time message listener
     messagesListener =
-        db.collection("chats")
-            .document(chatId)
-            .collection("messages")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
-            .addSnapshotListener(
-                (snapshots, error) -> {
-                  if (error != null) {
-                    Log.e(TAG, "Messages listen failed", error);
-                    return;
-                  }
+            db.collection("chats")
+                    .document(chatId)
+                    .collection("messages")
+                    .orderBy("timestamp", Query.Direction.ASCENDING)
+                    .addSnapshotListener(
+                            (snapshots, error) -> {
+                              if (error != null) {
+                                Log.e(TAG, "Messages listen failed", error);
+                                return;
+                              }
 
-                  List<ChatMessage> messages = new ArrayList<>();
-                  for (QueryDocumentSnapshot doc : snapshots) {
-                    boolean isDeleted = Boolean.TRUE.equals(doc.getBoolean("deleted"));
-                    boolean isDeletedForMe = userDeletedMessageIds.contains(doc.getId());
-                    if (!isDeleted && !isDeletedForMe) {
-                      ChatMessage message = doc.toObject(ChatMessage.class);
-                      message.setMessageId(doc.getId()); // Ensure messageId is set
-                      messages.add(message);
-                    }
-                  }
-                  runOnUiThread(
-                      () -> {
-                        messageAdapter.submitList(messages);
-                        scrollToBottom();
-                      });
-                });
+                              List<ChatMessage> messages = new ArrayList<>();
+                              for (QueryDocumentSnapshot doc : snapshots) {
+                                boolean isDeleted = Boolean.TRUE.equals(doc.getBoolean("deleted"));
+                                boolean isDeletedForMe = userDeletedMessageIds.contains(doc.getId());
+                                if (!isDeleted && !isDeletedForMe) {
+                                  ChatMessage message = doc.toObject(ChatMessage.class);
+                                  message.setMessageId(doc.getId()); // Ensure messageId is set
+                                  messages.add(message);
+                                }
+                              }
+                              runOnUiThread(
+                                      () -> {
+                                        messageAdapter.submitList(messages);
+                                        scrollToBottom();
+                                      });
+                            });
   }
 
   private void setupInputBehavior() {
     triggerButton.setOnClickListener(v -> toggleMediaOptions());
 
     postInput.addTextChangedListener(
-        new TextWatcher() {
-          @Override
-          public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            new TextWatcher() {
+              @Override
+              public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
-          @Override
-          public void onTextChanged(CharSequence s, int start, int before, int count) {}
+              @Override
+              public void onTextChanged(CharSequence s, int start, int before, int count) {}
 
-          @Override
-          public void afterTextChanged(Editable s) {
-            updateSendButtonState();
-            toggleSendButtonVisibility();
-          }
-        });
+              @Override
+              public void afterTextChanged(Editable s) {
+                updateSendButtonState();
+                toggleSendButtonVisibility();
+              }
+            });
 
     btnSend.setOnClickListener(v -> sendMessage());
 
@@ -253,15 +253,15 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     btnAddPoll.setOnClickListener(v -> createPoll());
 
     postInput.setOnKeyListener(
-        (v, keyCode, event) -> {
-          if (event.getAction() == KeyEvent.ACTION_DOWN
-              && keyCode == KeyEvent.KEYCODE_ENTER
-              && !postInput.getText().toString().trim().isEmpty()) {
-            sendMessage();
-            return true;
-          }
-          return false;
-        });
+            (v, keyCode, event) -> {
+              if (event.getAction() == KeyEvent.ACTION_DOWN
+                      && keyCode == KeyEvent.KEYCODE_ENTER
+                      && !postInput.getText().toString().trim().isEmpty()) {
+                sendMessage();
+                return true;
+              }
+              return false;
+            });
   }
 
   private void toggleSendButtonVisibility() {
@@ -336,67 +336,67 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     // Upload file
     UploadTask uploadTask = fileRef.putFile(fileUri);
     uploadTask
-        .addOnProgressListener(
-            taskSnapshot -> {
-              double progress =
-                  (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
-              Log.d(TAG, "Upload progress: " + progress + "%");
-            })
-        .addOnSuccessListener(
-            taskSnapshot -> {
-              fileRef
-                  .getDownloadUrl()
-                  .addOnSuccessListener(
-                      uri -> {
-                        ChatMessage message = new ChatMessage(currentUserId, messageText);
-                        message.setTimestamp(new Date());
-                        message.setType(messageType);
-                        message.setMediaUrl(uri.toString());
-                        message.setThumbnailUrl(uri.toString());
+            .addOnProgressListener(
+                    taskSnapshot -> {
+                      double progress =
+                              (100.0 * taskSnapshot.getBytesTransferred()) / taskSnapshot.getTotalByteCount();
+                      Log.d(TAG, "Upload progress: " + progress + "%");
+                    })
+            .addOnSuccessListener(
+                    taskSnapshot -> {
+                      fileRef
+                              .getDownloadUrl()
+                              .addOnSuccessListener(
+                                      uri -> {
+                                        ChatMessage message = new ChatMessage(currentUserId, messageText);
+                                        message.setTimestamp(new Date());
+                                        message.setType(messageType);
+                                        message.setMediaUrl(uri.toString());
+                                        message.setThumbnailUrl(uri.toString());
 
-                        if (ChatMessage.TYPE_VIDEO.equals(messageType)) {
-                          // Video-specific handling
-                          message.setThumbnailUrl(uri.toString());
-                        }
+                                        if (ChatMessage.TYPE_VIDEO.equals(messageType)) {
+                                          // Video-specific handling
+                                          message.setThumbnailUrl(uri.toString());
+                                        }
 
-                        saveMessageToFirestore(message);
-                      });
-            })
-        .addOnFailureListener(
-            e -> {
-              Log.e(TAG, "Upload failed", e);
-              Toast.makeText(this, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-              showProgress(false);
-            });
+                                        saveMessageToFirestore(message);
+                                      });
+                    })
+            .addOnFailureListener(
+                    e -> {
+                      Log.e(TAG, "Upload failed", e);
+                      Toast.makeText(this, "Upload failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                      showProgress(false);
+                    });
   }
 
   private void saveMessageToFirestore(ChatMessage message) {
     db.collection("chats")
-        .document(chatId)
-        .collection("messages")
-        .add(message.toFirestoreMap())
-        .addOnCompleteListener(
-            task -> {
-              showProgress(false);
+            .document(chatId)
+            .collection("messages")
+            .add(message.toFirestoreMap())
+            .addOnCompleteListener(
+                    task -> {
+                      showProgress(false);
 
-              if (task.isSuccessful()) {
-                // Set the generated message ID
-                DocumentReference docRef = task.getResult();
-                message.setMessageId(docRef.getId());
-                // Update Firestore document with messageId if necessary
-                docRef.update("messageId", docRef.getId());
-                clearInputFields();
-                updateChatLastMessage(message.getContent());
-                scrollToBottom();
-              } else {
-                Toast.makeText(
-                        ChatActivity.this,
-                        "Failed to send message: "
-                            + Objects.requireNonNull(task.getException()).getMessage(),
-                        Toast.LENGTH_SHORT)
-                    .show();
-              }
-            });
+                      if (task.isSuccessful()) {
+                        // Set the generated message ID
+                        DocumentReference docRef = task.getResult();
+                        message.setMessageId(docRef.getId());
+                        // Update Firestore document with messageId if necessary
+                        docRef.update("messageId", docRef.getId());
+                        clearInputFields();
+                        updateChatLastMessage(message.getContent());
+                        scrollToBottom();
+                      } else {
+                        Toast.makeText(
+                                        ChatActivity.this,
+                                        "Failed to send message: "
+                                                + Objects.requireNonNull(task.getException()).getMessage(),
+                                        Toast.LENGTH_SHORT)
+                                .show();
+                      }
+                    });
   }
 
   private void clearInputFields() {
@@ -424,18 +424,18 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     input.setText(message.getContent());
 
     builder
-        .setTitle("Edit Message")
-        .setView(dialogView)
-        .setPositiveButton(
-            "Save",
-            (dialog, which) -> {
-              String newText = input.getText().toString().trim();
-              if (validateEdit(message, newText)) {
-                updateMessageInFirestore(message, newText);
-              }
-            })
-        .setNegativeButton("Cancel", null)
-        .show();
+            .setTitle("Edit Message")
+            .setView(dialogView)
+            .setPositiveButton(
+                    "Save",
+                    (dialog, which) -> {
+                      String newText = input.getText().toString().trim();
+                      if (validateEdit(message, newText)) {
+                        updateMessageInFirestore(message, newText);
+                      }
+                    })
+            .setNegativeButton("Cancel", null)
+            .show();
   }
 
   private boolean validateEdit(ChatMessage original, String newText) {
@@ -464,17 +464,17 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     updates.put("timestamp", FieldValue.serverTimestamp());
 
     db.collection("chats")
-        .document(chatId)
-        .collection("messages")
-        .document(message.getMessageId())
-        .update(updates)
-        .addOnSuccessListener(
-            aVoid -> Toast.makeText(this, "Message updated", Toast.LENGTH_SHORT).show())
-        .addOnFailureListener(
-            e -> {
-              Log.e(TAG, "Error updating message", e);
-              Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show();
-            });
+            .document(chatId)
+            .collection("messages")
+            .document(message.getMessageId())
+            .update(updates)
+            .addOnSuccessListener(
+                    aVoid -> Toast.makeText(this, "Message updated", Toast.LENGTH_SHORT).show())
+            .addOnFailureListener(
+                    e -> {
+                      Log.e(TAG, "Error updating message", e);
+                      Toast.makeText(this, "Update failed", Toast.LENGTH_SHORT).show();
+                    });
   }
 
   private void updateChatLastMessage(String message) {
@@ -483,9 +483,9 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     updates.put("lastMessageTime", FieldValue.serverTimestamp());
 
     db.collection("chats")
-        .document(chatId)
-        .update(updates)
-        .addOnFailureListener(e -> Log.e(TAG, "Error updating last message", e));
+            .document(chatId)
+            .update(updates)
+            .addOnFailureListener(e -> Log.e(TAG, "Error updating last message", e));
   }
 
   private void showProgress(boolean show) {
@@ -504,9 +504,9 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
       Glide.with(this).asBitmap().load(uri).into(mediaPreviewImage);
     } else {
       Glide.with(this)
-          .load(uri)
-          .placeholder(R.drawable.ic_cover_placeholder)
-          .into(mediaPreviewImage);
+              .load(uri)
+              .placeholder(R.drawable.ic_cover_placeholder)
+              .into(mediaPreviewImage);
     }
 
     // Add these lines to immediately update button visibility
@@ -533,11 +533,11 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
   private void scrollToBottom() {
     messagesRecycler.post(
-        () -> {
-          if (messageAdapter.getItemCount() > 0) {
-            messagesRecycler.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
-          }
-        });
+            () -> {
+              if (messageAdapter.getItemCount() > 0) {
+                messagesRecycler.smoothScrollToPosition(messageAdapter.getItemCount() - 1);
+              }
+            });
   }
 
   private void setupAppBar() {
@@ -553,23 +553,23 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
   private void loadChatDetails() {
     db.collection("chats")
-        .document(chatId)
-        .addSnapshotListener(
-            (document, error) -> {
-              if (error != null || document == null) {
-                Log.e(TAG, "Chat details listen failed", error);
-                return;
-              }
+            .document(chatId)
+            .addSnapshotListener(
+                    (document, error) -> {
+                      if (error != null || document == null) {
+                        Log.e(TAG, "Chat details listen failed", error);
+                        return;
+                      }
 
-              if (isGroupChat) {
-                tvDisplayName.setText(document.getString("name"));
-                Glide.with(this).load(document.getString("avatarUrl")).into(ivAvatar);
-              } else {
-                List<String> participants = (List<String>) document.get("participants");
-                String otherUserId = getOtherUserId(participants);
-                loadOtherUserDetails(otherUserId);
-              }
-            });
+                      if (isGroupChat) {
+                        tvDisplayName.setText(document.getString("name"));
+                        Glide.with(this).load(document.getString("avatarUrl")).into(ivAvatar);
+                      } else {
+                        List<String> participants = (List<String>) document.get("participants");
+                        String otherUserId = getOtherUserId(participants);
+                        loadOtherUserDetails(otherUserId);
+                      }
+                    });
   }
 
   private String getOtherUserId(List<String> participants) {
@@ -581,17 +581,17 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
   private void loadOtherUserDetails(String userId) {
     db.collection("users")
-        .document(userId)
-        .get()
-        .addOnSuccessListener(
-            document -> {
-              UserModel user = document.toObject(UserModel.class);
-              if (user != null) {
-                tvDisplayName.setText(user.getDisplayName());
-                Glide.with(this).load(user.getProfileImageUrl()).into(ivAvatar);
-                ivVerified.setVisibility(user.isVerified() ? View.VISIBLE : View.GONE);
-              }
-            });
+            .document(userId)
+            .get()
+            .addOnSuccessListener(
+                    document -> {
+                      UserModel user = document.toObject(UserModel.class);
+                      if (user != null) {
+                        tvDisplayName.setText(user.getDisplayName());
+                        Glide.with(this).load(user.getProfileImageUrl()).into(ivAvatar);
+                        ivVerified.setVisibility(user.isVerified() ? View.VISIBLE : View.GONE);
+                      }
+                    });
   }
 
   // MessageClickListener implementation
@@ -607,7 +607,7 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
     // Get the view holder safely
     RecyclerView.ViewHolder viewHolder =
-        messagesRecycler.findViewHolderForAdapterPosition(position);
+            messagesRecycler.findViewHolderForAdapterPosition(position);
     if (viewHolder != null) {
       View mediaView = viewHolder.itemView.findViewById(R.id.imageContent);
       if (mediaView != null) {
@@ -647,24 +647,17 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
   private void showMessageContextMenu(ChatMessage message, int position) {
     View anchor = messagesRecycler.findViewHolderForAdapterPosition(position).itemView;
     ContextMenuDialog dialog =
-        new ContextMenuDialog(this, anchor, message, new MessageMenuListener(message, position));
+            new ContextMenuDialog(this, anchor, message, new MessageMenuListener(message, position));
     dialog.show();
   }
-    
-//   private void showMessageContextMenu(ChatMessage message, int position) {
-//    boolean isCurrentUser = message.getSenderId().equals(currentUserId);
-//    View anchor = messagesRecycler.findViewHolderForAdapterPosition(position).itemView;
-//    ContextMenuDialog dialog = new ContextMenuDialog(this, anchor, message, 
-//        new MessageMenuListener(message, position), isCurrentUser);
-//    dialog.show();
-//}
 
   private class MessageMenuListener
-      implements com.spidroid.starry.ui.messages.MessageContextMenuListener {
+          implements com.spidroid.starry.ui.messages.MessageContextMenuListener {
 
     private final ChatMessage message;
     private final int position;
 
+    // Line 659: هذا هو دالة البناء (constructor) ولا تحتاج إلى نوع إرجاع
     public MessageMenuListener(ChatMessage message, int position) {
       this.message = message;
       this.position = position;
@@ -690,11 +683,12 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
       showReactionPicker(message);
     }
 
+    // تم تعديل توقيع هذه الدالة لتتوافق مع الواجهة
     @Override
-    public void onReportSelected() {
+    public void onReportSelected(ChatMessage message) {
       startActivity(
-          new Intent(ChatActivity.this, ReportActivity.class)
-              .putExtra("messageId", message.getMessageId()));
+              new Intent(ChatActivity.this, ReportActivity.class)
+                      .putExtra("messageId", message.getMessageId()));
     }
   }
 
@@ -708,14 +702,14 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     options.add("Delete for me");
 
     new MaterialAlertDialogBuilder(this)
-        .setTitle("Delete message")
-        .setItems(
-            options.toArray(new String[0]),
-            (dialog, which) -> {
-              boolean deleteForAll = isCurrentUser && which == 0;
-              deleteMessage(message, deleteForAll);
-            })
-        .show();
+            .setTitle("Delete message")
+            .setItems(
+                    options.toArray(new String[0]),
+                    (dialog, which) -> {
+                      boolean deleteForAll = isCurrentUser && which == 0;
+                      deleteMessage(message, deleteForAll);
+                    })
+            .show();
   }
 
   private void showReactionPicker(ChatMessage message) {
@@ -731,10 +725,10 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
       emojiView.setText(reaction);
       emojiView.setTextSize(24);
       emojiView.setOnClickListener(
-          v -> {
-            addReaction(message, reaction);
-            dialog.dismiss();
-          });
+              v -> {
+                addReaction(message, reaction);
+                dialog.dismiss();
+              });
       grid.addView(emojiView);
     }
 
@@ -743,10 +737,10 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
 
   private void addReaction(ChatMessage message, String reaction) {
     DocumentReference messageRef =
-        db.collection("chats")
-            .document(chatId)
-            .collection("messages")
-            .document(message.getMessageId());
+            db.collection("chats")
+                    .document(chatId)
+                    .collection("messages")
+                    .document(message.getMessageId());
 
     messageRef.update("reactions." + currentUserId, reaction);
   }
@@ -761,21 +755,21 @@ public class ChatActivity extends AppCompatActivity implements MessageAdapter.Me
     if (forEveryone) {
       // Delete for everyone
       db.collection("chats")
-          .document(chatId)
-          .collection("messages")
-          .document(messageId)
-          .update("deleted", true)
-          .addOnSuccessListener(aVoid -> showToast("Message deleted for everyone"))
-          .addOnFailureListener(e -> Log.e(TAG, "Delete for everyone failed", e));
+              .document(chatId)
+              .collection("messages")
+              .document(messageId)
+              .update("deleted", true)
+              .addOnSuccessListener(aVoid -> showToast("Message deleted for everyone"))
+              .addOnFailureListener(e -> Log.e(TAG, "Delete for everyone failed", e));
     } else {
       // Delete for me
       db.collection("users")
-          .document(currentUserId)
-          .collection("deleted_messages")
-          .document(messageId)
-          .set(Collections.singletonMap("deleted", true)) // Store minimal data
-          .addOnSuccessListener(aVoid -> showToast("Message deleted for you"))
-          .addOnFailureListener(e -> Log.e(TAG, "Delete for me failed", e));
+              .document(currentUserId)
+              .collection("deleted_messages")
+              .document(messageId)
+              .set(Collections.singletonMap("deleted", true)) // Store minimal data
+              .addOnSuccessListener(aVoid -> showToast("Message deleted for you"))
+              .addOnFailureListener(e -> Log.e(TAG, "Delete for me failed", e));
     }
   }
 

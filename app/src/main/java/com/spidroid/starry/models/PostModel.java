@@ -33,7 +33,7 @@ public class PostModel implements Parcelable {
   // Video extensions
   public static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "mkv", "webm");
   public static final List<String> VALID_CONTENT_TYPES =
-      List.of(TYPE_TEXT, TYPE_IMAGE, TYPE_VIDEO, TYPE_POLL);
+          List.of(TYPE_TEXT, TYPE_IMAGE, TYPE_VIDEO, TYPE_POLL);
 
   // Core Fields
   private String postId;
@@ -46,6 +46,7 @@ public class PostModel implements Parcelable {
   private List<String> mediaUrls;
   private String language;
   private String contentType;
+  private long videoDuration; // إضافة حقل مدة الفيديو
 
   private boolean isFollowing;
 
@@ -83,7 +84,7 @@ public class PostModel implements Parcelable {
 
   // Content Moderation
   private boolean isSensitive;
-  private boolean isDeleted;
+  private boolean isDeleted; // هذا هو المتغير الصحيح
   private String deletedReason;
   private String moderationStatus;
   private List<String> moderatorNotes;
@@ -187,6 +188,7 @@ public class PostModel implements Parcelable {
     mediaUrls = in.createStringArrayList();
     language = in.readString();
     contentType = in.readString();
+    videoDuration = in.readLong(); // قراءة مدة الفيديو
 
     // Link Previews
     linkPreviews = in.createTypedArrayList(LinkPreview.CREATOR);
@@ -230,7 +232,7 @@ public class PostModel implements Parcelable {
 
     // Moderation
     isSensitive = in.readByte() != 0;
-    isDeleted = in.readByte() != 0;
+    isDeleted = in.readByte() != 0; // قراءة المتغير الصحيح
     deletedReason = in.readString();
     moderationStatus = in.readString();
     moderatorNotes = in.createStringArrayList();
@@ -243,17 +245,17 @@ public class PostModel implements Parcelable {
   }
 
   public static final Creator<PostModel> CREATOR =
-      new Creator<PostModel>() {
-        @Override
-        public PostModel createFromParcel(Parcel in) {
-          return new PostModel(in);
-        }
+          new Creator<PostModel>() {
+            @Override
+            public PostModel createFromParcel(Parcel in) {
+              return new PostModel(in);
+            }
 
-        @Override
-        public PostModel[] newArray(int size) {
-          return new PostModel[size];
-        }
-      };
+            @Override
+            public PostModel[] newArray(int size) {
+              return new PostModel[size];
+            }
+          };
 
   @Override
   public int describeContents() {
@@ -274,6 +276,7 @@ public class PostModel implements Parcelable {
     dest.writeStringList(mediaUrls);
     dest.writeString(language);
     dest.writeString(contentType);
+    dest.writeLong(videoDuration); // كتابة مدة الفيديو
 
     // Link Previews (moved up)
     dest.writeTypedList(linkPreviews);
@@ -316,7 +319,7 @@ public class PostModel implements Parcelable {
 
     // Moderation
     dest.writeByte((byte) (isSensitive ? 1 : 0));
-    dest.writeByte((byte) (isDeleted ? 1 : 0));
+    dest.writeByte((byte) (isDeleted ? 1 : 0)); // كتابة المتغير الصحيح
     dest.writeString(deletedReason);
     dest.writeString(moderationStatus);
     dest.writeStringList(moderatorNotes);
@@ -365,12 +368,22 @@ public class PostModel implements Parcelable {
 
   private boolean isValidModerationStatus(String status) {
     return status.equals(MODERATION_PENDING)
-        || status.equals(MODERATION_APPROVED)
-        || status.equals(MODERATION_FLAGGED);
+            || status.equals(MODERATION_APPROVED)
+            || status.equals(MODERATION_FLAGGED);
   }
 
   public static String getFileExtension(String url) {
-    return url.substring(url.lastIndexOf(".") + 1).toLowerCase();
+    int dotIndex = url.lastIndexOf('.');
+    if (dotIndex == -1 || dotIndex == url.length() - 1) {
+      return ""; // No extension or extension is empty
+    }
+    String extension = url.substring(dotIndex + 1);
+    // Remove any query parameters
+    int queryIndex = extension.indexOf('?');
+    if (queryIndex != -1) {
+      extension = extension.substring(0, queryIndex);
+    }
+    return extension.toLowerCase();
   }
 
   // URL Preview Management
@@ -410,6 +423,8 @@ public class PostModel implements Parcelable {
       } else {
         contentType = TYPE_IMAGE;
       }
+    } else {
+      contentType = TYPE_TEXT; // إذا لم تكن هناك وسائط، فافترض أنها نصية
     }
   }
 
@@ -425,12 +440,14 @@ public class PostModel implements Parcelable {
 
   public void toggleRepost() {
     setReposted(!isReposted);
-    repostCount += isReposted ? repostCount + 1 : repostCount - 1;
+    // تم التعديل هنا: استخدام `isReposted` و منطق الزيادة/النقصان الصحيح
+    repostCount += isReposted ? 1 : -1;
   }
 
   public void toggleBookmark() {
     setBookmarked(!isBookmarked);
-    bookmarkCount += isBookmarked ? bookmarkCount + 1 : bookmarkCount - 1;
+    // تم التعديل هنا: استخدام `isBookmarked` و منطق الزيادة/النقصان الصحيح
+    bookmarkCount += isBookmarked ? 1 : -1;
   }
 
   // Getters and Setters
@@ -516,6 +533,15 @@ public class PostModel implements Parcelable {
 
   public void setMediaUrls(@Nullable List<String> mediaUrls) {
     this.mediaUrls = mediaUrls != null ? mediaUrls : new ArrayList<>();
+    updateContentType(); // التأكد من تحديث contentType عند تعيين mediaUrls
+  }
+
+  public long getVideoDuration() { // getter لـ videoDuration
+    return videoDuration;
+  }
+
+  public void setVideoDuration(long videoDuration) { // setter لـ videoDuration
+    this.videoDuration = videoDuration;
   }
 
   public boolean isVideoPost() {
@@ -707,15 +733,15 @@ public class PostModel implements Parcelable {
   }
 
   public void setSensitive(boolean sensitive) {
-    isSensitive = sensitive;
+    this.isSensitive = sensitive;
   }
 
-  public boolean isDeleted() {
+  public boolean isDeleted() { // Getter للمتغير الصحيح `isDeleted`
     return isDeleted;
   }
 
-  public void setDeleted(boolean deleted) {
-    isDeleted = deleted;
+  public void setDeleted(boolean deleted) { // Setter للمتغير الصحيح `isDeleted`
+    this.isDeleted = deleted; // استخدام `this.isDeleted`
   }
 
   public String getDeletedReason() {
@@ -777,46 +803,48 @@ public class PostModel implements Parcelable {
 
     PostModel post = (PostModel) o;
     return likeCount == post.likeCount
-        && repostCount == post.repostCount
-        && replyCount == post.replyCount
-        && bookmarkCount == post.bookmarkCount
-        && isLiked == post.isLiked
-        && isReposted == post.isReposted
-        && isBookmarked == post.isBookmarked
-        && Objects.equals(postId, post.postId)
-        && Objects.equals(content, post.content)
-        && Objects.equals(mediaUrls, post.mediaUrls)
-        && Objects.equals(linkPreviews, post.linkPreviews)
-        && Objects.equals(createdAt, post.createdAt)
-        && Objects.equals(authorId, post.authorId)
-        && Objects.equals(authorAvatarUrl, post.authorAvatarUrl)
-        && Objects.equals(hashtags, post.hashtags)
-        && Objects.equals(translatedContent, post.translatedContent)
-        && isExpanded == post.isExpanded
-        && isTranslated == post.isTranslated;
+            && repostCount == post.repostCount
+            && replyCount == post.replyCount
+            && bookmarkCount == post.bookmarkCount
+            && isLiked == post.isLiked
+            && isReposted == post.isReposted
+            && isBookmarked == post.isBookmarked
+            && Objects.equals(postId, post.postId)
+            && Objects.equals(content, post.content)
+            && Objects.equals(mediaUrls, post.mediaUrls)
+            && Objects.equals(linkPreviews, post.linkPreviews)
+            && Objects.equals(createdAt, post.createdAt)
+            && Objects.equals(authorId, post.authorId)
+            && Objects.equals(authorAvatarUrl, post.authorAvatarUrl)
+            && Objects.equals(hashtags, post.hashtags)
+            && Objects.equals(translatedContent, post.translatedContent)
+            && isExpanded == post.isExpanded
+            && isTranslated == post.isTranslated
+            && videoDuration == post.videoDuration; // مقارنة مدة الفيديو
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        postId,
-        content,
-        likeCount,
-        repostCount,
-        replyCount,
-        bookmarkCount,
-        isLiked,
-        isReposted,
-        isBookmarked,
-        mediaUrls,
-        linkPreviews,
-        createdAt,
-        authorId,
-        authorAvatarUrl,
-        hashtags,
-        translatedContent,
-        isExpanded,
-        isTranslated);
+            postId,
+            content,
+            likeCount,
+            repostCount,
+            replyCount,
+            bookmarkCount,
+            isLiked,
+            isReposted,
+            isBookmarked,
+            mediaUrls,
+            linkPreviews,
+            createdAt,
+            authorId,
+            authorAvatarUrl,
+            hashtags,
+            translatedContent,
+            isExpanded,
+            isTranslated,
+            videoDuration); // تضمين مدة الفيديو في الـ hash code
   }
 
   // LinkPreview inner class
@@ -850,17 +878,17 @@ public class PostModel implements Parcelable {
     }
 
     public static final Creator<LinkPreview> CREATOR =
-        new Creator<LinkPreview>() {
-          @Override
-          public LinkPreview createFromParcel(Parcel in) {
-            return new LinkPreview(in);
-          }
+            new Creator<LinkPreview>() {
+              @Override
+              public LinkPreview createFromParcel(Parcel in) {
+                return new LinkPreview(in);
+              }
 
-          @Override
-          public LinkPreview[] newArray(int size) {
-            return new LinkPreview[size];
-          }
-        };
+              @Override
+              public LinkPreview[] newArray(int size) {
+                return new LinkPreview[size];
+              }
+            };
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {

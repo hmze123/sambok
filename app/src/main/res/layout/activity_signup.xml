@@ -110,12 +110,16 @@
             </LinearLayout>
 
             <Button
-                 android:layout_height="48dp"
-                 android:layout_width="match_parent"
-                 app:cornerRadius="24dp"
-                 android:backgroundTint="@color/grey"
-                 android:textColor="@android:color/white"
-                 android:layout_marginTop="32dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@color/primary"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:layout_gravity="center"
+                android:layout_marginTop="10dp"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
+                app:cardCornerRadius="8.0dip"
                  android:id="@+id/signUpButton"
                  android:text="Sign up" />
 

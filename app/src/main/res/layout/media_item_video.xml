@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Player View -->
     <androidx.media3.ui.PlayerView
         android:id="@+id/playerView"
         android:layout_width="match_parent"
@@ -13,9 +12,15 @@
         app:use_controller="true"
         app:show_buffering="never"
         app:controller_layout_id="@layout/exo_player_control_view"
-        android:background="#000000" />
+        android:background="@android:color/black" android:visibility="gone"/>
 
-    <!-- Loading Indicator -->
+    <com.github.chrisbanes.photoview.PhotoView
+        android:id="@+id/photoView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitCenter"
+        android:visibility="gone"/>
+
     <ProgressBar
         android:id="@+id/loadingProgressBar"
         android:layout_width="60dp"
@@ -23,4 +28,14 @@
         android:layout_gravity="center"
         android:visibility="gone"
         style="?android:attr/progressBarStyleLarge" />
+
+    <TextView
+        android:id="@+id/tv_story_caption_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:background="#80000000" android:padding="16dp"
+        android:textColor="@color/white" android:textSize="18sp"
+        android:visibility="gone" />
+
 </FrameLayout>

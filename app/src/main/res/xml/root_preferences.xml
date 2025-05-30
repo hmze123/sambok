@@ -5,7 +5,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Account Section -->
     <PreferenceCategory
         android:title="Account"
         android:key="account_category"
@@ -24,6 +23,12 @@
             android:summary="@{model.email}" />
 
         <Preference
+            android:key="email_verification"
+            android:title="Verify Email"
+            android:icon="@drawable/ic_check"
+            android:summary="Verify your email address for account security." />
+
+        <Preference
             android:key="phone_number"
             android:title="Phone Number"
             android:icon="@drawable/ic_call"
@@ -37,7 +42,6 @@
 
     </PreferenceCategory>
 
-    <!-- Privacy Section -->
     <PreferenceCategory
         android:title="Privacy"
         android:iconSpaceReserved="false">
@@ -71,7 +75,6 @@
 
     </PreferenceCategory>
 
-    <!-- Notifications -->
     <PreferenceCategory
         android:title="Notifications"
         android:icon="@drawable/ic_notifications_filled"
@@ -100,7 +103,6 @@
 
     </PreferenceCategory>
 
-    <!-- Security -->
     <PreferenceCategory
         android:title="Security"
         android:iconSpaceReserved="false">
@@ -125,7 +127,6 @@
 
     </PreferenceCategory>
 
-    <!-- Theme -->
     <PreferenceCategory
         android:title="Appearance"
         android:iconSpaceReserved="false">
@@ -141,7 +142,6 @@
 
     </PreferenceCategory>
 
-     <!-- Theme -->
     <PreferenceCategory
         android:title="Feedback"
         android:iconSpaceReserved="false">
@@ -157,7 +157,6 @@
     <PreferenceCategory
         android:iconSpaceReserved="false">
 
-        <!-- Logout Button -->
         <Preference
             android:key="logout"
             android:title="Logout"
@@ -169,7 +168,6 @@
     <PreferenceCategory
         android:iconSpaceReserved="false">
 
-        <!-- About app -->
         <Preference
             android:key="about"
             android:title="About Starry"

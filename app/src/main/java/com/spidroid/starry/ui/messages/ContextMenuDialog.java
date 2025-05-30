@@ -9,7 +9,6 @@ import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.PopupMenu;
-import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.firebase.auth.FirebaseAuth;
 import com.spidroid.starry.R;
 import com.spidroid.starry.models.ChatMessage;
@@ -19,7 +18,7 @@ public class ContextMenuDialog extends PopupMenu {
   private final MessageContextMenuListener listener;
 
   public ContextMenuDialog(
-      Context context, View anchor, ChatMessage message, MessageContextMenuListener listener) {
+          Context context, View anchor, ChatMessage message, MessageContextMenuListener listener) {
     super(context, anchor);
     this.message = message;
     this.listener = listener;
@@ -37,10 +36,10 @@ public class ContextMenuDialog extends PopupMenu {
 
     // Set click listener
     setOnMenuItemClickListener(
-        item -> {
-          handleMenuItemClick(item.getItemId());
-          return true;
-        });
+            item -> {
+              handleMenuItemClick(item.getItemId());
+              return true;
+            });
   }
 
   private void handleMenuItemClick(int itemId) {
@@ -53,7 +52,7 @@ public class ContextMenuDialog extends PopupMenu {
     } else if (itemId == R.id.menu_reaction) {
       listener.onReactionSelected();
     } else if (itemId == R.id.menu_report) {
-      listener.onReportSelected();
+      listener.onReportSelected(message); // تم التعديل هنا: تمرير كائن الرسالة
     }
   }
 }

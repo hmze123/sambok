@@ -1,5 +1,7 @@
 package com.spidroid.starry.repositories;
 
+import androidx.lifecycle.LiveData; // استيراد LiveData
+import androidx.lifecycle.MutableLiveData; // استيراد MutableLiveData
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
@@ -12,6 +14,7 @@ import com.spidroid.starry.models.UserModel;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import android.util.Log; // لاستخدام Log
 
 public class UserRepository {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
@@ -19,11 +22,11 @@ public class UserRepository {
 
     public Task<List<UserModel>> searchUsers(String query) {
         return usersRef.orderBy("username")
-            .startAt(query)
-            .endAt(query + "\uf8ff")
-            .limit(20)
-            .get()
-            .continueWith(task -> task.getResult().toObjects(UserModel.class));
+                .startAt(query)
+                .endAt(query + "\uf8ff")
+                .limit(20)
+                .get()
+                .continueWith(task -> task.getResult().toObjects(UserModel.class));
     }
 
     public Task<Void> toggleFollow(String currentUserId, String targetUserId) {
@@ -52,5 +55,24 @@ public class UserRepository {
             transaction.update(targetUserRef, "followers", followers);
             return null;
         });
+    }
+
+    // الدالة الجديدة: getUserById
+    public LiveData<UserModel> getUserById(String userId) {
+        MutableLiveData<UserModel> userLiveData = new MutableLiveData<>();
+        usersRef.document(userId).get()
+                .addOnSuccessListener(documentSnapshot -> {
+                    if (documentSnapshot.exists()) {
+                        UserModel user = documentSnapshot.toObject(UserModel.class);
+                        userLiveData.setValue(user);
+                    } else {
+                        userLiveData.setValue(null); // المستخدم غير موجود
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("UserRepository", "Error getting user by ID: " + e.getMessage());
+                    userLiveData.setValue(null); // حدوث خطأ
+                });
+        return userLiveData;
     }
 }

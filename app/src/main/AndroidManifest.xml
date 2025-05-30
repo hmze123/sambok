@@ -3,10 +3,13 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Add internet permission for Firebase -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
     <application
         android:largeHeap="true"
@@ -20,13 +23,11 @@
         android:theme="@style/Theme.Starry"
         tools:targetApi="31">
 
-        <!-- Main Activity -->
         <activity
             android:name=".activities.MainActivity"
             android:exported="false"
             android:theme="@style/Theme.Starry" />
 
-        <!-- Auth Activities -->
         <activity
             android:name=".auth.LoginActivity"
             android:exported="true"
@@ -84,7 +85,6 @@
             android:exported="false"
             android:theme="@style/Theme.Starry" />
 
-
         <activity
             android:name=".activities.CreateGroupActivity"
             android:exported="false"
@@ -95,7 +95,7 @@
             android:exported="false"
             android:theme="@style/Theme.Starry" />
 
-         <activity
+        <activity
             android:name=".activities.InAppBrowserActivity"
             android:exported="false"
             android:theme="@style/Theme.Starry" />
@@ -106,11 +106,29 @@
             android:windowSoftInputMode="adjustNothing"
             android:configChanges="orientation|screenSize" />
 
+        <activity
+            android:name=".activities.CreateStoryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+        <activity
+            android:name=".activities.StoryViewerActivity"
+            android:exported="false"
+            android:theme="@style/FullScreenTheme"
+            android:configChanges="orientation|screenSize" />
+
+        <activity
+            android:name=".activities.FollowersListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+        <activity
+            android:name=".activities.FollowingListActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
+
         <meta-data
             android:name="com.google.android.gms.version"
             android:value="@integer/google_play_services_version" />
 
-        <!-- Add Firebase Authentication service -->
         <service
             android:name="com.google.firebase.auth.PhoneAuthProvider"
             android:exported="false" />

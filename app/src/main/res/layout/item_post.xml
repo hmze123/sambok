@@ -1,292 +1,310 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
-     xmlns:tools="http://schemas.android.com/tools"
-     android:layout_height="wrap_content"
-     android:layout_width="match_parent"
-     android:layout_marginVertical="4dp"
-     app:cardElevation="0dp"
-     app:cardBackgroundColor="@color/card_bg"
-     app:cardCornerRadius="0dp">
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    app:cardElevation="0dp"
+    app:cardBackgroundColor="@color/card_bg"
+    app:cardCornerRadius="0dp">
 
-    <LinearLayout
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:padding="12dp"
-         android:orientation="vertical"
-         android:id="@+id/postLayout">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/postLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="12dp">
 
-        <RelativeLayout
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:layout_marginBottom="8dp">
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/ivAuthorAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_default_avatar"
+            app:civ_border_width="0.5dp"
+            app:civ_border_color="@color/text_secondary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-            <de.hdodenhof.circleimageview.CircleImageView
-                 android:layout_height="40dp"
-                 android:layout_width="40dp"
-                 android:src="@drawable/ic_default_avatar"
-                 app:civ_border_width="0.5dp"
-                 app:civ_border_color="@color/text_secondary"
-                 android:id="@+id/ivAuthorAvatar" />
+        <LinearLayout
+            android:id="@+id/authorInfoLayout"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp"
+            app:layout_constraintStart_toEndOf="@id/ivAuthorAvatar"
+            app:layout_constraintEnd_toStartOf="@id/btnMenu"
+            app:layout_constraintTop_toTopOf="@id/ivAuthorAvatar"
+            app:layout_constraintBottom_toBottomOf="@id/ivAuthorAvatar">
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="wrap_content"
-                 android:layout_toEndOf="@id/ivAuthorAvatar"
-                 android:layout_toStartOf="@id/btnMenu"
-                 android:orientation="vertical"
-                 android:layout_marginStart="12dp">
-
-                <LinearLayout
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:orientation="horizontal">
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="wrap_content"
-                         android:textSize="14sp"
-                         android:textColor="@color/text_primary"
-                         tools:text="John Doe"
-                         android:id="@+id/tvAuthorName"
-                         android:textStyle="bold" />
-
-                    <ImageView
-                         android:layout_height="16dp"
-                         android:layout_width="16dp"
-                         android:visibility="gone"
-                         app:tint="@color/primary"
-                         android:layout_marginStart="4dp"
-                         app:srcCompat="@drawable/ic_verified"
-                         android:id="@+id/ivVerified" />
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="wrap_content"
-                         android:layout_marginHorizontal="4dp"
-                         android:textColor="@color/text_secondary"
-                         android:id="@+id/tvDotSeparator"
-                         android:text="·"
-                         android:textStyle="bold" />
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="wrap_content"
-                         android:textSize="12sp"
-                         android:textColor="@color/text_secondary"
-                         tools:text="2h ago"
-                         android:id="@+id/tvTimestamp" />
-
-                </LinearLayout>
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:textSize="12sp"
-                     android:textColor="@color/text_secondary"
-                     tools:text="@johndoe"
-                     android:id="@+id/tvUsername" />
+                    android:id="@+id/tvAuthorName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:textColor="@color/text_primary"
+                    android:textStyle="bold"
+                    tools:text="John Doe" />
 
+                <ImageView
+                    android:id="@+id/ivVerified"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:visibility="gone"
+                    android:layout_marginStart="4dp"
+                    app:tint="@color/primary"
+                    app:srcCompat="@drawable/ic_verified" />
+
+                <TextView
+                    android:id="@+id/tvDotSeparator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="·"
+                    android:textColor="@color/text_secondary"
+                    android:layout_marginHorizontal="4dp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTimestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textColor="@color/text_secondary"
+                    tools:text="2h ago" />
             </LinearLayout>
 
-            <ImageButton
-                 android:layout_height="40dp"
-                 android:layout_width="40dp"
-                 android:background="?attr/selectableItemBackgroundBorderless"
-                 android:layout_alignParentEnd="true"
-                 app:iconTint="@color/text_secondary"
-                 app:srcCompat="@drawable/ic_more_vert"
-                 android:id="@+id/btnMenu" />
+            <TextView
+                android:id="@+id/tvUsername"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="12sp"
+                android:textColor="@color/text_secondary"
+                tools:text="@johndoe" />
+        </LinearLayout>
 
-        </RelativeLayout>
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/text_secondary"
+            app:srcCompat="@drawable/ic_more_vert"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/ivAuthorAvatar" />
 
         <TextView
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:layout_marginBottom="8dp"
-             android:textSize="17sp"
-             android:textColor="@color/text_primary"
-             android:id="@+id/tvPostContent" />
+            android:id="@+id/tvPostContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textSize="17sp"
+            android:textColor="@color/text_primary"
+            app:layout_constraintTop_toBottomOf="@id/authorInfoLayout"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <FrameLayout
-             android:layout_height="300dp"
-             android:layout_width="match_parent"
-             android:layout_marginBottom="8dp">
+            android:id="@+id/mediaContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tvPostContent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMedia"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                android:orientation="horizontal"
+                tools:listitem="@layout/item_post_media" />
+
+            <RelativeLayout
+                android:id="@+id/videoLayout"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/ivVideoThumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop"
+                    tools:src="@drawable/ic_cover_placeholder" />
+
+                <ImageButton
+                    android:id="@+id/btnPlay"
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_centerInParent="true"
+                    android:background="@drawable/circle_background"
+                    android:src="@drawable/ic_play"
+                    app:tint="@android:color/white" />
+
+                <TextView
+                    android:id="@+id/tvVideoDuration"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_alignParentBottom="true"
+                    android:layout_margin="8dp"
+                    android:background="@drawable/bg_media_counter"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="4dp"
+                    android:textColor="@android:color/white"
+                    android:textSize="12sp"
+                    tools:text="0:30" />
+
+            </RelativeLayout>
+
+            <TextView
+                android:id="@+id/tvMediaCounter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="8dp"
+                android:background="@drawable/bg_media_counter"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="4dp"
+                android:textColor="@android:color/white"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:text="1/4" />
 
         </FrameLayout>
 
-        <androidx.cardview.widget.CardView
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:layout_marginBottom="8dp"
-             android:visibility="gone"
-             app:strokeColor="@color/nav_background_stroke"
-             android:elevation="0dp"
-             app:strokeWidth="0.5dp"
-             app:cardBackgroundColor="@color/surface"
-             app:cardCornerRadius="8dp"
-             android:foreground="?attr/selectableItemBackground"
-             android:id="@+id/layoutLinkPreview">
-
-            <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:padding="8dp"
-                 android:orientation="horizontal">
-
-                <ImageView
-                     android:layout_height="80dp"
-                     android:layout_width="80dp"
-                     android:scaleType="centerCrop"
-                     android:id="@+id/ivLinkImage" />
-
-                <LinearLayout
-                     android:layout_height="wrap_content"
-                     android:layout_width="0dp"
-                     android:orientation="vertical"
-                     android:layout_marginStart="8dp"
-                     android:layout_weight="1">
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="match_parent"
-                         android:ellipsize="end"
-                         android:maxLines="1"
-                         android:id="@+id/tvLinkTitle" />
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="match_parent"
-                         android:ellipsize="end"
-                         android:layout_marginTop="4dp"
-                         android:maxLines="2"
-                         android:id="@+id/tvLinkDescription" />
-
-                    <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="match_parent"
-                         android:layout_marginTop="4dp"
-                         android:id="@+id/tvLinkDomain" />
-
-                </LinearLayout>
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
+        <include
+            android:id="@+id/layoutLinkPreview"
+            layout="@layout/item_link_preview"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/mediaContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:paddingVertical="4dp"
-             android:orientation="horizontal">
+            android:id="@+id/interaction_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="4dp"
+            app:layout_constraintTop_toBottomOf="@id/layoutLinkPreview"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="0dp"
-                 android:gravity="center"
-                 android:orientation="horizontal"
-                 android:layout_weight="1">
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
 
                 <ImageButton
-                     android:layout_height="32dp"
-                     android:layout_width="32dp"
-                     android:background="?attr/selectableItemBackgroundBorderless"
-                     app:iconTint="@color/text_secondary"
-                     app:srcCompat="@drawable/ic_like_outline"
-                     android:id="@+id/btnLike" />
+                    android:id="@+id/btnLike"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@color/text_secondary"
+                    app:srcCompat="@drawable/ic_like_outline" />
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:textSize="12sp"
-                     android:textColor="@color/text_secondary"
-                     android:layout_marginStart="4dp"
-                     tools:text="1.2K"
-                     android:id="@+id/tvLikeCount" />
-
+                    android:id="@+id/tvLikeCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    tools:text="1.2K" />
             </LinearLayout>
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="0dp"
-                 android:gravity="center"
-                 android:orientation="horizontal"
-                 android:layout_weight="1">
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
 
                 <ImageButton
-                     android:layout_height="32dp"
-                     android:layout_width="32dp"
-                     android:background="?attr/selectableItemBackgroundBorderless"
-                     app:iconTint="@color/text_secondary"
-                     app:srcCompat="@drawable/ic_comment"
-                     android:id="@+id/btnComment" />
+                    android:id="@+id/btnComment"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@color/text_secondary"
+                    app:srcCompat="@drawable/ic_comment" />
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:textSize="12sp"
-                     android:textColor="@color/text_secondary"
-                     android:layout_marginStart="4dp"
-                     tools:text="245"
-                     android:id="@+id/tvCommentCount" />
-
+                    android:id="@+id/tvCommentCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    tools:text="245" />
             </LinearLayout>
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="0dp"
-                 android:gravity="center"
-                 android:orientation="horizontal"
-                 android:layout_weight="1">
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
 
                 <ImageButton
-                     android:layout_height="32dp"
-                     android:layout_width="32dp"
-                     android:background="?attr/selectableItemBackgroundBorderless"
-                     app:iconTint="@color/text_secondary"
-                     app:srcCompat="@drawable/ic_repost_outline"
-                     android:id="@+id/btnRepost" />
+                    android:id="@+id/btnRepost"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@color/text_secondary"
+                    app:srcCompat="@drawable/ic_repost_outline" />
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:textSize="12sp"
-                     android:textColor="@color/text_secondary"
-                     android:layout_marginStart="4dp"
-                     tools:text="89"
-                     android:id="@+id/tvRepostCount" />
-
+                    android:id="@+id/tvRepostCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    tools:text="89" />
             </LinearLayout>
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="0dp"
-                 android:gravity="center"
-                 android:orientation="horizontal"
-                 android:layout_weight="1">
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal">
 
                 <ImageButton
-                     android:layout_height="32dp"
-                     android:layout_width="32dp"
-                     android:background="?attr/selectableItemBackgroundBorderless"
-                     app:iconTint="@color/text_secondary"
-                     app:srcCompat="@drawable/ic_bookmark_outline"
-                     android:id="@+id/btnBookmark" />
+                    android:id="@+id/btnBookmark"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    app:tint="@color/text_secondary"
+                    app:srcCompat="@drawable/ic_bookmark_outline" />
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="wrap_content"
-                     android:textSize="12sp"
-                     android:textColor="@color/text_secondary"
-                     android:layout_marginStart="4dp"
-                     tools:text="56"
-                     android:id="@+id/tvBookmarkCount" />
-
+                    android:id="@+id/tvBookmarkCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="12sp"
+                    tools:text="56" />
             </LinearLayout>
-
         </LinearLayout>
-
-    </LinearLayout>
-
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.cardview.widget.CardView>
