@@ -15,7 +15,8 @@
         app:elevation="0dp">
 
         <com.google.android.material.appbar.CollapsingToolbarLayout
-            android:id="@+id/collapsingToolbar"  android:layout_height="wrap_content"
+            android:id="@+id/collapsingToolbar"
+            android:layout_height="wrap_content"
             android:layout_width="match_parent"
             app:layout_scrollFlags="scroll|exitUntilCollapsed"
             app:contentScrim="?attr/colorSurface"
@@ -27,7 +28,8 @@
                 android:layout_height="200dp"
                 android:scaleType="centerCrop"
                 android:background="?attr/colorSurface"
-                app:layout_collapseMode="parallax" />
+                app:layout_collapseMode="parallax"
+                tools:src="@tools:sample/backgrounds/scenic"/>
 
             <androidx.appcompat.widget.Toolbar
                 android:id="@+id/toolbar"
@@ -48,7 +50,8 @@
                         android:layout_height="48dp"
                         android:src="@drawable/ic_back"
                         android:background="@drawable/circle_background"
-                        app:tint="?attr/colorOnSurface" />
+                        app:tint="?attr/colorOnSurface"
+                        android:contentDescription="Back"/>
 
                     <View
                         android:layout_height="0dp"
@@ -61,10 +64,9 @@
                         android:layout_height="48dp"
                         android:src="@drawable/ic_settings"
                         android:background="@drawable/circle_background"
-                        app:tint="?attr/colorOnSurface" />
-
+                        app:tint="?attr/colorOnSurface"
+                        android:contentDescription="Settings"/>
                 </LinearLayout>
-
             </androidx.appcompat.widget.Toolbar>
 
             <de.hdodenhof.circleimageview.CircleImageView
@@ -78,9 +80,7 @@
                 app:civ_border_color="?attr/colorSurface"
                 android:layout_marginStart="16dp"
                 android:layout_gravity="bottom|start" />
-
         </com.google.android.material.appbar.CollapsingToolbarLayout>
-
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView
@@ -110,8 +110,8 @@
                     app:cornerRadius="18dp"
                     android:textColor="?attr/colorPrimary"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                    android:layout_marginTop="8dp" />
-
+                    android:layout_marginTop="8dp"
+                    tools:text="Follow"/>
             </RelativeLayout>
 
             <LinearLayout
@@ -134,7 +134,8 @@
                         android:layout_height="wrap_content"
                         android:textSize="22sp"
                         android:textColor="?attr/colorOnSurface"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        tools:text="Display Name"/>
 
                     <ImageView
                         android:id="@+id/ivVerified"
@@ -143,8 +144,8 @@
                         android:visibility="gone"
                         app:tint="?attr/colorPrimary"
                         android:layout_marginStart="8dp"
-                        app:srcCompat="@drawable/ic_verified" />
-
+                        app:srcCompat="@drawable/ic_verified"
+                        tools:visibility="visible"/>
                 </LinearLayout>
 
                 <TextView
@@ -152,8 +153,9 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
-                    android:textColor="?attr/colorOnSurface"
-                    android:layout_marginTop="4dp" />
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginTop="4dp"
+                    tools:text="\@username"/>
 
                 <TextView
                     android:id="@+id/tvBio"
@@ -161,54 +163,80 @@
                     android:layout_height="wrap_content"
                     android:textSize="16sp"
                     android:textColor="?attr/colorOnSurface"
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="16dp"
+                    tools:text="This is a sample bio description for the user profile."/>
 
                 <LinearLayout
-                    android:id="@+id/layoutSocial"
-                    android:layout_height="wrap_content"
                     android:layout_width="match_parent"
-                    android:visibility="gone"
+                    android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:layout_marginTop="16dp">
 
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_height="wrap_content"
-                    android:layout_width="match_parent"
-                    android:orientation="horizontal"
-                    android:layout_marginTop="16dp">
-
-                    <TextView
+                    <LinearLayout
+                        android:id="@+id/layoutFollowingInfo" android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:clickable="true" android:focusable="true"  android:background="?attr/selectableItemBackground" android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="8dp"> <TextView
                         android:id="@+id/tvFollowingCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="?attr/colorOnSurface"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        tools:text="150"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:layout_marginStart="4dp"
+                            android:text="@string/following" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/layoutFollowersInfo" android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurface"
-                        android:layout_marginStart="4dp"
-                        android:text="@string/following" />
-
-                    <TextView
+                        android:orientation="horizontal"
+                        android:layout_marginStart="16dp"
+                        android:clickable="true" android:focusable="true"
+                        android:background="?attr/selectableItemBackground"
+                        android:paddingTop="8dp"
+                        android:paddingBottom="8dp"
+                        android:paddingStart="4dp"
+                        android:paddingEnd="8dp"> <TextView
                         android:id="@+id/tvFollowersCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:textColor="?attr/colorOnSurface"
-                        android:layout_marginStart="16dp"
-                        android:textStyle="bold" />
+                        android:textStyle="bold"
+                        tools:text="1.2K"/>
 
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="?attr/colorOnSurface"
-                        android:layout_marginStart="4dp"
-                        android:text="@string/followers" />
-
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:layout_marginStart="4dp"
+                            android:text="@string/followers" />
+                    </LinearLayout>
                 </LinearLayout>
+                <TextView
+                    android:id="@+id/tvAboutTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Social Links"
+                    android:textAppearance="?attr/textAppearanceTitleMedium"
+                    android:textColor="?attr/colorOnSurface"
+                    android:layout_marginTop="24dp"
+                    android:layout_marginBottom="8dp"
+                    android:visibility="gone"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutSocialLinksContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
 
             </LinearLayout>
 
@@ -218,7 +246,7 @@
                 android:layout_height="48dp"
                 app:tabMode="fixed"
                 app:tabIndicatorColor="?attr/colorPrimary"
-                app:tabTextColor="?attr/colorOnSurface"
+                app:tabTextColor="?attr/colorOnSurfaceVariant"
                 app:tabSelectedTextColor="?attr/colorPrimary"
                 android:layout_marginTop="16dp" />
 
@@ -227,10 +255,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 app:layout_behavior="@string/appbar_scrolling_view_behavior"
-                android:background="?attr/colorOnBackground" />
-
+                android:background="?attr/colorSurface" />
         </LinearLayout>
-
     </androidx.core.widget.NestedScrollView>
-
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -5,7 +5,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_height="match_parent"
     android:layout_width="match_parent"
-    android:background="?attr/colorSurface"> <androidx.fragment.app.FragmentContainerView android:layout_height="0dp"
+    android:background="?attr/colorSurface">
+
+    <androidx.fragment.app.FragmentContainerView
+        android:layout_height="0dp"
     android:layout_width="match_parent"
     app:layout_behavior="@string/appbar_scrolling_view_behavior"
     app:navGraph="@navigation/mobile_navigation"
@@ -25,5 +28,12 @@
         app:layout_constraintRight_toRightOf="parent"
         android:id="@+id/nav_view"
         app:menu="@menu/bottom_nav_menu"
-        style="@style/Widget.Material3.BottomNavigationView.ActiveIndicator" app:itemIconTint="@color/nav_color_selector_m3" app:itemTextColor="@color/nav_color_selector_m3" app:itemActiveIndicatorStyle="@style/App.BottomNavigationView.ActiveIndicator" app:labelVisibilityMode="labeled" android:background="?attr/colorSurfaceContainer"
-        app:elevation="8dp"/> </androidx.constraintlayout.widget.ConstraintLayout>
+        style="@style/Widget.Material3.BottomNavigationView.ActiveIndicator"
+        app:itemIconTint="@color/nav_color_selector_m3"
+        app:itemTextColor="@color/nav_color_selector_m3"
+        app:itemActiveIndicatorStyle="@style/App.BottomNavigationView.ActiveIndicator"
+        app:labelVisibilityMode="labeled"
+        android:background="?attr/colorSurfaceContainer"
+        app:elevation="8dp"/>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

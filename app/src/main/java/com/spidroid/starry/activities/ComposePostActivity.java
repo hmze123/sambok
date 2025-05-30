@@ -7,6 +7,7 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
 import android.view.View;
+import android.webkit.MimeTypeMap;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -16,8 +17,11 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide; // ★ تأكد من وجود هذا الاستيراد
+import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.firestore.FieldValue; // ★ استيراد FieldValue
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
@@ -37,12 +41,10 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-// *** التعديل هنا: إضافة استيراد Glide ***
-import com.bumptech.glide.Glide;
 
 public class ComposePostActivity extends AppCompatActivity implements MediaPreviewAdapter.MediaRemoveListener {
 
-  private static final String TAG = "ComposePostActivity";
+  private static final String TAG = "ComposePostActivity"; // ★ تعريف TAG لـ Log
   private ActivityComposePostBinding binding;
   private FirebaseAuth auth;
   private FirebaseFirestore db;
@@ -51,23 +53,38 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
 
   private MediaPreviewAdapter mediaPreviewAdapter;
   private List<Uri> selectedMediaUris = new ArrayList<>();
-  private List<String> existingMediaUrls = new ArrayList<>();
-  private Uri currentMediaUri;
+  private List<String> existingMediaUrls = new ArrayList<>(); // إذا كنت تستخدمها من مكان آخر
+  // private Uri currentMediaUri; // لم تعد هناك حاجة للاحتفاظ بوسيطة واحدة فقط بهذه الطريقة
 
   private Pattern urlPattern = Pattern.compile("https?://(www\\.)?[-a-zA-Z0-9@:%._\\+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_\\+.~#?&//=]*)");
   private PostModel.LinkPreview currentLinkPreview;
 
-  private final ActivityResultLauncher<String> pickImage =
-          registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-            if (uri != null) {
-              handleMediaSelection(uri, PostModel.TYPE_IMAGE);
-            }
-          });
-
-  private final ActivityResultLauncher<String> pickVideo =
-          registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-            if (uri != null) {
-              handleMediaSelection(uri, PostModel.TYPE_VIDEO);
+  private final ActivityResultLauncher<String[]> pickMultipleMedia =
+          registerForActivityResult(new ActivityResultContracts.OpenMultipleDocuments(), uris -> {
+            if (uris != null && !uris.isEmpty()) {
+              // بما أننا ندعم وسيطة واحدة حاليًا (صورة أو فيديو)، سنأخذ أول عنصر فقط
+              // يمكنك تعديل هذا المنطق لاحقًا لدعم وسائط متعددة
+              if (selectedMediaUris.size() + existingMediaUrls.size() + uris.size() > 4) { // حد 4 وسائط
+                Toast.makeText(this, getString(R.string.max_media_limit, 4), Toast.LENGTH_SHORT).show();
+                return;
+              }
+              for(Uri uri : uris){
+                String mimeType = getContentResolver().getType(uri);
+                if (mimeType != null) {
+                  if (mimeType.startsWith("image/")) {
+                    handleMediaSelection(uri, PostModel.TYPE_IMAGE);
+                  } else if (mimeType.startsWith("video/")) {
+                    if (selectedMediaUris.stream().anyMatch(u -> getContentResolver().getType(u).startsWith("video/")) ||
+                            existingMediaUrls.stream().anyMatch(url -> url.toLowerCase().matches(".*\\.(mp4|mov|mkv|webm|3gp|avi)(\\?.*)?$"))){
+                      Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show();
+                      return; // لا تسمح بإضافة فيديو إذا كان هناك فيديو آخر
+                    }
+                    handleMediaSelection(uri, PostModel.TYPE_VIDEO);
+                  } else {
+                    Toast.makeText(this, "Unsupported file type: " + mimeType, Toast.LENGTH_SHORT).show();
+                  }
+                }
+              }
             }
           });
 
@@ -82,8 +99,9 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
     setupListeners();
     setupMediaPreviewRecyclerView();
 
+    // تعطيل زر النشر مبدئيًا حتى يتم تحميل بيانات المستخدم أو إدخال محتوى
     binding.btnPost.setEnabled(false);
-    binding.btnPost.setText("Loading...");
+    binding.btnPost.setText("Loading..."); // أو أي نص مناسب
 
     loadCurrentUser();
   }
@@ -97,6 +115,7 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
   private void loadCurrentUser() {
     FirebaseUser user = auth.getCurrentUser();
     if (user == null) {
+      Log.e(TAG, "User not authenticated. Finishing activity.");
       Toast.makeText(this, "User not authenticated.", Toast.LENGTH_SHORT).show();
       finish();
       return;
@@ -107,20 +126,27 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
               if (documentSnapshot != null && documentSnapshot.exists()) {
                 currentUserModel = documentSnapshot.toObject(UserModel.class);
                 if (currentUserModel != null) {
-                  binding.btnPost.setEnabled(true);
-                  binding.btnPost.setText(R.string.post);
+                  Log.d(TAG, "Current user model loaded: " + currentUserModel.getUsername() + ", DisplayName: " + currentUserModel.getDisplayName());
+                  // تمكين زر النشر بعد تحميل بيانات المستخدم بنجاح
+                  updatePostButtonState(); // استدعاء هذه الدالة لتحديث حالة الزر
                 } else {
-                  Toast.makeText(this, "Could not deserialize user model.", Toast.LENGTH_SHORT).show();
-                  binding.btnPost.setText("Error");
+                  Log.e(TAG, "currentUserModel is null after deserialization in Compose.");
+                  Toast.makeText(this, "Could not load user profile.", Toast.LENGTH_SHORT).show();
+                  binding.btnPost.setText("Error"); // أو يمكنك تعطيله
+                  binding.btnPost.setEnabled(false);
                 }
               } else {
+                Log.e(TAG, "User profile document does not exist in Compose.");
                 Toast.makeText(this, "User profile not found.", Toast.LENGTH_SHORT).show();
                 binding.btnPost.setText("Error");
+                binding.btnPost.setEnabled(false);
               }
             })
             .addOnFailureListener(e -> {
+              Log.e(TAG, "Failed to load user data in Compose: " + e.getMessage());
               Toast.makeText(this, "Failed to load user data.", Toast.LENGTH_SHORT).show();
               binding.btnPost.setText("Error");
+              binding.btnPost.setEnabled(false);
             });
   }
 
@@ -128,8 +154,23 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
     binding.btnClose.setOnClickListener(v -> finish());
     binding.btnPost.setOnClickListener(v -> createNewPost());
 
-    binding.btnAddPhoto.setOnClickListener(v -> pickImage.launch("image/*"));
-    binding.btnAddVideo.setOnClickListener(v -> pickVideo.launch("video/*"));
+    binding.btnAddPhoto.setOnClickListener(v -> pickMultipleMedia.launch("image/*"));
+    binding.btnAddVideo.setOnClickListener(v -> {
+      // تحقق مما إذا كان هناك فيديو بالفعل
+      boolean hasVideo = selectedMediaUris.stream().anyMatch(uri -> {
+        String mimeType = getContentResolver().getType(uri);
+        return mimeType != null && mimeType.startsWith("video/");
+      }) || existingMediaUrls.stream().anyMatch(url ->
+              url.toLowerCase().matches(".*\\.(mp4|mov|mkv|webm|3gp|avi)(\\?.*)?$")
+      );
+
+      if (hasVideo) {
+        Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show();
+      } else {
+        pickMultipleMedia.launch("video/*");
+      }
+    });
+
 
     binding.etContent.addTextChangedListener(new TextWatcher() {
       @Override
@@ -156,44 +197,66 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
     binding.rvMediaPreview.setAdapter(mediaPreviewAdapter);
   }
 
-  /**
-   * يتعامل مع اختيار الوسائط (صورة أو فيديو).
-   * يدعم حاليًا وسيطة واحدة فقط. إذا تم اختيار وسيطة جديدة، يتم استبدال السابقة.
-   *
-   * @param uri URI الوسيطة المختارة.
-   * @param type نوع الوسيطة (صورة أو فيديو).
-   */
   private void handleMediaSelection(Uri uri, String type) {
     if (uri == null) return;
 
-    // مسح أي وسائط سابقة (للسماح بواحدة فقط حاليًا)
-    selectedMediaUris.clear();
-    existingMediaUrls.clear(); // تأكد من مسح أي URLs موجودة أيضًا
-    currentMediaUri = uri; // تخزين URI الوسيطة الحالية
+    // التحقق من عدد الوسائط الحالية (الجديدة + الموجودة)
+    if (selectedMediaUris.size() + existingMediaUrls.size() >= 4) {
+      Toast.makeText(this, getString(R.string.max_media_limit, 4), Toast.LENGTH_SHORT).show();
+      return;
+    }
 
-    selectedMediaUris.add(uri); // إضافة الوسيطة الجديدة
-    mediaPreviewAdapter.notifyDataSetChanged(); // تحديث RecyclerView
-    binding.rvMediaPreview.setVisibility(View.VISIBLE); // إظهار RecyclerView
+    // إذا كان النوع فيديو، تأكد من عدم وجود فيديو آخر
+    if (PostModel.TYPE_VIDEO.equals(type)) {
+      boolean videoExists = selectedMediaUris.stream().anyMatch(u -> {
+        String mimeType = getContentResolver().getType(u);
+        return mimeType != null && mimeType.startsWith("video/");
+      }) || existingMediaUrls.stream().anyMatch(url ->
+              url.toLowerCase().matches(".*\\.(mp4|mov|mkv|webm|3gp|avi)(\\?.*)?$")
+      );
+      if (videoExists) {
+        Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show();
+        return;
+      }
+    }
 
-    updatePostButtonState(); // تحديث حالة زر النشر
+
+    final int takeFlags = getIntent().getFlags() & (Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+    try {
+      // محاولة أخذ أذونات دائمة إذا لم تكن موجودة بالفعل
+      getContentResolver().takePersistableUriPermission(uri, takeFlags);
+    } catch (SecurityException e) {
+      Log.e(TAG, "Failed to take persistable URI permission: " + e.getMessage());
+      // لا يزال بإمكاننا محاولة القراءة إذا كان لدينا إذن مؤقت
+    }
+
+
+    try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
+      // إذا نجح فتح InputStream، فهذا يعني أن لدينا وصولاً للقراءة
+      selectedMediaUris.add(uri);
+      mediaPreviewAdapter.notifyItemInserted(selectedMediaUris.size() -1 + existingMediaUrls.size());
+      binding.rvMediaPreview.setVisibility(View.VISIBLE);
+    } catch (Exception e) {
+      Log.e(TAG, "Error opening URI InputStream, media might be inaccessible: " + e.getMessage());
+      Toast.makeText(this, "Selected media is not accessible. Please choose another file.", Toast.LENGTH_LONG).show();
+      return; // لا تضف الـ URI إذا لم نتمكن من الوصول إليه
+    }
+    updatePostButtonState();
   }
 
-  /**
-   * دالة CallBack عندما يقوم المستخدم بإزالة وسيطة من المعاينة.
-   *
-   * @param position الموضع الذي تمت إزالته.
-   */
+
   @Override
   public void onMediaRemoved(int position) {
-    // إذا كانت الوسيطة من القائمة الموجودة (existingMediaUrls)
     if (position < existingMediaUrls.size()) {
       existingMediaUrls.remove(position);
     } else {
-      // إذا كانت الوسيطة من القائمة الجديدة (selectedMediaUris)
       int uriPosition = position - existingMediaUrls.size();
-      selectedMediaUris.remove(uriPosition);
+      if (uriPosition >= 0 && uriPosition < selectedMediaUris.size()) {
+        selectedMediaUris.remove(uriPosition);
+      }
     }
-    mediaPreviewAdapter.notifyDataSetChanged();
+    mediaPreviewAdapter.notifyItemRemoved(position);
+    // mediaPreviewAdapter.notifyItemRangeChanged(position, getItemCount()); // لتحديث المواضع
     if (selectedMediaUris.isEmpty() && existingMediaUrls.isEmpty()) {
       binding.rvMediaPreview.setVisibility(View.GONE);
     }
@@ -203,22 +266,16 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
   private void updateCharCount(int count) {
     binding.tvCharCount.setText(getString(R.string.char_count_format, count, PostModel.MAX_CONTENT_LENGTH));
     if (count > PostModel.MAX_CONTENT_LENGTH) {
-      binding.tvCharCount.setTextColor(getResources().getColor(R.color.error_red));
+      binding.tvCharCount.setTextColor(getResources().getColor(R.color.error_red, getTheme()));
     } else {
-      binding.tvCharCount.setTextColor(getResources().getColor(R.color.text_secondary));
+      binding.tvCharCount.setTextColor(getResources().getColor(R.color.text_secondary, getTheme()));
     }
   }
 
-  /**
-   * تتحقق من وجود رابط في المحتوى وتجلب معاينته.
-   *
-   * @param content المحتوى النصي للمنشور.
-   */
   private void checkAndFetchLinkPreview(String content) {
     Matcher matcher = urlPattern.matcher(content);
     if (matcher.find()) {
       String url = matcher.group();
-      // تجنب جلب المعاينة لنفس الرابط مرتين
       if (currentLinkPreview != null && url.equals(currentLinkPreview.getUrl())) {
         return;
       }
@@ -243,10 +300,9 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
                       .into(binding.layoutLinkPreview.ivLinkImage);
             }
           } else {
-            onLinkPreviewError("No title found");
+            onLinkPreviewError("No title found for preview.");
           }
         }
-
         @Override
         public void onError(String errorMsg) {
           onLinkPreviewError(errorMsg);
@@ -258,6 +314,7 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
   }
 
   private void onLinkPreviewError(String errorMsg) {
+    Log.w(TAG, "Link preview error: " + errorMsg);
     currentLinkPreview = null;
     binding.layoutLinkPreview.getRoot().setVisibility(View.GONE);
   }
@@ -267,17 +324,20 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
     binding.layoutLinkPreview.getRoot().setVisibility(View.GONE);
   }
 
-  /**
-   * تحديث حالة زر النشر بناءً على المحتوى والوسائط المختارة.
-   */
   private void updatePostButtonState() {
     boolean hasContent = binding.etContent.getText().toString().trim().length() > 0;
-    boolean hasMedia = !selectedMediaUris.isEmpty();
+    boolean hasMedia = !selectedMediaUris.isEmpty() || !existingMediaUrls.isEmpty();
     boolean contentWithinLimit = binding.etContent.getText().toString().length() <= PostModel.MAX_CONTENT_LENGTH;
 
-    binding.btnPost.setEnabled((hasContent || hasMedia) && contentWithinLimit && currentUserModel != null);
+    // تمكين زر النشر فقط إذا كان المستخدم قد تم تحميله، وهناك محتوى أو وسائط، والمحتوى ضمن الحد المسموح به
+    if (currentUserModel != null) {
+      binding.btnPost.setEnabled((hasContent || hasMedia) && contentWithinLimit);
+      binding.btnPost.setText(R.string.post); // إعادة النص إلى "Post"
+    } else {
+      binding.btnPost.setEnabled(false); // يبقى معطلاً إذا لم يتم تحميل المستخدم
+      // يمكن ترك النص "Loading..." أو تغييره إلى "Error" إذا فشل التحميل
+    }
   }
-
 
   private void createNewPost() {
     String content = binding.etContent.getText().toString().trim();
@@ -296,77 +356,88 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
       return;
     }
 
+    showProgress(true); // إظهار مؤشر التقدم
+
     if (!selectedMediaUris.isEmpty()) {
       uploadMediaAndCreatePost(content);
     } else {
-      savePostToFirestore(content, new ArrayList<>(), PostModel.TYPE_TEXT);
+      // إذا لم تكن هناك وسائط جديدة ليتم تحميلها، ولكن قد تكون هناك وسائط موجودة (في حالة التعديل)
+      // حاليًا، هذا الكود للإنشاء فقط، لذا existingMediaUrls ستكون فارغة
+      savePostToFirestore(content, new ArrayList<>(existingMediaUrls), PostModel.TYPE_TEXT);
     }
   }
 
-  /**
-   * تقوم بتحميل الوسائط إلى Firebase Storage ثم تنشئ المنشور.
-   * يدعم حاليًا تحميل وسيطة واحدة فقط.
-   *
-   * @param content المحتوى النصي للمنشور.
-   */
   private void uploadMediaAndCreatePost(String content) {
-    if (selectedMediaUris.isEmpty()) {
-      Toast.makeText(this, "No media selected for upload.", Toast.LENGTH_SHORT).show();
-      showProgress(false);
-      return;
-    }
+    List<Task<Uri>> uploadTasks = new ArrayList<>();
+    List<String> uploadedMediaUrls = new ArrayList<>(existingMediaUrls); // ابدأ بالوسائط الموجودة
+    final String[] finalContentType = {PostModel.TYPE_TEXT}; // نوع المحتوى النهائي للمنشور
 
-    Uri fileUri = selectedMediaUris.get(0);
-    String mimeType = getContentResolver().getType(fileUri);
-    String fileExtension = getFileExtension(fileUri);
-    String type = (mimeType != null && mimeType.startsWith("video")) ? PostModel.TYPE_VIDEO : PostModel.TYPE_IMAGE;
+    for (Uri fileUri : selectedMediaUris) {
+      String mimeType = getContentResolver().getType(fileUri);
+      String fileExtension = getFileExtension(fileUri);
+      if (mimeType != null && mimeType.startsWith("video/")) {
+        finalContentType[0] = PostModel.TYPE_VIDEO; // تحديث نوع المحتوى إذا كان هناك فيديو
+      } else if (mimeType != null && mimeType.startsWith("image/")) {
+        if (!PostModel.TYPE_VIDEO.equals(finalContentType[0])) { // لا تغير النوع إذا كان فيديو بالفعل
+          finalContentType[0] = PostModel.TYPE_IMAGE;
+        }
+      }
 
-    if (type.equals(PostModel.TYPE_VIDEO) && selectedMediaUris.size() > 1) {
-      Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show();
-      showProgress(false);
-      return;
-    }
 
-    showProgress(true);
+      String userId = currentUserModel.getUserId();
+      String fileName = "post_media/" + userId + "/" + UUID.randomUUID().toString() + fileExtension;
+      StorageReference mediaRef = storage.getReference().child(fileName);
+      UploadTask uploadTask = mediaRef.putFile(fileUri);
 
-    String userId = currentUserModel.getUserId();
-    String fileName = "post_media/" + userId + "/" + UUID.randomUUID().toString() + fileExtension;
-    StorageReference mediaRef = storage.getReference().child(fileName);
-
-    UploadTask uploadTask = mediaRef.putFile(fileUri);
-    uploadTask.addOnSuccessListener(taskSnapshot -> {
-      mediaRef.getDownloadUrl().addOnSuccessListener(uri -> {
-        List<String> mediaUrls = new ArrayList<>();
-        mediaUrls.add(uri.toString());
-        savePostToFirestore(content, mediaUrls, type);
-      }).addOnFailureListener(e -> {
-        showProgress(false);
-        Toast.makeText(ComposePostActivity.this, R.string.media_upload_failed, Toast.LENGTH_SHORT).show();
-        Log.e(TAG, "Failed to get download URL: " + e.getMessage());
+      Task<Uri> getUrlTask = uploadTask.continueWithTask(task -> {
+        if (!task.isSuccessful()) {
+          throw task.getException();
+        }
+        return mediaRef.getDownloadUrl();
       });
+      uploadTasks.add(getUrlTask);
+    }
+
+    Tasks.whenAllSuccess(uploadTasks).addOnSuccessListener(results -> {
+      for (Object result : results) {
+        if (result instanceof Uri) {
+          uploadedMediaUrls.add(((Uri) result).toString());
+        }
+      }
+      savePostToFirestore(content, uploadedMediaUrls, finalContentType[0]);
     }).addOnFailureListener(e -> {
       showProgress(false);
-      Toast.makeText(ComposePostActivity.this, R.string.media_upload_failed, Toast.LENGTH_SHORT).show();
-      Log.e(TAG, "Media upload failed: " + e.getMessage());
+      Toast.makeText(ComposePostActivity.this, R.string.media_upload_failed + ": " + e.getMessage(), Toast.LENGTH_LONG).show();
+      Log.e(TAG, "Media upload failed: " + e.getMessage(), e);
     });
   }
 
-  /**
-   * يحفظ المنشور في Firestore.
-   *
-   * @param content   المحتوى النصي للمنشور.
-   * @param mediaUrls قائمة بـ URLs الوسائط (إذا وجدت).
-   * @param contentType نوع المحتوى (نص، صورة، فيديو).
-   */
+
   private void savePostToFirestore(String content, List<String> mediaUrls, String contentType) {
+    Log.d(TAG, "Attempting to save post to Firestore.");
+    Log.d(TAG, "Author ID: " + (currentUserModel != null ? currentUserModel.getUserId() : "currentUserModel is NULL"));
+    Log.d(TAG, "Author Username: " + (currentUserModel != null ? currentUserModel.getUsername() : "currentUserModel is NULL"));
+    Log.d(TAG, "Author DisplayName: " + (currentUserModel != null ? currentUserModel.getDisplayName() : "currentUserModel is NULL"));
+    Log.d(TAG, "Content: " + content);
+    Log.d(TAG, "Content Type: " + contentType);
+    Log.d(TAG, "Media URLs: " + (mediaUrls != null ? mediaUrls.toString() : "null"));
+
+
+    if (currentUserModel == null || currentUserModel.getUserId() == null) {
+      Log.e(TAG, "Cannot save post: currentUserModel or its ID is null.");
+      Toast.makeText(this, "Error: User data not available. Cannot save post.", Toast.LENGTH_LONG).show();
+      showProgress(false);
+      return;
+    }
+
     PostModel post = new PostModel(currentUserModel.getUserId(), content);
     post.setAuthorUsername(currentUserModel.getUsername());
     post.setAuthorDisplayName(currentUserModel.getDisplayName());
     post.setAuthorAvatarUrl(currentUserModel.getProfileImageUrl());
     post.setAuthorVerified(currentUserModel.isVerified());
-    post.setCreatedAt(new Date());
+    post.setCreatedAt(new Date()); // أو استخدم FieldValue.serverTimestamp() إذا كنت تفضل ذلك
     post.setMediaUrls(mediaUrls);
-    post.setContentType(contentType);
+    post.setContentType(contentType); // تعيين نوع المحتوى
 
     if (currentLinkPreview != null) {
       List<PostModel.LinkPreview> previews = new ArrayList<>();
@@ -376,32 +447,34 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
 
     db.collection("posts").add(post)
             .addOnSuccessListener(documentReference -> {
+              String generatedPostId = documentReference.getId();
+              Log.d(TAG, "Post added with ID: " + generatedPostId);
               Map<String, Object> updates = new HashMap<>();
-              updates.put("postId", documentReference.getId());
+              updates.put("postId", generatedPostId);
+              updates.put("createdAt", FieldValue.serverTimestamp()); // ★ استخدام الطابع الزمني للخادم هنا
+
               documentReference.update(updates)
                       .addOnSuccessListener(aVoid -> {
+                        Log.d(TAG, "Post ID and server timestamp updated successfully for " + generatedPostId);
                         showProgress(false);
                         Toast.makeText(ComposePostActivity.this, R.string.post_success, Toast.LENGTH_SHORT).show();
                         clearMediaPreview();
                         binding.etContent.setText("");
                         removeLinkPreview();
-                        finish();
+                        finish(); // أغلق النشاط بعد النجاح
                       })
                       .addOnFailureListener(e -> {
-                        Toast.makeText(ComposePostActivity.this, R.string.post_updated + ", but failed to save Post ID: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                        Log.e(TAG, "Error updating post with postId: " + e.getMessage());
+                        Log.e(TAG, "Error updating post with postId and server timestamp for " + generatedPostId, e);
+                        // لا يزال المنشور قد تم إنشاؤه، ولكن بدون postId أو الطابع الزمني للخادم المحدث
+                        Toast.makeText(ComposePostActivity.this, "Post created, but failed to finalize: " + e.getMessage(), Toast.LENGTH_LONG).show();
                         showProgress(false);
-                        clearMediaPreview();
-                        binding.etContent.setText("");
-                        removeLinkPreview();
                         finish();
                       });
             })
             .addOnFailureListener(e -> {
-              binding.progressContainer.setVisibility(View.GONE);
-              binding.btnPost.setEnabled(true);
-              Toast.makeText(this, R.string.post_failed + ": " + e.getMessage(), Toast.LENGTH_SHORT).show();
-              Log.e(TAG, "Error adding post: " + e.getMessage());
+              showProgress(false);
+              Toast.makeText(this, getString(R.string.post_failed) + ": " + e.getMessage(), Toast.LENGTH_LONG).show();
+              Log.e(TAG, "Error adding post to Firestore: " + e.getMessage(),e);
             });
   }
 
@@ -410,28 +483,25 @@ public class ComposePostActivity extends AppCompatActivity implements MediaPrevi
     binding.btnPost.setEnabled(!show);
     binding.btnAddPhoto.setEnabled(!show);
     binding.btnAddVideo.setEnabled(!show);
+    binding.etContent.setEnabled(!show); // تعطيل حقل النص أيضًا أثناء التحميل
   }
+
   private void clearMediaPreview() {
     selectedMediaUris.clear();
-    existingMediaUrls.clear(); // إذا كنت تستخدمها من مكان آخر، وإلا يمكن إزالتها إذا كانت فقط للاستخدام المستقبلي
+    existingMediaUrls.clear();
     if (mediaPreviewAdapter != null) {
       mediaPreviewAdapter.notifyDataSetChanged();
     }
     binding.rvMediaPreview.setVisibility(View.GONE);
-    currentMediaUri = null; // إعادة تعيين الوسيطة الحالية
-    updatePostButtonState(); // تحديث حالة زر النشر
-    // Toast.makeText(this, "Media preview cleared", Toast.LENGTH_SHORT).show(); // يمكنك إبقاء هذا أو إزالته
+    updatePostButtonState();
   }
+
   private String getFileExtension(Uri uri) {
     String mimeType = getContentResolver().getType(uri);
-    if (mimeType == null) return ".jpg";
-    switch (mimeType) {
-      case "image/jpeg": return ".jpg";
-      case "image/png": return ".png";
-      case "image/gif": return ".gif";
-      case "video/mp4": return ".mp4";
-      case "video/webm": return ".webm";
-      default: return "";
+    String extension = ".jpg"; // افتراضي
+    if (mimeType != null) {
+      extension = "." + MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType);
     }
+    return extension;
   }
 }

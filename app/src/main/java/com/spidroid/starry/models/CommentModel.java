@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 public class CommentModel implements Parcelable {
+
+  public static final int MAX_CONTENT_LENGTH = 500;
   public static final String FIELD_TIMESTAMP = "timestamp";
   public static final String FIELD_PARENT_COMMENT_ID = "parentCommentId";
   public static final String FIELD_PARENT_POST_ID = "parentPostId";
