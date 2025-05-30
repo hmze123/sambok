@@ -8,8 +8,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import com.spidroid.starry.R;
-import com.spidroid.starry.adapters.PostAdapter;
+import com.spidroid.starry.adapters.PostAdapter; // يمكنك إزالة هذا السطر إذا لم يكن مستخدماً في مكان آخر
+import com.spidroid.starry.adapters.PostInteractionListener; // ** استيراد الواجهة مباشرة **
 import com.spidroid.starry.models.PostModel;
+import java.util.Locale;
 
 public class PostInteractionHandler {
   private final ImageButton btnLike;
@@ -22,12 +24,15 @@ public class PostInteractionHandler {
   private final TextView tvCommentCount;
   private final Context context;
   private PostModel currentPost;
-  private final PostAdapter.PostInteractionListener listener;
+
+  // ** تم التعديل هنا: استخدام الواجهة مباشرة **
+  private final PostInteractionListener listener;
 
   public PostInteractionHandler(
-      @NonNull View rootView,
-      @NonNull PostAdapter.PostInteractionListener listener,
-      @NonNull Context context) {
+          @NonNull View rootView,
+          // ** تم التعديل هنا أيضاً **
+          @NonNull PostInteractionListener listener,
+          @NonNull Context context) {
     this.context = context;
     this.listener = listener;
 
@@ -118,37 +123,30 @@ public class PostInteractionHandler {
   }
 
   private void updateButtonStates() {
-    updateButtonState(btnLike, currentPost.isLiked(), R.drawable.ic_like_filled);
-    updateButtonState(btnBookmark, currentPost.isBookmarked(), R.drawable.ic_bookmark_filled);
-    updateButtonState(btnRepost, currentPost.isReposted(), R.drawable.ic_repost_filled);
+    updateButtonState(btnLike, currentPost.isLiked(), R.drawable.ic_like_filled, R.color.red);
+    updateButtonState(btnBookmark, currentPost.isBookmarked(), R.drawable.ic_bookmark_filled, R.color.yellow);
+    updateButtonState(btnRepost, currentPost.isReposted(), R.drawable.ic_repost_filled, R.color.green);
   }
 
   private void updateLikeButton() {
-    updateButtonState(btnLike, currentPost.isLiked(), R.drawable.ic_like_filled);
+    updateButtonState(btnLike, currentPost.isLiked(), R.drawable.ic_like_filled, R.color.red);
     tvLikeCount.setText(formatCount(currentPost.getLikeCount()));
   }
 
   private void updateBookmarkButton() {
-    updateButtonState(btnBookmark, currentPost.isBookmarked(), R.drawable.ic_bookmark_filled);
+    updateButtonState(btnBookmark, currentPost.isBookmarked(), R.drawable.ic_bookmark_filled, R.color.yellow);
     tvBookmarkCount.setText(formatCount(currentPost.getBookmarkCount()));
   }
 
   private void updateRepostButton() {
-    updateButtonState(btnRepost, currentPost.isReposted(), R.drawable.ic_repost_filled);
+    updateButtonState(btnRepost, currentPost.isReposted(), R.drawable.ic_repost_filled, R.color.green);
     tvRepostCount.setText(formatCount(currentPost.getRepostCount()));
   }
 
-  private void updateButtonState(ImageButton button, boolean isActive, int filledRes) {
+  private void updateButtonState(ImageButton button, boolean isActive, int filledRes, int activeColorRes) {
     button.setImageResource(isActive ? filledRes : getOutlineRes(filledRes));
-    int colorRes = isActive ? getActiveColor(filledRes) : R.color.text_secondary;
+    int colorRes = isActive ? activeColorRes : R.color.text_secondary;
     button.setColorFilter(ContextCompat.getColor(context, colorRes));
-  }
-
-  private int getActiveColor(int filledRes) {
-    if (filledRes == R.drawable.ic_like_filled) return R.color.red;
-    if (filledRes == R.drawable.ic_repost_filled) return R.color.green;
-    if (filledRes == R.drawable.ic_bookmark_filled) return R.color.yellow;
-    return R.color.primary;
   }
 
   private int getOutlineRes(int filledRes) {
@@ -159,8 +157,8 @@ public class PostInteractionHandler {
   }
 
   private String formatCount(long count) {
-    if (count >= 1_000_000) return String.format("%.1fM", count / 1_000_000f);
-    if (count >= 1_000) return String.format("%.1fK", count / 1_000f);
+    if (count >= 1_000_000) return String.format(Locale.getDefault(), "%.1fM", count / 1_000_000.0);
+    if (count >= 1_000) return String.format(Locale.getDefault(), "%.1fK", count / 1_000.0);
     return String.valueOf(count);
   }
 }

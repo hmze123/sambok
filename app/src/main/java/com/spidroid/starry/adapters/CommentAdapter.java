@@ -1,331 +1,169 @@
 package com.spidroid.starry.adapters;
 
+import android.content.Context;
 import android.text.format.DateUtils;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
-import android.widget.ImageView;
-import android.widget.LinearLayout;
-import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.appcompat.widget.PopupMenu;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.spidroid.starry.R;
+import com.spidroid.starry.databinding.ItemCommentBinding;
 import com.spidroid.starry.models.CommentModel;
-import de.hdodenhof.circleimageview.CircleImageView;
+import com.google.firebase.auth.FirebaseAuth;
+
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import android.content.Context;
-import androidx.cardview.widget.CardView;
-import android.widget.Button;
-import java.util.ArrayList;
-import java.util.HashMap;
-import com.google.firebase.auth.FirebaseAuth;
-import android.util.TypedValue;
-import androidx.core.content.ContextCompat;
-import android.graphics.Color;
-import androidx.appcompat.widget.PopupMenu;
-import com.google.firebase.firestore.FirebaseFirestore;
 import java.util.Objects;
-import java.util.Set;
-import java.util.HashSet;
 
-public class CommentAdapter extends RecyclerView.Adapter<CommentAdapter.CommentViewHolder> {
-  private static final int INDENTATION_DP = 24;
-  private final List<CommentModel> visibleComments = new ArrayList<>();
-  private final Map<String, List<CommentModel>> replyMap = new HashMap<>();
+public class CommentAdapter extends ListAdapter<CommentModel, CommentAdapter.CommentViewHolder> {
+
   private final CommentInteractionListener listener;
   private final String currentUserId;
   private final String postAuthorId;
-  private final String postId;
-  private final int indentationMargin;
-  private final Set<String> expandedCommentIds = new HashSet<>();
+  private final Context context;
 
   public interface CommentInteractionListener {
     void onLikeClicked(CommentModel comment);
-
     void onReplyClicked(CommentModel comment);
-
-    void onShowRepliesClicked(CommentModel comment);
-
     void onAuthorClicked(String userId);
+    void onShowRepliesClicked(CommentModel comment);
+    void onDeleteComment(CommentModel comment);
+    void onReportComment(CommentModel comment);
   }
 
-  public CommentAdapter(
-      CommentInteractionListener listener, Context context, String postAuthorId, String postId) {
-    this.listener = listener;
-    this.postId = postId;
-    this.currentUserId = FirebaseAuth.getInstance().getUid();
+  public CommentAdapter(@NonNull Context context, String postAuthorId, CommentInteractionListener listener) {
+    super(DIFF_CALLBACK);
+    this.context = context;
     this.postAuthorId = postAuthorId;
-    this.indentationMargin =
-        (int)
-            TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP,
-                INDENTATION_DP,
-                context.getResources().getDisplayMetrics());
-  }
-
-  public void updateComments(List<CommentModel> allComments) {
-    visibleComments.clear();
-    replyMap.clear();
-
-    // Separate top-level comments and replies
-    for (CommentModel comment : allComments) {
-      if (comment.isTopLevel()) {
-        visibleComments.add(comment);
-      } else {
-        String parentId = comment.getParentCommentId();
-        if (!replyMap.containsKey(parentId)) {
-          replyMap.put(parentId, new ArrayList<>());
-        }
-        replyMap.get(parentId).add(comment);
-      }
-    }
-
-    notifyDataSetChanged();
+    this.listener = listener;
+    this.currentUserId = FirebaseAuth.getInstance().getUid();
   }
 
   @NonNull
   @Override
   public CommentViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-    View view =
-        LayoutInflater.from(parent.getContext()).inflate(R.layout.item_comment, parent, false);
-    return new CommentViewHolder(view);
+    ItemCommentBinding binding = ItemCommentBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false);
+    return new CommentViewHolder(binding);
   }
 
   @Override
   public void onBindViewHolder(@NonNull CommentViewHolder holder, int position) {
-    CommentModel comment = visibleComments.get(position);
-    boolean hasReplies = replyMap.containsKey(comment.getCommentId());
-
-    holder.bind(comment, hasReplies);
-    setupIndentation(holder.itemView, comment.getDepth());
-  }
-
-  @Override
-  public int getItemCount() {
-    return visibleComments.size();
-  }
-
-  private void setupIndentation(View view, int depth) {
-    int margin = indentationMargin * depth;
-    ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) view.getLayoutParams();
-    params.setMargins(margin, params.topMargin, params.rightMargin, params.bottomMargin);
-    view.setLayoutParams(params);
-  }
-
-  public void toggleReplies(CommentModel parentComment) {
-    List<CommentModel> replies = replyMap.get(parentComment.getCommentId());
-    if (replies == null) return;
-
-    int parentPosition = visibleComments.indexOf(parentComment);
-    if (parentPosition == -1) return;
-
-    if (expandedCommentIds.contains(parentComment.getCommentId())) {
-      // Collapse replies
-      int removeCount = 0;
-      while (parentPosition + 1 < visibleComments.size()
-          && visibleComments.get(parentPosition + 1).isReply()) {
-        visibleComments.remove(parentPosition + 1);
-        removeCount++;
-      }
-      expandedCommentIds.remove(parentComment.getCommentId());
-      notifyItemRangeRemoved(parentPosition + 1, removeCount);
-    } else {
-      // Expand replies
-      visibleComments.addAll(parentPosition + 1, replies);
-      expandedCommentIds.add(parentComment.getCommentId());
-      notifyItemRangeInserted(parentPosition + 1, replies.size());
+    CommentModel comment = getItem(position);
+    if (comment != null) {
+      holder.bind(comment);
     }
-
-    // Update the show/hide button text
-    notifyItemChanged(parentPosition);
   }
 
   class CommentViewHolder extends RecyclerView.ViewHolder {
-    private final CardView cardView;
-    private final CircleImageView ivAvatar;
-    private final TextView tvAuthor;
-    private final ImageView ivVerified;
-    private final TextView tvTimestamp;
-    private final TextView tvContent;
-    private final ImageButton btnLike;
-    private final TextView tvLikeCount;
-    private final ImageButton btnReply;
-    private final Button btnShowReplies;
-    private LinearLayout replyingContainer;
-    private TextView tvReplyingTarget;
+    private final ItemCommentBinding binding;
+    private final int indentationMargin;
 
-    CommentViewHolder(@NonNull View itemView) {
-      super(itemView);
-      cardView = itemView.findViewById(R.id.cardView);
-      ivAvatar = itemView.findViewById(R.id.ivAvatar);
-      tvAuthor = itemView.findViewById(R.id.tv_author);
-      ivVerified = itemView.findViewById(R.id.ivVerified);
-      tvTimestamp = itemView.findViewById(R.id.tvTimestamp);
-      tvContent = itemView.findViewById(R.id.tvCommentText);
-      btnLike = itemView.findViewById(R.id.btnLike);
-      tvLikeCount = itemView.findViewById(R.id.tvLikeCount);
-      btnReply = itemView.findViewById(R.id.btnReply);
-      btnShowReplies = itemView.findViewById(R.id.btnShowReplies);
-      replyingContainer = itemView.findViewById(R.id.replyingToContainer);
-      tvReplyingTarget = itemView.findViewById(R.id.tvReplyingToTarget);
+    CommentViewHolder(@NonNull ItemCommentBinding binding) {
+      super(binding.getRoot());
+      this.binding = binding;
+      this.indentationMargin = (int) TypedValue.applyDimension(
+              TypedValue.COMPLEX_UNIT_DIP, 24, context.getResources().getDisplayMetrics());
     }
 
-    private String formatCount(int count) {
-      if (count >= 1000000) return (count / 1000000) + "M";
-      if (count >= 1000) return (count / 1000) + "K";
-      return String.valueOf(count);
+    void bind(final CommentModel comment) {
+      // تطبيق المسافة البادئة للردود
+      ViewGroup.MarginLayoutParams params = (ViewGroup.MarginLayoutParams) binding.getRoot().getLayoutParams();
+      params.setMargins(indentationMargin * comment.getDepth(), params.topMargin, params.rightMargin, params.bottomMargin);
+      binding.getRoot().setLayoutParams(params);
+
+      // ربط البيانات
+      binding.tvAuthor.setText(comment.getAuthorDisplayName());
+      binding.tvUsername.setText("@" + comment.getAuthorUsername());
+      binding.tvCommentText.setText(comment.getContent());
+      binding.tvTimestamp.setText(formatTimestamp(comment.getJavaDate()));
+
+      Glide.with(context)
+              .load(comment.getAuthorAvatarUrl())
+              .placeholder(R.drawable.ic_default_avatar)
+              .into(binding.ivAvatar);
+
+      binding.ivVerified.setVisibility(comment.isAuthorVerified() ? View.VISIBLE : View.GONE);
+
+      // منطق الإعجاب
+      binding.tvLikeCount.setText(String.valueOf(comment.getLikeCount()));
+      binding.btnLike.setImageResource(comment.isLiked() ? R.drawable.ic_like_filled : R.drawable.ic_like_outline);
+      binding.btnLike.setColorFilter(ContextCompat.getColor(context, comment.isLiked() ? R.color.red : R.color.text_secondary));
+
+      // منطق إظهار/إخفاء الردود
+      if (comment.getRepliesCount() > 0) {
+        binding.btnShowReplies.setVisibility(View.VISIBLE);
+        // الحالة ستتم إدارتها في الـ ViewModel
+        // يمكنك إضافة خاصية isExpanded إلى CommentModel إذا أردت
+        String buttonText = context.getString(R.string.show_replies_format, comment.getRepliesCount());
+        binding.btnShowReplies.setText(buttonText);
+      } else {
+        binding.btnShowReplies.setVisibility(View.GONE);
+      }
+
+      // إعداد مستمعي النقرات
+      binding.btnLike.setOnClickListener(v -> listener.onLikeClicked(comment));
+      binding.btnReply.setOnClickListener(v -> listener.onReplyClicked(comment));
+      binding.btnShowReplies.setOnClickListener(v -> listener.onShowRepliesClicked(comment));
+      binding.ivAvatar.setOnClickListener(v -> listener.onAuthorClicked(comment.getAuthorId()));
+      binding.tvAuthor.setOnClickListener(v -> listener.onAuthorClicked(comment.getAuthorId()));
+
+      // قائمة الخيارات عند الضغط المطول
+      itemView.setOnLongClickListener(v -> {
+        showCommentMenu(comment, v);
+        return true;
+      });
     }
 
-    void bind(CommentModel comment, boolean hasReplies) {
-      // Author Info
-      tvAuthor.setText(comment.getAuthorDisplayName());
-      tvTimestamp.setText(formatTimestamp(comment.getJavaDate()));
-      Glide.with(itemView)
-          .load(comment.getAuthorAvatarUrl())
-          .placeholder(R.drawable.ic_default_avatar)
-          .error(R.drawable.ic_default_avatar)
-          .into(ivAvatar);
+    private void showCommentMenu(CommentModel comment, View anchor) {
+      PopupMenu popup = new PopupMenu(context, anchor);
+      popup.getMenuInflater().inflate(R.menu.comment_menu, popup.getMenu());
 
-      // Verified Badge
-      ivVerified.setVisibility(comment.isAuthorVerified() ? View.VISIBLE : View.GONE);
+      // إظهار خيار الحذف فقط إذا كان المستخدم هو صاحب التعليق
+      if (currentUserId != null && currentUserId.equals(comment.getAuthorId())) {
+        popup.getMenu().findItem(R.id.action_delete).setVisible(true);
+      } else {
+        popup.getMenu().findItem(R.id.action_delete).setVisible(false);
+      }
 
-      if (comment.getParentAuthorId() != null) {
-        replyingContainer.setVisibility(View.VISIBLE);
-
-        if (comment.isReplyToAuthor(postAuthorId)) {
-          tvReplyingTarget.setText(R.string.author);
-        } else {
-          tvReplyingTarget.setText("@" + comment.getParentAuthorUsername());
+      popup.setOnMenuItemClickListener(item -> {
+        int itemId = item.getItemId();
+        if (itemId == R.id.action_delete) {
+          listener.onDeleteComment(comment);
+          return true;
+        } else if (itemId == R.id.action_report) {
+          listener.onReportComment(comment);
+          return true;
         }
-
-      } else {
-        replyingContainer.setVisibility(View.GONE);
-      }
-
-      // Content
-      tvContent.setText(comment.getContent());
-
-      // Likes
-      tvLikeCount.setText(formatCount(comment.getLikeCount()));
-      btnLike.setImageResource(
-          comment.isLiked() ? R.drawable.ic_like_filled : R.drawable.ic_like_outline);
-      btnLike.setColorFilter(
-          ContextCompat.getColor(
-              itemView.getContext(), comment.isLiked() ? Color.RED : R.color.text_secondary));
-
-      // Replies
-      boolean showReplyButton = !comment.isReply();
-      btnReply.setVisibility(showReplyButton ? View.VISIBLE : View.GONE);
-
-      // Show replies button
-      if (hasReplies && comment.getRepliesCount() > 0) {
-        btnShowReplies.setVisibility(View.VISIBLE);
-        boolean isExpanded = expandedCommentIds.contains(comment.getCommentId());
-        String buttonText =
-            isExpanded
-                ? itemView.getResources().getString(R.string.hide_replies)
-                : itemView
-                    .getResources()
-                    .getString(R.string.show_replies_format, comment.getRepliesCount());
-        btnShowReplies.setText(buttonText);
-      } else {
-        btnShowReplies.setVisibility(View.GONE);
-      }
-
-      // Click Listeners
-      ivAvatar.setOnClickListener(v -> listener.onAuthorClicked(comment.getAuthorId()));
-      btnLike.setOnClickListener(v -> listener.onLikeClicked(comment));
-      btnReply.setOnClickListener(v -> listener.onReplyClicked(comment));
-      btnShowReplies.setOnClickListener(v -> listener.onShowRepliesClicked(comment));
-      cardView.setOnLongClickListener(
-          v -> {
-            showCommentMenu(comment);
-            return true;
-          });
-
-      Date commentDate = comment.getJavaDate();
-      tvTimestamp.setText(formatTimestamp(commentDate));
+        return false;
+      });
+      popup.show();
     }
 
     private String formatTimestamp(Date date) {
-      if (date == null) {
-        return "Just now";
-      }
-      return DateUtils.getRelativeTimeSpanString(
-              date.getTime(),
-              System.currentTimeMillis(),
-              DateUtils.MINUTE_IN_MILLIS,
-              DateUtils.FORMAT_ABBREV_RELATIVE)
-          .toString();
-    }
-
-    private void showCommentMenu(CommentModel comment) {
-      PopupMenu menu = new PopupMenu(itemView.getContext(), cardView);
-      menu.inflate(R.menu.comment_menu);
-
-      // Only show delete if current user is author
-      menu.getMenu()
-          .findItem(R.id.action_delete)
-          .setVisible(comment.getAuthorId().equals(currentUserId));
-
-      menu.setOnMenuItemClickListener(
-          item -> {
-            int id = item.getItemId();
-            if (id == R.id.action_delete) {
-              deleteComment(comment);
-              return true;
-            } else if (id == R.id.action_report) {
-              reportComment(comment);
-              return true;
-            }
-            return false;
-          });
-      menu.show();
-    }
-
-    private void deleteComment(CommentModel comment) {
-      FirebaseFirestore.getInstance()
-          .collection("posts")
-          .document(postId)
-          .collection("comments")
-          .document(comment.getCommentId())
-          .delete()
-          .addOnSuccessListener(
-              unused -> {
-                // Find position safely
-                int position = visibleComments.indexOf(comment);
-                if (position != -1) {
-                  visibleComments.remove(position);
-                  notifyItemRemoved(position);
-
-                  // Optional: Update replies count for parent comment
-                  if (comment.getParentCommentId() != null) {
-                    updateParentRepliesCount(comment.getParentCommentId(), -1);
-                  }
-                }
-              });
-    }
-
-    // To update parent replies count
-    private void updateParentRepliesCount(String parentCommentId, int delta) {
-      for (int i = 0; i < visibleComments.size(); i++) {
-        CommentModel potentialParent = visibleComments.get(i);
-        if (potentialParent.getCommentId().equals(parentCommentId)) {
-          potentialParent.setRepliesCount(potentialParent.getRepliesCount() + delta);
-          notifyItemChanged(i);
-          break;
-        }
-      }
-    }
-
-    private void reportComment(CommentModel comment) {
-      // Implement report logic
+      if (date == null) return "Just now";
+      return DateUtils.getRelativeTimeSpanString(date.getTime(), System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString();
     }
   }
+
+  private static final DiffUtil.ItemCallback<CommentModel> DIFF_CALLBACK = new DiffUtil.ItemCallback<CommentModel>() {
+    @Override
+    public boolean areItemsTheSame(@NonNull CommentModel oldItem, @NonNull CommentModel newItem) {
+      return Objects.equals(oldItem.getCommentId(), newItem.getCommentId());
+    }
+
+    @Override
+    public boolean areContentsTheSame(@NonNull CommentModel oldItem, @NonNull CommentModel newItem) {
+      return oldItem.getContent().equals(newItem.getContent()) &&
+              oldItem.getLikeCount() == newItem.getLikeCount() &&
+              oldItem.isLiked() == newItem.isLiked() &&
+              oldItem.getRepliesCount() == newItem.getRepliesCount();
+    }
+  };
 }

@@ -11,7 +11,8 @@
     <color name="blue">#64B5F6</color> <color name="warning_orange">#FFB74D</color>
     <color name="m3_primary">@color/primary</color>
     <color name="m3_surface_container_highest">#424242</color>
-
+    <color name="story_ring_unseen">#C13584</color>
+    <color name="story_ring_seen">#AAAAAA</color>
     <color name="poll_progress">@color/green</color>
     <color name="message_time">@color/text_secondary</color>
     <color name="poll_stroke">@color/text_secondary</color>

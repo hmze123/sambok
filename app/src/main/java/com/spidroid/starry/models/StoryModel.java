@@ -1,118 +1,105 @@
 package com.spidroid.starry.models;
 
+import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID; // لإنشاء معرّف فريد للقصة
+import java.util.UUID;
 
 public class StoryModel {
 
+    // --- الحقول الأساسية ---
     private String storyId;
-    private String userId; // معرف المستخدم الذي أنشأ القصة
-    private String mediaUrl; // رابط الصورة/الفيديو للقصة
-    private String thumbnailUrl; // رابط الصورة المصغرة للفيديو (إذا كانت القصة فيديو)
-    private String mediaType; // "image" أو "video"
-    private long duration; // مدة القصة بالمللي ثانية (خاصة بالفيديو)
+    private String userId;
+    private String mediaUrl;
+    private String thumbnailUrl;
+    private String mediaType;
+    private long duration;
     @ServerTimestamp
-    private Date createdAt; // وقت إنشاء القصة
-    private Date expiresAt; // وقت انتهاء صلاحية القصة (بعد 24 ساعة من الإنشاء)
-    private Map<String, Boolean> viewers = new HashMap<>(); // معرفات المستخدمين الذين شاهدوا القصة
+    private Date createdAt;
+    private Date expiresAt;
+    private Map<String, Boolean> viewers = new HashMap<>();
 
-    // أنواع الوسائط
+    // --- حقول بيانات المؤلف (لتحسين الأداء) ---
+    @Exclude
+    private String authorUsername;
+    @Exclude
+    private String authorDisplayName;
+    @Exclude
+    private String authorAvatarUrl;
+    @Exclude
+    private boolean authorVerified; // ** تم إضافة هذا الحقل **
+
+
+    // --- الثوابت ---
     public static final String MEDIA_TYPE_IMAGE = "image";
     public static final String MEDIA_TYPE_VIDEO = "video";
 
+    // --- المُنشئات ---
     public StoryModel() {
-        // مطلوب لدوال Firebase
+        // مطلوب لـ Firestore
     }
 
     public StoryModel(String userId, String mediaUrl, String mediaType, long duration, String thumbnailUrl) {
-        this.storyId = UUID.randomUUID().toString(); // إنشاء معرّف فريد للقصة
+        this.storyId = UUID.randomUUID().toString();
         this.userId = userId;
         this.mediaUrl = mediaUrl;
         this.mediaType = mediaType;
         this.duration = duration;
         this.thumbnailUrl = thumbnailUrl;
         this.createdAt = new Date();
-        this.expiresAt = new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000); // تنتهي بعد 24 ساعة
+        this.expiresAt = new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000);
     }
 
-    // Getters
-    public String getStoryId() {
-        return storyId;
-    }
+    // --- Getters and Setters ---
 
-    public String getUserId() {
-        return userId;
-    }
+    public String getStoryId() { return storyId; }
+    public void setStoryId(String storyId) { this.storyId = storyId; }
 
-    public String getMediaUrl() {
-        return mediaUrl;
-    }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 
-    public String getThumbnailUrl() {
-        return thumbnailUrl;
-    }
+    public String getMediaUrl() { return mediaUrl; }
+    public void setMediaUrl(String mediaUrl) { this.mediaUrl = mediaUrl; }
 
-    public String getMediaType() {
-        return mediaType;
-    }
+    public String getThumbnailUrl() { return thumbnailUrl; }
+    public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
 
-    public long getDuration() {
-        return duration;
-    }
+    public String getMediaType() { return mediaType; }
+    public void setMediaType(String mediaType) { this.mediaType = mediaType; }
 
-    public Date getCreatedAt() {
-        return createdAt;
-    }
+    public long getDuration() { return duration; }
+    public void setDuration(long duration) { this.duration = duration; }
 
-    public Date getExpiresAt() {
-        return expiresAt;
-    }
+    public Date getCreatedAt() { return createdAt; }
+    public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
 
-    public Map<String, Boolean> getViewers() {
-        return viewers;
-    }
+    public Date getExpiresAt() { return expiresAt; }
+    public void setExpiresAt(Date expiresAt) { this.expiresAt = expiresAt; }
 
-    // Setters
-    public void setStoryId(String storyId) {
-        this.storyId = storyId;
-    }
+    public Map<String, Boolean> getViewers() { return viewers; }
+    public void setViewers(Map<String, Boolean> viewers) { this.viewers = viewers; }
 
-    public void setUserId(String userId) {
-        this.userId = userId;
-    }
+    @Exclude
+    public String getAuthorUsername() { return authorUsername; }
+    public void setAuthorUsername(String authorUsername) { this.authorUsername = authorUsername; }
 
-    public void setMediaUrl(String mediaUrl) {
-        this.mediaUrl = mediaUrl;
-    }
+    @Exclude
+    public String getAuthorDisplayName() { return authorDisplayName; }
+    public void setAuthorDisplayName(String authorDisplayName) { this.authorDisplayName = authorDisplayName; }
 
-    public void setThumbnailUrl(String thumbnailUrl) {
-        this.thumbnailUrl = thumbnailUrl;
-    }
+    @Exclude
+    public String getAuthorAvatarUrl() { return authorAvatarUrl; }
+    public void setAuthorAvatarUrl(String authorAvatarUrl) { this.authorAvatarUrl = authorAvatarUrl; }
 
-    public void setMediaType(String mediaType) {
-        this.mediaType = mediaType;
-    }
+    // ** الدوال الجديدة التي تم إضافتها **
+    @Exclude
+    public boolean isAuthorVerified() { return authorVerified; }
+    public void setAuthorVerified(boolean authorVerified) { this.authorVerified = authorVerified; }
 
-    public void setDuration(long duration) {
-        this.duration = duration;
-    }
-
-    public void setCreatedAt(Date createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public void setExpiresAt(Date expiresAt) {
-        this.expiresAt = expiresAt;
-    }
-
-    public void setViewers(Map<String, Boolean> viewers) {
-        this.viewers = viewers;
-    }
-
+    // --- دوال مساعدة ---
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

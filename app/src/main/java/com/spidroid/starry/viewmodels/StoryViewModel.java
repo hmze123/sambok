@@ -1,153 +1,158 @@
 package com.spidroid.starry.viewmodels;
 
+import android.util.Log;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.spidroid.starry.models.StoryModel;
-import com.spidroid.starry.models.UserModel; // قد تحتاجها لجلب معلومات المستخدم
-import com.spidroid.starry.repositories.UserRepository; // قد تحتاجها لجلب معلومات المستخدم
-import android.util.Log; // لاستخدام Log
-
-import java.util.Date;
-import java.util.List;
+import com.spidroid.starry.models.UserModel;
+import com.spidroid.starry.repositories.UserRepository;
 import java.util.ArrayList;
-import java.util.stream.Collectors; // لاستخدام stream().collect()
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class StoryViewModel extends ViewModel {
 
-    private FirebaseAuth auth;
-    private FirebaseFirestore db;
-    private MutableLiveData<List<StoryModel>> _stories = new MutableLiveData<>();
-    public LiveData<List<StoryModel>> getStories() {
-        return _stories;
+    private static final String TAG = "StoryViewModel";
+    private final FirebaseAuth auth;
+    private final FirebaseFirestore db;
+    private final UserRepository userRepository;
+
+    // LiveData واحد لتمرير كل البيانات اللازمة للواجهة
+    private final MutableLiveData<StoryFeedState> _storyFeedState = new MutableLiveData<>();
+    public LiveData<StoryFeedState> getStoryFeedState() {
+        return _storyFeedState;
     }
 
-    // LiveData لقصة المستخدم الحالي
-    private MutableLiveData<StoryModel> _yourStory = new MutableLiveData<>();
-    public LiveData<StoryModel> getYourStory() {
-        return _yourStory;
-    }
-
-    // LiveData للمستخدم الحالي
-    private MutableLiveData<UserModel> _currentUser = new MutableLiveData<>();
+    // LiveData لبيانات المستخدم الحالي فقط
+    private final MutableLiveData<UserModel> _currentUser = new MutableLiveData<>();
     public LiveData<UserModel> getCurrentUser() {
         return _currentUser;
     }
 
-    private UserRepository userRepository; // لإدارة المستخدمين
 
     public StoryViewModel() {
         auth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
-        userRepository = new UserRepository(); // تهيئة UserRepository
+        userRepository = new UserRepository();
     }
 
+    // دالة واحدة لجلب كل ما يتعلق بالقصص
     public void fetchStoriesForCurrentUserAndFollowing() {
         String currentUserId = auth.getUid();
         if (currentUserId == null) {
-            _stories.setValue(new ArrayList<>());
+            _storyFeedState.setValue(new StoryFeedState(new ArrayList<>(), false, new HashSet<>()));
             return;
         }
 
-        // ابدأ بجلب المستخدمين الذين يتابعهم المستخدم الحالي
-        db.collection("users").document(currentUserId)
-                .collection("following")
+        // 1. جلب قائمة المتابَعين
+        db.collection("users").document(currentUserId).collection("following")
                 .get()
                 .addOnSuccessListener(followingSnapshot -> {
-                    List<String> followingIds = new ArrayList<>();
-                    for (com.google.firebase.firestore.DocumentSnapshot doc : followingSnapshot.getDocuments()) {
-                        followingIds.add(doc.getId());
+                    List<String> userIdsToFetch = new ArrayList<>();
+                    for (QueryDocumentSnapshot doc : followingSnapshot) {
+                        userIdsToFetch.add(doc.getId());
                     }
-                    followingIds.add(currentUserId); // أضف المستخدم الحالي أيضًا لجلب قصصه
+                    userIdsToFetch.add(currentUserId); // أضف المستخدم الحالي دائماً
 
-                    if (followingIds.isEmpty()) {
-                        _stories.setValue(new ArrayList<>());
+                    // 2. جلب القصص لهؤلاء المستخدمين
+                    // ملاحظة هامة: استعلام whereIn محدود بـ 10 أو 30 عنصر.
+                    // في تطبيق حقيقي، ستحتاج إلى تقسيم الطلب إلى أجزاء أو استخدام بنية بيانات مختلفة.
+                    if (userIdsToFetch.isEmpty()) {
+                        _storyFeedState.setValue(new StoryFeedState(new ArrayList<>(), false, new HashSet<>()));
                         return;
                     }
 
-                    // الآن، جلب القصص من هؤلاء المستخدمين
                     db.collection("stories")
-                            .whereIn("authorId", followingIds) // جلب القصص من المستخدمين الذين يتابعهم
-                            .orderBy("createdAt", Query.Direction.DESCENDING)
+                            .whereIn("userId", userIdsToFetch)
+                            .whereGreaterThan("expiresAt", new Date()) // جلب القصص النشطة فقط
+                            .orderBy("expiresAt", Query.Direction.DESCENDING)
                             .get()
-                            .addOnSuccessListener(storySnapshot -> {
-                                List<StoryModel> fetchedStories = new ArrayList<>();
-                                for (com.google.firebase.firestore.DocumentSnapshot doc : storySnapshot.getDocuments()) {
-                                    StoryModel story = doc.toObject(StoryModel.class);
-                                    if (story != null && (story.getExpiresAt() == null || story.getExpiresAt().after(new Date()))) {
-                                        fetchedStories.add(story);
-                                    }
+                            .addOnSuccessListener(storySnapshots -> {
+                                List<StoryModel> allStories = storySnapshots.toObjects(StoryModel.class);
+
+                                // 3. فصل قصة المستخدم الحالي عن قصص الآخرين
+                                boolean hasMyStory = allStories.stream().anyMatch(s -> s.getUserId().equals(currentUserId));
+                                List<StoryModel> otherStories = allStories.stream()
+                                        .filter(s -> !s.getUserId().equals(currentUserId))
+                                        .collect(Collectors.toList());
+
+                                // 4. جلب بيانات أصحاب القصص (الاسم والصورة) لإثرائها
+                                Set<String> authorIds = otherStories.stream()
+                                        .map(StoryModel::getUserId)
+                                        .collect(Collectors.toSet());
+
+                                if (authorIds.isEmpty()) {
+                                    // لا توجد قصص للآخرين، فقط أرسل حالة قصة المستخدم الحالي
+                                    _storyFeedState.setValue(new StoryFeedState(new ArrayList<>(), hasMyStory, new HashSet<>()));
+                                } else {
+                                    // جلب بيانات المستخدمين
+                                    db.collection("users").whereIn("userId", new ArrayList<>(authorIds))
+                                            .get()
+                                            .addOnSuccessListener(userSnapshots -> {
+                                                // إنشاء Map لسهولة الوصول إلى بيانات المستخدم
+                                                java.util.Map<String, UserModel> userMap = new java.util.HashMap<>();
+                                                for (UserModel user : userSnapshots.toObjects(UserModel.class)) {
+                                                    userMap.put(user.getUserId(), user);
+                                                }
+
+                                                // إثراء كل قصة ببيانات صاحبها
+                                                for (StoryModel story : otherStories) {
+                                                    UserModel author = userMap.get(story.getUserId());
+                                                    if (author != null) {
+                                                        // story.setAuthorDisplayName(author.getDisplayName()); // يجب إضافة هذه الحقول إلى StoryModel
+                                                        // story.setAuthorAvatarUrl(author.getProfileImageUrl());
+                                                    }
+                                                }
+
+                                                // 5. جلب القصص المشاهدة
+                                                Set<String> viewedStoryIds = new HashSet<>(); // يجب جلبها من قاعدة البيانات
+
+                                                _storyFeedState.setValue(new StoryFeedState(otherStories, hasMyStory, viewedStoryIds));
+                                            });
                                 }
-                                _stories.setValue(fetchedStories);
                             })
-                            .addOnFailureListener(e -> {
-                                Log.e("StoryViewModel", "Error fetching stories: " + e.getMessage());
-                                _stories.setValue(new ArrayList<>());
-                            });
+                            .addOnFailureListener(e -> Log.e(TAG, "Error fetching stories: ", e));
                 })
-                .addOnFailureListener(e -> {
-                    Log.e("StoryViewModel", "Error fetching following list: " + e.getMessage());
-                    _stories.setValue(new ArrayList<>());
-                });
+                .addOnFailureListener(e -> Log.e(TAG, "Error fetching following list: ", e));
     }
 
-    public void uploadStory(StoryModel story) {
-        // منطق تحميل القصة إلى Firestore
-        // ...
-    }
-
-    public void markStoryAsViewed(String storyId, String userId) {
-        db.collection("stories").document(storyId)
-                .update("viewers", com.google.firebase.firestore.FieldValue.arrayUnion(userId))
-                .addOnSuccessListener(aVoid -> Log.d("StoryViewModel", "Story viewed by " + userId))
-                .addOnFailureListener(e -> Log.e("StoryViewModel", "Error marking story as viewed: " + e.getMessage()));
-    }
-
-    // دالة جديدة لجلب قصة المستخدم الحالي
-    public void fetchYourStory() {
-        String currentUserId = auth.getUid();
-        if (currentUserId == null) {
-            _yourStory.setValue(null);
-            return;
-        }
-
-        db.collection("stories")
-                .whereEqualTo("authorId", currentUserId)
-                .orderBy("createdAt", Query.Direction.DESCENDING)
-                .limit(1) // جلب أحدث قصة للمستخدم
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    if (!queryDocumentSnapshots.isEmpty()) {
-                        StoryModel story = queryDocumentSnapshots.getDocuments().get(0).toObject(StoryModel.class);
-                        // تحقق من انتهاء صلاحية القصة
-                        if (story != null && (story.getExpiresAt() == null || story.getExpiresAt().after(new Date()))) {
-                            _yourStory.setValue(story);
-                        } else {
-                            _yourStory.setValue(null); // القصة منتهية الصلاحية
-                        }
-                    } else {
-                        _yourStory.setValue(null); // لا توجد قصة للمستخدم
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("StoryViewModel", "Error fetching your story: " + e.getMessage());
-                    _yourStory.setValue(null);
-                });
-    }
-
-    // دالة لجلب بيانات المستخدم الحالي (مثل صورة الأفاتار)
+    // دالة منفصلة لجلب المستخدم الحالي، لأنها قد تكون مطلوبة في أماكن أخرى
     public void fetchCurrentUser() {
         String currentUserId = auth.getUid();
         if (currentUserId != null) {
+            // استخدام المستودع Repository لجلب المستخدم، وهي ممارسة جيدة
+            // لكن لاحظ أن استخدام observeForever يتطلب إزالته في onCleared لتجنب تسريب الذاكرة
             userRepository.getUserById(currentUserId).observeForever(user -> {
-                _currentUser.setValue(user);
+                _currentUser.postValue(user);
             });
-        } else {
-            _currentUser.setValue(null);
+        }
+    }
+
+    @Override
+    protected void onCleared() {
+        super.onCleared();
+        // إزالة المراقب (observer) لتجنب تسريب الذاكرة
+        userRepository.getUserById(auth.getUid()).removeObserver(user -> {});
+    }
+
+    // فئة داخلية لتغليف حالة واجهة المستخدم
+    public static class StoryFeedState {
+        public final List<StoryModel> stories;
+        public final boolean hasMyActiveStory;
+        public final Set<String> viewedStoryIds;
+
+        public StoryFeedState(List<StoryModel> stories, boolean hasMyActiveStory, Set<String> viewedStoryIds) {
+            this.stories = stories;
+            this.hasMyActiveStory = hasMyActiveStory;
+            this.viewedStoryIds = viewedStoryIds;
         }
     }
 }

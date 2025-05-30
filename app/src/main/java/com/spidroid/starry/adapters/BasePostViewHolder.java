@@ -1,29 +1,29 @@
 package com.spidroid.starry.adapters;
 
 import android.content.Context;
-import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.viewbinding.ViewBinding;
 import com.spidroid.starry.models.PostModel;
+import com.spidroid.starry.databinding.ItemPostBinding;
+import com.spidroid.starry.databinding.ItemUserSuggestionBinding;
 import com.spidroid.starry.utils.PostInteractionHandler;
 
 public abstract class BasePostViewHolder extends RecyclerView.ViewHolder {
 
-    protected PostInteractionHandler interactionHandler;
-    protected PostAdapter.PostInteractionListener listener;
+    // ** تم التعديل هنا: لم نعد بحاجة لـ PostAdapter. قبل اسم الواجهة **
+    protected PostInteractionListener listener;
     protected Context context;
+    protected PostInteractionHandler interactionHandler;
 
-    // المُنشئ الذي يقبل View, Listener, Context
-    public BasePostViewHolder(@NonNull View itemView,
-                              PostAdapter.PostInteractionListener listener,
+    public BasePostViewHolder(@NonNull ViewBinding binding,
+                              PostInteractionListener listener,
                               Context context) {
-        super(itemView);
+        super(binding.getRoot());
         this.listener = listener;
         this.context = context;
-        // تهيئة interactionHandler هنا لأنه مشترك
-        this.interactionHandler = new PostInteractionHandler(itemView, listener, context);
+        this.interactionHandler = new PostInteractionHandler(binding.getRoot(), listener, context);
     }
 
-    // هذه الطريقة مجردة (abstract) لأنها تحتاج لتنفيذ في الفئات الأبناء
     public abstract void bindCommon(PostModel post);
 }

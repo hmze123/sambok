@@ -1,32 +1,51 @@
 package com.spidroid.starry.repositories;
 
-import androidx.lifecycle.LiveData; // استيراد LiveData
-import androidx.lifecycle.MutableLiveData; // استيراد MutableLiveData
+import android.util.Log;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
 import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.CollectionReference;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.Query;
 import com.spidroid.starry.models.UserModel;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import android.util.Log; // لاستخدام Log
 
 public class UserRepository {
     private final FirebaseFirestore db = FirebaseFirestore.getInstance();
     private final CollectionReference usersRef = db.collection("users");
 
     public Task<List<UserModel>> searchUsers(String query) {
-        return usersRef.orderBy("username")
+        Task<List<UserModel>> searchByUsername = usersRef.orderBy("username")
                 .startAt(query)
                 .endAt(query + "\uf8ff")
-                .limit(20)
+                .limit(10)
                 .get()
                 .continueWith(task -> task.getResult().toObjects(UserModel.class));
+
+        Task<List<UserModel>> searchByDisplayName = usersRef.orderBy("displayName")
+                .startAt(query)
+                .endAt(query + "\uf8ff")
+                .limit(10)
+                .get()
+                .continueWith(task -> task.getResult().toObjects(UserModel.class));
+
+        return Tasks.whenAllSuccess(searchByUsername, searchByDisplayName).continueWith(task -> {
+            List<UserModel> usernameResults = (List<UserModel>) task.getResult().get(0);
+            List<UserModel> displayNameResults = (List<UserModel>) task.getResult().get(1);
+            Map<String, UserModel> combinedResultsMap = new HashMap<>();
+            for (UserModel user : usernameResults) {
+                combinedResultsMap.put(user.getUserId(), user);
+            }
+            for (UserModel user : displayNameResults) {
+                combinedResultsMap.put(user.getUserId(), user);
+            }
+            return new ArrayList<>(combinedResultsMap.values());
+        });
     }
 
     public Task<Void> toggleFollow(String currentUserId, String targetUserId) {
@@ -37,11 +56,11 @@ public class UserRepository {
             DocumentSnapshot currentUserSnap = transaction.get(currentUserRef);
             DocumentSnapshot targetUserSnap = transaction.get(targetUserRef);
 
-            Map<String, Boolean> following = (Map<String, Boolean>) currentUserSnap.get("following");
-            Map<String, Boolean> followers = (Map<String, Boolean>) targetUserSnap.get("followers");
+            Map<String, Object> following = (Map<String, Object>) currentUserSnap.get("following");
+            if (following == null) following = new HashMap<>();
 
-            following = following != null ? new HashMap<>(following) : new HashMap<>();
-            followers = followers != null ? new HashMap<>(followers) : new HashMap<>();
+            Map<String, Object> followers = (Map<String, Object>) targetUserSnap.get("followers");
+            if (followers == null) followers = new HashMap<>();
 
             if (following.containsKey(targetUserId)) {
                 following.remove(targetUserId);
@@ -57,7 +76,6 @@ public class UserRepository {
         });
     }
 
-    // الدالة الجديدة: getUserById
     public LiveData<UserModel> getUserById(String userId) {
         MutableLiveData<UserModel> userLiveData = new MutableLiveData<>();
         usersRef.document(userId).get()
@@ -66,13 +84,15 @@ public class UserRepository {
                         UserModel user = documentSnapshot.toObject(UserModel.class);
                         userLiveData.setValue(user);
                     } else {
-                        userLiveData.setValue(null); // المستخدم غير موجود
+                        userLiveData.setValue(null);
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e("UserRepository", "Error getting user by ID: " + e.getMessage());
-                    userLiveData.setValue(null); // حدوث خطأ
+                    userLiveData.setValue(null);
                 });
+
+        // *** هذا هو السطر الذي كان ناقصاً على الأغلب ***
         return userLiveData;
     }
 }

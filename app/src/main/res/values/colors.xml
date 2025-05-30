@@ -7,6 +7,8 @@
 
     <color name="ic_launcher_background">@color/surface</color>
     <color name="ic_launcher_foreground">@color/primary</color>
+    <color name="story_ring_unseen">#C13584</color>
+    <color name="story_ring_seen">#AAAAAA</color>
 
     <color name="blue">#2196F3</color> <color name="warning_orange">#FF9800</color>
     <color name="m3_primary">@color/primary</color> <color name="m3_surface_container_highest">#E6E0E9</color> <color name="poll_progress">@color/green</color>

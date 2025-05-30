@@ -1,5 +1,6 @@
 package com.spidroid.starry.activities;
 
+import android.animation.ValueAnimator; // استيراد ValueAnimator
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
@@ -30,12 +31,11 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
-import androidx.media3.common.PlaybackException; // تأكد من وجود هذا الاستيراد الصريح
+import androidx.media3.common.PlaybackException;
 
-// for Progress bar for stories
 import com.google.android.material.progressindicator.LinearProgressIndicator;
-import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.view.animation.LinearInterpolator; // استيراد LinearInterpolator
 
 
 public class StoryViewerActivity extends AppCompatActivity {
@@ -54,9 +54,10 @@ public class StoryViewerActivity extends AppCompatActivity {
 
     private List<StoryModel> stories = new ArrayList<>();
     private int currentStoryIndex = 0;
-    private String viewedUserId; // المستخدم الذي نشاهد قصصه
+    private String viewedUserId;
 
     private ExoPlayer player;
+    private ValueAnimator currentStoryProgressBarAnimator; // متحرك شريط التقدم للقصة الحالية
 
     private LinearLayout progressBarsContainer;
     private List<LinearProgressIndicator> progressIndicators = new ArrayList<>();
@@ -65,8 +66,8 @@ public class StoryViewerActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_story_viewer); // ستحتاج لإنشاء هذا التخطيط
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN); // وضع ملء الشاشة
+        setContentView(R.layout.activity_story_viewer);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
 
         db = FirebaseFirestore.getInstance();
         auth = FirebaseAuth.getInstance();
@@ -81,7 +82,7 @@ public class StoryViewerActivity extends AppCompatActivity {
         initializeViews();
         setupListeners();
         loadStoriesForUser();
-        loadAuthorInfo();
+        // تم إزالة loadAuthorInfo() هنا، سيتم جلب معلومات المؤلف من StoryModel مباشرة
     }
 
     private void initializeViews() {
@@ -91,7 +92,7 @@ public class StoryViewerActivity extends AppCompatActivity {
         tvStoryAuthorName = findViewById(R.id.tvStoryAuthorName);
         ivStoryAuthorAvatar = findViewById(R.id.ivStoryAuthorAvatar);
         ivClose = findViewById(R.id.ivClose);
-        progressBarsContainer = findViewById(R.id.progressBarsContainer); // حاوية أشرطة التقدم
+        progressBarsContainer = findViewById(R.id.progressBarsContainer);
     }
 
     private void setupListeners() {
@@ -100,25 +101,15 @@ public class StoryViewerActivity extends AppCompatActivity {
         ivClose.setOnClickListener(v -> finish());
     }
 
-    private void loadAuthorInfo() {
-        db.collection("users").document(viewedUserId)
-                .get()
-                .addOnSuccessListener(documentSnapshot -> {
-                    UserModel user = documentSnapshot.toObject(UserModel.class);
-                    if (user != null) {
-                        tvStoryAuthorName.setText(user.getDisplayName());
-                        Glide.with(this).load(user.getProfileImageUrl()).into(ivStoryAuthorAvatar);
-                    }
-                })
-                .addOnFailureListener(e -> Log.e(TAG, "Error loading author info", e));
-    }
+    // تم حذف دالة loadAuthorInfo() حيث سيتم جلب البيانات مباشرة من StoryModel
+    // private void loadAuthorInfo() { /* ... */ }
 
     private void loadStoriesForUser() {
         if (storyListener != null) storyListener.remove();
 
         storyListener = db.collection("stories")
                 .whereEqualTo("userId", viewedUserId)
-                .whereGreaterThan("expiresAt", new Date()) // جلب القصص النشطة فقط
+                .whereGreaterThan("expiresAt", new Date())
                 .orderBy("expiresAt")
                 .addSnapshotListener((querySnapshot, e) -> {
                     if (e != null) {
@@ -131,10 +122,10 @@ public class StoryViewerActivity extends AppCompatActivity {
                     if (querySnapshot != null) {
                         List<StoryModel> activeStories = new ArrayList<>();
                         for (StoryModel story : querySnapshot.toObjects(StoryModel.class)) {
-                            // لا تقم بإضافة قصة المستخدم الحالي هنا، سيتم التعامل معها بشكل منفصل
-                            if (auth.getCurrentUser() != null && !story.getUserId().equals(auth.getCurrentUser().getUid())) {
-                                activeStories.add(story);
-                            }
+                            // تم إزالة الشرط الزائد:
+                            // if (auth.getCurrentUser() != null && !story.getUserId().equals(auth.getCurrentUser().getUid())) {
+                            activeStories.add(story);
+                            // }
                         }
                         stories.clear();
                         stories.addAll(activeStories);
@@ -143,7 +134,7 @@ public class StoryViewerActivity extends AppCompatActivity {
                             finish();
                             return;
                         }
-                        setupProgressBars(); // تهيئة أشرطة التقدم
+                        setupProgressBars();
                         displayStory(currentStoryIndex);
                     }
                 });
@@ -156,16 +147,16 @@ public class StoryViewerActivity extends AppCompatActivity {
         for (int i = 0; i < stories.size(); i++) {
             LinearProgressIndicator progressBar = new LinearProgressIndicator(this);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                    0, // العرض سيتغير ديناميكياً
-                    (int) getResources().getDimension(R.dimen.story_progress_height), // ارتفاع شريط التقدم
-                    1.0f // توزيع المساحة بالتساوي
+                    0,
+                    (int) getResources().getDimension(R.dimen.story_progress_height),
+                    1.0f
             );
-            params.setMargins(4, 0, 4, 0); // المسافة بين أشرطة التقدم
+            params.setMargins(4, 0, 4, 0);
             progressBar.setLayoutParams(params);
-            progressBar.setMax(100); // 100% تقدم
+            progressBar.setMax(100);
             progressBar.setProgress(0);
             progressBar.setIndicatorColor(getResources().getColor(R.color.white));
-            progressBar.setTrackColor(getResources().getColor(R.color.text_secondary)); // لون خلفية الشريط
+            progressBar.setTrackColor(getResources().getColor(R.color.text_secondary));
             progressBarsContainer.addView(progressBar);
             progressIndicators.add(progressBar);
         }
@@ -174,45 +165,75 @@ public class StoryViewerActivity extends AppCompatActivity {
 
     private void displayStory(int index) {
         if (index < 0 || index >= stories.size()) {
-            finish(); // لا توجد قصص أخرى
+            finish();
             return;
         }
 
         currentStoryIndex = index;
         StoryModel story = stories.get(currentStoryIndex);
 
-        // قم بتحديث شريط التقدم الحالي إلى 0% وإعادة تعيين السابق
+        // إيقاف أي رسوم متحركة سابقة
+        if (currentStoryProgressBarAnimator != null) {
+            currentStoryProgressBarAnimator.cancel();
+        }
+
+        // تحديث حالة أشرطة التقدم: الأشرطة السابقة 100%، الحالية 0%
         for (int i = 0; i < progressIndicators.size(); i++) {
             progressIndicators.get(i).setProgress(i < currentStoryIndex ? 100 : 0);
         }
 
-        // إخفاء وعرض المشاهدات
+        // تعيين معلومات المؤلف من StoryModel مباشرة
+        tvStoryAuthorName.setText(story.getAuthorDisplayName() != null ? story.getAuthorDisplayName() : story.getUserId());
+        Glide.with(this).load(story.getAuthorAvatarUrl()).into(ivStoryAuthorAvatar);
+
+
         ivStoryMedia.setVisibility(View.GONE);
         pvStoryVideo.setVisibility(View.GONE);
         pbLoading.setVisibility(View.VISIBLE);
-        releasePlayer(); // تحرير المشغل قبل عرض قصة جديدة
+        releasePlayer();
 
         if (Objects.equals(story.getMediaType(), StoryModel.MEDIA_TYPE_IMAGE)) {
             ivStoryMedia.setVisibility(View.VISIBLE);
             Glide.with(this).load(story.getMediaUrl()).into(ivStoryMedia);
             pbLoading.setVisibility(View.GONE);
-            startProgressBarAnimation(story.getDuration() > 0 ? story.getDuration() : 5000); // صور 5 ثواني
+            startProgressBarAnimation(story.getDuration() > 0 ? story.getDuration() : 5000);
         } else if (Objects.equals(story.getMediaType(), StoryModel.MEDIA_TYPE_VIDEO)) {
             pvStoryVideo.setVisibility(View.VISIBLE);
             initializePlayer(story.getMediaUrl());
-            pbLoading.setVisibility(View.GONE); // سيبدأ ExoPlayer في التحميل
-            startProgressBarAnimation(story.getDuration()); // فيديو بمدة محددة
+            pbLoading.setVisibility(View.GONE);
+            startProgressBarAnimation(story.getDuration());
         }
 
         markStoryAsViewed(story.getStoryId());
     }
 
     private void startProgressBarAnimation(long duration) {
-        // سيتم إضافة منطق الرسوم المتحركة هنا في تحديثات لاحقة
-        // هذا مجرد مكان مبدئي لبدء تحديث شريط التقدم
+        if (currentStoryIndex < 0 || currentStoryIndex >= progressIndicators.size()) {
+            return; // تأكد من أن المؤشر صالح
+        }
         LinearProgressIndicator currentProgressBar = progressIndicators.get(currentStoryIndex);
-        currentProgressBar.setProgress(0); // ابدأ من 0
-        // يمكنك استخدام ValueAnimator لتحديث التقدم بشكل سلس بمرور الوقت
+        currentProgressBar.setProgress(0);
+
+        currentStoryProgressBarAnimator = ValueAnimator.ofInt(0, 100);
+        currentStoryProgressBarAnimator.setDuration(duration);
+        currentStoryProgressBarAnimator.setInterpolator(new LinearInterpolator());
+        currentStoryProgressBarAnimator.addUpdateListener(animation -> {
+            int progress = (int) animation.getAnimatedValue();
+            currentProgressBar.setProgress(progress);
+        });
+        currentStoryProgressBarAnimator.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override
+            public void onAnimationEnd(android.animation.Animator animation) {
+                if (currentStoryIndex == progressIndicators.size() - 1) {
+                    // آخر قصة، إغلاق النشاط
+                    finish();
+                } else {
+                    // الانتقال للقصة التالية
+                    showNextStory();
+                }
+            }
+        });
+        currentStoryProgressBarAnimator.start();
     }
 
 
@@ -228,10 +249,10 @@ public class StoryViewerActivity extends AppCompatActivity {
                     }
                 }
                 @Override
-                public void onPlayerError(@NonNull PlaybackException error) { // تم التعديل هنا: إزالة com.google.media3.common
+                public void onPlayerError(@NonNull PlaybackException error) {
                     Log.e(TAG, "ExoPlayer error: " + error.getMessage());
                     Toast.makeText(StoryViewerActivity.this, "Error playing video", Toast.LENGTH_SHORT).show();
-                    showNextStory(); // انتقل إلى القصة التالية عند حدوث خطأ
+                    showNextStory();
                 }
             });
         }
@@ -249,14 +270,16 @@ public class StoryViewerActivity extends AppCompatActivity {
     }
 
     private void showNextStory() {
+        stopProgressBarAnimation(); // إيقاف الرسوم المتحركة الحالية
         if (currentStoryIndex < stories.size() - 1) {
             displayStory(currentStoryIndex + 1);
         } else {
-            finish(); // لا توجد قصص أخرى، أغلق النشاط
+            finish();
         }
     }
 
     private void showPreviousStory() {
+        stopProgressBarAnimation(); // إيقاف الرسوم المتحركة الحالية
         if (currentStoryIndex > 0) {
             displayStory(currentStoryIndex - 1);
         } else {
@@ -274,10 +297,18 @@ public class StoryViewerActivity extends AppCompatActivity {
                 .addOnFailureListener(e -> Log.e(TAG, "Failed to mark story as viewed", e));
     }
 
+    private void stopProgressBarAnimation() {
+        if (currentStoryProgressBarAnimator != null) {
+            currentStoryProgressBarAnimator.cancel();
+            currentStoryProgressBarAnimator = null;
+        }
+    }
+
     @Override
     protected void onPause() {
         super.onPause();
         releasePlayer();
+        stopProgressBarAnimation();
     }
 
     @Override
@@ -287,5 +318,6 @@ public class StoryViewerActivity extends AppCompatActivity {
             storyListener.remove();
         }
         releasePlayer();
+        stopProgressBarAnimation();
     }
 }

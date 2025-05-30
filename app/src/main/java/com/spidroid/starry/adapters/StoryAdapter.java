@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
@@ -15,117 +16,151 @@ import com.spidroid.starry.models.UserModel;
 import de.hdodenhof.circleimageview.CircleImageView;
 import java.util.ArrayList;
 import java.util.List;
-import com.google.firebase.auth.FirebaseAuth;
+import java.util.HashSet;
+import java.util.Set;
 
-public class StoryAdapter extends RecyclerView.Adapter<StoryAdapter.StoryViewHolder> {
+public class StoryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
-    private List<StoryModel> stories = new ArrayList<>();
-    private UserModel currentUserModel; // لتمثيل قصة المستخدم الحالي (إذا وجدت)
-    private Context context;
-    private OnStoryClickListener listener;
+    private static final int VIEW_TYPE_MY_STORY = 0;
+    private static final int VIEW_TYPE_OTHER_STORY = 1;
+
+    private final Context context;
+    private final OnStoryClickListener listener;
+    private final String currentUserId;
+
+    private List<StoryModel> otherStories = new ArrayList<>();
+    private UserModel currentUser;
+    private boolean hasMyActiveStory = false;
+    private Set<String> viewedStoryIds = new HashSet<>();
 
     public interface OnStoryClickListener {
         void onAddStoryClicked();
+        void onViewMyStoryClicked();
         void onStoryPreviewClicked(StoryModel story);
-        void onMyStoryPreviewClicked(UserModel userModel); // للنقر على قصتي أنا
     }
 
-    public StoryAdapter(Context context, OnStoryClickListener listener) {
+    public StoryAdapter(Context context, String currentUserId, OnStoryClickListener listener) {
         this.context = context;
         this.listener = listener;
+        this.currentUserId = currentUserId;
     }
 
-    public void setStories(List<StoryModel> newStories) {
-        this.stories.clear();
-        this.stories.addAll(newStories);
+    public void setStories(List<StoryModel> stories, boolean hasCurrentUserStory) {
+        this.otherStories.clear();
+        this.hasMyActiveStory = hasCurrentUserStory;
+        for (StoryModel story : stories) {
+            if (!story.getUserId().equals(currentUserId)) {
+                this.otherStories.add(story);
+            }
+        }
         notifyDataSetChanged();
     }
 
-    public void setCurrentUserStory(UserModel userModel) {
-        this.currentUserModel = userModel;
-        notifyItemChanged(0); // تحديث العنصر الأول (قصتي)
+    public void setCurrentUser(UserModel user) {
+        this.currentUser = user;
+        if (getItemCount() > 0) {
+            notifyItemChanged(0);
+        }
     }
 
-    @Override
-    public int getItemCount() {
-        // +1 لعنصر "إضافة قصتي" الخاص بالمستخدم الحالي
-        return stories.size() + 1;
+    // *** هذه هي الدالة التي تمت إضافتها لحل المشكلة ***
+    public void setViewedStories(Set<String> viewedIds) {
+        this.viewedStoryIds = viewedIds != null ? viewedIds : new HashSet<>();
+        notifyDataSetChanged();
     }
 
     @Override
     public int getItemViewType(int position) {
-        if (position == 0) {
-            return 0; // "قصتي"
-        }
-        return 1; // قصص المستخدمين الآخرين
+        return position == 0 ? VIEW_TYPE_MY_STORY : VIEW_TYPE_OTHER_STORY;
     }
 
     @NonNull
     @Override
-    public StoryViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_story_preview, parent, false);
-        return new StoryViewHolder(view);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View view = LayoutInflater.from(context).inflate(R.layout.item_story_preview, parent, false);
+        if (viewType == VIEW_TYPE_MY_STORY) {
+            return new MyStoryViewHolder(view);
+        } else {
+            return new OtherStoryViewHolder(view);
+        }
     }
 
     @Override
-    public void onBindViewHolder(@NonNull StoryViewHolder holder, int position) {
-        if (holder.getItemViewType() == 0) {
-            // "قصتي"
-            holder.ivAddStory.setVisibility(View.VISIBLE);
-            holder.tvAuthorName.setText("Your Story"); // أو String resource
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder.getItemViewType() == VIEW_TYPE_MY_STORY) {
+            ((MyStoryViewHolder) holder).bind();
+        } else {
+            StoryModel story = otherStories.get(position - 1);
+            ((OtherStoryViewHolder) holder).bind(story);
+        }
+    }
 
-            // تحميل صورة الملف الشخصي للمستخدم الحالي
-            if (currentUserModel != null && currentUserModel.getProfileImageUrl() != null && !currentUserModel.getProfileImageUrl().isEmpty()) {
-                Glide.with(context).load(currentUserModel.getProfileImageUrl()).into(holder.ivStoryAuthorAvatar);
+    @Override
+    public int getItemCount() {
+        return otherStories.size() + 1;
+    }
+
+    class MyStoryViewHolder extends RecyclerView.ViewHolder {
+        FrameLayout storyRing;
+        CircleImageView ivAvatar;
+        ImageView ivAddStory;
+        TextView tvAuthorName;
+
+        MyStoryViewHolder(@NonNull View itemView) {
+            super(itemView);
+            storyRing = itemView.findViewById(R.id.story_ring_frame);
+            ivAvatar = itemView.findViewById(R.id.ivStoryAuthorAvatar);
+            ivAddStory = itemView.findViewById(R.id.ivAddStory);
+            tvAuthorName = itemView.findViewById(R.id.tvStoryAuthorName);
+        }
+
+        void bind() {
+            tvAuthorName.setText("Your Story");
+            if (currentUser != null && currentUser.getProfileImageUrl() != null) {
+                Glide.with(context).load(currentUser.getProfileImageUrl()).placeholder(R.drawable.ic_default_avatar).into(ivAvatar);
             } else {
-                holder.ivStoryAuthorAvatar.setImageResource(R.drawable.ic_default_avatar);
+                ivAvatar.setImageResource(R.drawable.ic_default_avatar);
             }
 
-            holder.itemView.setOnClickListener(v -> {
+            ivAddStory.setVisibility(hasMyActiveStory ? View.GONE : View.VISIBLE);
+            storyRing.setBackgroundResource(hasMyActiveStory ? R.drawable.bg_story_ring_unseen : 0);
+
+            itemView.setOnClickListener(v -> {
                 if (listener != null) {
-                    if (currentUserModel != null) {
-                        listener.onMyStoryPreviewClicked(currentUserModel);
+                    if (hasMyActiveStory) {
+                        listener.onViewMyStoryClicked();
                     } else {
-                        listener.onAddStoryClicked(); // إذا لم يكن هناك نموذج مستخدم، يمكنه إضافة قصة جديدة
+                        listener.onAddStoryClicked();
                     }
-                }
-            });
-
-        } else {
-            // قصص المستخدمين الآخرين
-            StoryModel story = stories.get(position - 1); // -1 لأن العنصر الأول محجوز لقصتي
-            holder.ivAddStory.setVisibility(View.GONE);
-            holder.tvAuthorName.setText(story.getUserId()); // يجب استبدالها باسم المستخدم الفعلي أو اسم العرض
-            // هنا يجب عليك جلب بيانات المستخدم الذي أنشأ القصة وعرض صورته
-            // سنفترض مؤقتًا أن `getUserId()` يمكن استخدامه لجلب الصورة أو الاسم
-            // الأفضل هو تخزين AuthorDisplayName و AuthorAvatarUrl في StoryModel مباشرة
-
-            // مثال: تحميل صورة المستخدم من StoryModel (إذا أضفتها)
-            // Glide.with(context).load(story.getAuthorAvatarUrl()).into(holder.ivStoryAuthorAvatar);
-            // وإلا، ستحتاج إلى جلب بيانات المستخدم من Firestore
-
-            // مؤقتًا، استخدم معرف المستخدم لتحميل الصورة الافتراضية
-            Glide.with(context).load(R.drawable.ic_default_avatar).into(holder.ivStoryAuthorAvatar);
-
-
-            holder.itemView.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onStoryPreviewClicked(story);
                 }
             });
         }
     }
 
-    static class StoryViewHolder extends RecyclerView.ViewHolder {
-        CircleImageView ivStoryAuthorAvatar;
-        ImageView ivAddStory;
+    class OtherStoryViewHolder extends RecyclerView.ViewHolder {
+        FrameLayout storyRing;
+        CircleImageView ivAvatar;
         TextView tvAuthorName;
 
-        public StoryViewHolder(@NonNull View itemView) {
+        OtherStoryViewHolder(@NonNull View itemView) {
             super(itemView);
-            ivStoryAuthorAvatar = itemView.findViewById(R.id.ivStoryAuthorAvatar);
-            ivAddStory = itemView.findViewById(R.id.ivAddStory);
+            storyRing = itemView.findViewById(R.id.story_ring_frame);
+            ivAvatar = itemView.findViewById(R.id.ivStoryAuthorAvatar);
             tvAuthorName = itemView.findViewById(R.id.tvStoryAuthorName);
+        }
+
+        void bind(StoryModel story) {
+            tvAuthorName.setText(story.getUserId()); // سيتم تحسينها لاحقاً لجلب الاسم الحقيقي
+            Glide.with(context).load(story.getAuthorAvatarUrl()).placeholder(R.drawable.ic_default_avatar).into(ivAvatar);
+
+            boolean isViewed = viewedStoryIds.contains(story.getStoryId());
+            storyRing.setBackgroundResource(isViewed ? R.drawable.bg_story_ring_seen : R.drawable.bg_story_ring_unseen);
+
+            itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onStoryPreviewClicked(story);
+                }
+            });
         }
     }
 }

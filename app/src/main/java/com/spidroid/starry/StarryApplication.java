@@ -19,9 +19,9 @@ public class StarryApplication extends Application {
 
     FirebaseFirestore firestore = FirebaseFirestore.getInstance();
     FirebaseFirestoreSettings settings =
-    new FirebaseFirestoreSettings.Builder()
-        .setPersistenceEnabled(false) // Disable offline persistence
-        .build();
-firestore.setFirestoreSettings(settings);
+            new FirebaseFirestoreSettings.Builder()
+                    .setPersistenceEnabled(true) // تم تمكين الثبات في وضع عدم الاتصال لتحسين تجربة المستخدم
+                    .build();
+    firestore.setFirestoreSettings(settings);
   }
 }

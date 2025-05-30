@@ -3,7 +3,5 @@
     android:shape="oval">
     <stroke
         android:width="2dp"
-        android:color="#B3B3B3" /> <size
-    android:width="60dp"
-    android:height="60dp" />
+        android:color="@color/story_ring_seen" />
 </shape>

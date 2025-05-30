@@ -8,6 +8,7 @@
     <string name="link_preview_failed">Failed to fetch link preview</string>
     <string name="loading_preview">Loading preview…</string>
     <string name="no_title">No title available</string>
+    <string name="your_story">Your Story</string>
 
     <!-- Navigation Titles -->
     <string name="title_home">Home</string>
