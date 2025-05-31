@@ -2,7 +2,7 @@ package com.spidroid.starry.models;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.text.SpannableStringBuilder;
+//import android.text.SpannableStringBuilder; // لم يعد هذا الاستيراد ضروريًا هنا مباشرة
 import androidx.annotation.NonNull;
 import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.ServerTimestamp;
@@ -20,8 +20,7 @@ public class PostModel implements Parcelable {
   public static final String TYPE_VIDEO = "video";
   public static final String TYPE_POLL = "poll";
   public static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "mkv", "webm");
-  // *** التعديل هنا: إضافة الثابت MAX_CONTENT_LENGTH ***
-  public static final int MAX_CONTENT_LENGTH = 280; // الحد الأقصى لطول نص المنشور (مثل تويتر)
+  public static final int MAX_CONTENT_LENGTH = 280;
 
   private String postId;
   private String authorId;
@@ -43,6 +42,10 @@ public class PostModel implements Parcelable {
   private Map<String, Boolean> likes = new HashMap<>();
   private Map<String, Boolean> bookmarks = new HashMap<>();
   private Map<String, Boolean> reposts = new HashMap<>();
+
+  // ★★★ الحقل الجديد للريأكشنات ★★★
+  private Map<String, String> reactions = new HashMap<>(); // Key: userId, Value: emoji_unicode
+
   @Exclude private boolean isLiked;
   @Exclude private boolean isBookmarked;
   @Exclude private boolean isReposted;
@@ -53,12 +56,13 @@ public class PostModel implements Parcelable {
   public PostModel(@NonNull String authorId, @NonNull String content) {
     this.authorId = authorId;
     this.content = content;
-    this.createdAt = new Date();
+    this.createdAt = new Date(); // سيتم الكتابة فوقه بواسطة @ServerTimestamp إذا تم الحفظ بشكل صحيح
     this.contentType = TYPE_TEXT;
     this.mediaUrls = new ArrayList<>();
     this.likes = new HashMap<>();
     this.bookmarks = new HashMap<>();
     this.reposts = new HashMap<>();
+    this.reactions = new HashMap<>(); // ★ تهيئة الخريطة الجديدة
   }
 
   // --- Getters and Setters ---
@@ -102,12 +106,25 @@ public class PostModel implements Parcelable {
   public void setBookmarks(Map<String, Boolean> bookmarks) { this.bookmarks = bookmarks; }
   public Map<String, Boolean> getReposts() { return reposts; }
   public void setReposts(Map<String, Boolean> reposts) { this.reposts = reposts; }
+
+  // ★★★ Getters and Setters للريأكشنات ★★★
+  public Map<String, String> getReactions() {
+    return reactions;
+  }
+  public void setReactions(Map<String, String> reactions) {
+    this.reactions = reactions;
+  }
+
   @Exclude public boolean isLiked() { return isLiked; }
   @Exclude public void setLiked(boolean liked) { isLiked = liked; }
   @Exclude public boolean isBookmarked() { return isBookmarked; }
   @Exclude public void setBookmarked(boolean bookmarked) { isBookmarked = bookmarked; }
   @Exclude public boolean isReposted() { return isReposted; }
   @Exclude public void setReposted(boolean reposted) { isReposted = reposted; }
+
+  public String getLanguage() { return language; }
+  public void setLanguage(String language) { this.language = language; }
+
 
   // --- Helper Methods ---
   public void toggleLike() {
@@ -122,10 +139,39 @@ public class PostModel implements Parcelable {
     isBookmarked = !isBookmarked;
     bookmarkCount += (isBookmarked ? 1 : -1);
   }
+
+  // ★★★ دوال مساعدة للريأكشنات ★★★
+  @Exclude
+  public void addReaction(String userId, String emoji) {
+    if (userId == null || userId.isEmpty() || emoji == null || emoji.isEmpty()) {
+      return;
+    }
+    this.reactions.put(userId, emoji);
+    // ملاحظة: تحديث عدد الريأكشنات الكلي أو عدد كل نوع يتطلب منطقًا إضافيًا
+    // يمكننا إضافته لاحقًا إذا أردنا عرض العدادات.
+  }
+
+  @Exclude
+  public void removeReaction(String userId) {
+    if (userId == null || userId.isEmpty()) {
+      return;
+    }
+    this.reactions.remove(userId);
+  }
+
+  @Exclude
+  public String getUserReaction(String userId) {
+    if (userId == null) {
+      return null;
+    }
+    return this.reactions.get(userId);
+  }
+
   @Exclude
   public boolean isVideoPost() {
     return TYPE_VIDEO.equals(contentType);
   }
+
   @Exclude
   public boolean isImagePost() {
     return TYPE_IMAGE.equals(contentType);
@@ -137,17 +183,82 @@ public class PostModel implements Parcelable {
   }
 
   // --- Parcelable Implementation ---
-  protected PostModel(Parcel in) { /* ... */ }
+  protected PostModel(Parcel in) {
+    postId = in.readString();
+    authorId = in.readString();
+    authorUsername = in.readString();
+    authorDisplayName = in.readString();
+    authorAvatarUrl = in.readString();
+    isAuthorVerified = in.readByte() != 0;
+    content = in.readString();
+    mediaUrls = in.createStringArrayList();
+    contentType = in.readString();
+    videoDuration = in.readLong();
+    linkPreviews = in.createTypedArrayList(LinkPreview.CREATOR);
+    likeCount = in.readLong();
+    repostCount = in.readLong();
+    replyCount = in.readLong();
+    bookmarkCount = in.readLong();
+    long tmpCreatedAt = in.readLong();
+    createdAt = tmpCreatedAt == -1 ? null : new Date(tmpCreatedAt);
+    long tmpUpdatedAt = in.readLong();
+    updatedAt = tmpUpdatedAt == -1 ? null : new Date(tmpUpdatedAt);
+    // قراءة الخرائط
+    likes = new HashMap<>();
+    in.readMap(likes, Boolean.class.getClassLoader());
+    bookmarks = new HashMap<>();
+    in.readMap(bookmarks, Boolean.class.getClassLoader());
+    reposts = new HashMap<>();
+    in.readMap(reposts, Boolean.class.getClassLoader());
+    reactions = new HashMap<>(); // ★ قراءة خريطة الريأكشنات
+    in.readMap(reactions, String.class.getClassLoader()); // ★ استخدام String.class للمفاتيح والقيم
+
+    isLiked = in.readByte() != 0;
+    isBookmarked = in.readByte() != 0;
+    isReposted = in.readByte() != 0;
+    language = in.readString();
+  }
+
   public static final Creator<PostModel> CREATOR = new Creator<PostModel>() {
     @Override
     public PostModel createFromParcel(Parcel in) { return new PostModel(in); }
     @Override
     public PostModel[] newArray(int size) { return new PostModel[size]; }
   };
+
   @Override
   public int describeContents() { return 0; }
+
   @Override
-  public void writeToParcel(Parcel dest, int flags) { /* ... */ }
+  public void writeToParcel(Parcel dest, int flags) {
+    dest.writeString(postId);
+    dest.writeString(authorId);
+    dest.writeString(authorUsername);
+    dest.writeString(authorDisplayName);
+    dest.writeString(authorAvatarUrl);
+    dest.writeByte((byte) (isAuthorVerified ? 1 : 0));
+    dest.writeString(content);
+    dest.writeStringList(mediaUrls);
+    dest.writeString(contentType);
+    dest.writeLong(videoDuration);
+    dest.writeTypedList(linkPreviews);
+    dest.writeLong(likeCount);
+    dest.writeLong(repostCount);
+    dest.writeLong(replyCount);
+    dest.writeLong(bookmarkCount);
+    dest.writeLong(createdAt != null ? createdAt.getTime() : -1);
+    dest.writeLong(updatedAt != null ? updatedAt.getTime() : -1);
+    // كتابة الخرائط
+    dest.writeMap(likes);
+    dest.writeMap(bookmarks);
+    dest.writeMap(reposts);
+    dest.writeMap(reactions); // ★ كتابة خريطة الريأكشنات
+
+    dest.writeByte((byte) (isLiked ? 1 : 0));
+    dest.writeByte((byte) (isBookmarked ? 1 : 0));
+    dest.writeByte((byte) (isReposted ? 1 : 0));
+    dest.writeString(language);
+  }
 
   // --- LinkPreview inner class ---
   public static class LinkPreview implements Parcelable {
@@ -190,5 +301,22 @@ public class PostModel implements Parcelable {
     public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
     public String getSiteName() { return siteName; }
     public void setSiteName(String siteName) { this.siteName = siteName; }
+  }
+
+  // ★★★ للمقارنة بين الكائنات في DiffUtil ★★★
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    PostModel postModel = (PostModel) o;
+    return Objects.equals(postId, postModel.postId) &&
+            Objects.equals(content, postModel.content) && // قارن المحتوى
+            likeCount == postModel.likeCount &&           // قارن عدد الإعجابات
+            Objects.equals(reactions, postModel.reactions); // قارن الريأكشنات
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(postId, content, likeCount, reactions); // أضف الريأكشنات إلى hash
   }
 }

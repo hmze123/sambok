@@ -6,254 +6,297 @@
     android:layout_height="wrap_content"
     android:layout_marginTop="4dp"
     android:layout_marginBottom="4dp"
-    app:cardElevation="1dp" app:cardBackgroundColor="?attr/colorSurfaceContainerLowest" app:strokeWidth="0dp"> <androidx.constraintlayout.widget.ConstraintLayout
-    android:id="@+id/postLayout"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:padding="16dp">
+    app:cardElevation="1dp"
+    app:cardBackgroundColor="?attr/colorSurfaceContainerLowest"
+    app:strokeWidth="0dp">
 
-    <de.hdodenhof.circleimageview.CircleImageView
-        android:id="@+id/ivAuthorAvatar"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:src="@drawable/ic_default_avatar"
-        app:civ_border_width="0.5dp"
-        app:civ_border_color="?attr/colorOutline"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <LinearLayout
-        android:id="@+id/authorInfoLayout"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginStart="12dp"
-        app:layout_constraintStart_toEndOf="@id/ivAuthorAvatar"
-        app:layout_constraintEnd_toStartOf="@id/btnMenu"
-        app:layout_constraintTop_toTopOf="@id/ivAuthorAvatar"
-        app:layout_constraintBottom_toBottomOf="@id/ivAuthorAvatar">
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:id="@+id/tvAuthorName"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/textAppearanceTitleMedium"
-                android:textColor="?attr/colorOnSurface"
-                tools:text="John Doe" />
-
-            <ImageView
-                android:id="@+id/ivVerified"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:visibility="gone"
-                android:layout_marginStart="4dp"
-                app:tint="?attr/colorPrimary"
-                app:srcCompat="@drawable/ic_verified" />
-
-            <TextView
-                android:id="@+id/tvDotSeparator"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="·"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                android:layout_marginHorizontal="4dp"
-                style="?attr/textAppearanceLabelSmall"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/tvTimestamp"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                style="?attr/textAppearanceLabelSmall"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="2h ago" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvUsername"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            style="?attr/textAppearanceBodySmall"
-            android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="\@johndoe" />
-    </LinearLayout>
-
-    <ImageButton
-        android:id="@+id/btnMenu"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        app:tint="?attr/colorOnSurfaceVariant"
-        app:srcCompat="@drawable/ic_more_vert"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/authorInfoLayout"
-        app:layout_constraintBottom_toBottomOf="@id/authorInfoLayout"
-        android:contentDescription="Post options menu" />
-
-    <TextView
-        android:id="@+id/tvPostContent"
-        android:layout_width="0dp" android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        style="?attr/textAppearanceBodyLarge"
-        android:textColor="?attr/colorOnSurface"
-        app:layout_constraintTop_toBottomOf="@id/ivAuthorAvatar"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:lineSpacingExtra="4sp" /> <FrameLayout
-    android:id="@+id/mediaContainer"
-    android:layout_width="0dp"
-    android:layout_height="wrap_content"
-    android:layout_marginTop="12dp"
-    android:layout_marginBottom="8dp"
-    android:visibility="gone"
-    app:layout_constraintTop_toBottomOf="@id/tvPostContent"
-    app:layout_constraintStart_toStartOf="parent"
-    app:layout_constraintEnd_toEndOf="parent">
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/rvMedia"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/postLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:clipToPadding="false"
-        android:nestedScrollingEnabled="false"
-        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-        android:orientation="horizontal"
-        tools:listitem="@layout/item_post_media" />
-</FrameLayout>
+        android:padding="16dp">
 
-    <include
-        android:id="@+id/layoutLinkPreview"
-        layout="@layout/item_link_preview"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/mediaContainer"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <LinearLayout
-        android:id="@+id/interaction_container"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@id/layoutLinkPreview"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+        <de.hdodenhof.circleimageview.CircleImageView
+            android:id="@+id/ivAuthorAvatar"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_default_avatar"
+            app:civ_border_width="0.5dp"
+            app:civ_border_color="?attr/colorOutline"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <LinearLayout
-            android:id="@+id/like_button_container"
+            android:id="@+id/authorInfoLayout"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:background="?attr/selectableItemBackground">
-            <ImageButton
-                android:id="@+id/btnLike"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                app:srcCompat="@drawable/ic_like_outline"
-                app:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="Like post"/>
-            <TextView
-                android:id="@+id/tvLikeCount"
+            android:orientation="vertical"
+            android:layout_marginStart="12dp"
+            app:layout_constraintStart_toEndOf="@id/ivAuthorAvatar"
+            app:layout_constraintEnd_toStartOf="@id/btnMenu"
+            app:layout_constraintTop_toTopOf="@id/ivAuthorAvatar"
+            app:layout_constraintBottom_toBottomOf="@id/ivAuthorAvatar">
+
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp" style="?attr/textAppearanceLabelLarge"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/tvAuthorName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/textAppearanceTitleMedium"
+                    android:textColor="?attr/colorOnSurface"
+                    tools:text="John Doe" />
+
+                <ImageView
+                    android:id="@+id/ivVerified"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:visibility="gone"
+                    android:layout_marginStart="4dp"
+                    app:tint="?attr/colorPrimary"
+                    app:srcCompat="@drawable/ic_verified" />
+
+                <TextView
+                    android:id="@+id/tvDotSeparator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="·"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:layout_marginHorizontal="4dp"
+                    style="?attr/textAppearanceLabelSmall"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tvTimestamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    style="?attr/textAppearanceLabelSmall"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="2h ago" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvUsername"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                style="?attr/textAppearanceBodySmall"
                 android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="1.2K" />
+                tools:text="\@johndoe" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/btnMenu"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="?attr/colorOnSurfaceVariant"
+            app:srcCompat="@drawable/ic_more_vert"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="@id/authorInfoLayout"
+            app:layout_constraintBottom_toBottomOf="@id/authorInfoLayout"
+            android:contentDescription="Post options menu" />
+
+        <TextView
+            android:id="@+id/tvPostContent"
+            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            style="?attr/textAppearanceBodyLarge"
+            android:textColor="?attr/colorOnSurface"
+            app:layout_constraintTop_toBottomOf="@id/ivAuthorAvatar"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:lineSpacingExtra="4sp"
+            tools:text="This is the content of the post. It can be multiple lines long and an example."/>
+
+        <FrameLayout
+            android:id="@+id/mediaContainer"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/tvPostContent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:visibility="visible">
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvMedia"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="false"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                android:orientation="horizontal"
+                tools:listitem="@layout/item_post_media" />
+        </FrameLayout>
+
+        <include
+            android:id="@+id/layoutLinkPreview"
+            layout="@layout/item_link_preview"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/mediaContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/interaction_container"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            app:layout_constraintTop_toBottomOf="@id/layoutLinkPreview"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <LinearLayout
+                android:id="@+id/like_button_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageButton
+                    android:id="@+id/btnLike"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="@android:color/transparent"
+                    app:srcCompat="@drawable/ic_like_outline"
+                    app:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Like post"/>
+
+                <ImageView
+                    android:id="@+id/ivLikeReaction"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_marginStart="4dp"
+                    android:visibility="gone"
+                    tools:srcCompat="@drawable/ic_like_filled_red"
+                    tools:visibility="visible"
+                    app:tint="?attr/colorError" />
+
+                <TextView
+                    android:id="@+id/tvLikeCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    style="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="1.2K" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/comment_button_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageButton
+                    android:id="@+id/btnComment"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="@android:color/transparent"
+                    app:srcCompat="@drawable/ic_comment"
+                    app:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Comment on post"/>
+                <TextView
+                    android:id="@+id/tvCommentCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    style="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="245" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/repost_button_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageButton
+                    android:id="@+id/btnRepost"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="@android:color/transparent"
+                    app:srcCompat="@drawable/ic_repost_outline"
+                    app:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Repost post"/>
+                <TextView
+                    android:id="@+id/tvRepostCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    style="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="89" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/bookmark_button_container"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingVertical="8dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+                <ImageButton
+                    android:id="@+id/btnBookmark"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:background="@android:color/transparent"
+                    app:srcCompat="@drawable/ic_bookmark_outline"
+                    app:tint="?attr/colorOnSurfaceVariant"
+                    android:contentDescription="Bookmark post"/>
+                <TextView
+                    android:id="@+id/tvBookmarkCount"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    style="?attr/textAppearanceLabelLarge"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    tools:text="56" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/comment_button_container"
-            android:layout_width="0dp"
+            android:id="@+id/reactions_display_container"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
             android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:background="?attr/selectableItemBackground">
-            <ImageButton
-                android:id="@+id/btnComment"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                app:srcCompat="@drawable/ic_comment"
-                app:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="Comment on post"/>
-            <TextView
-                android:id="@+id/tvCommentCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                style="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="245" />
+            android:layout_marginTop="8dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:gravity="start|center_vertical"
+            app:layout_constraintTop_toBottomOf="@id/interaction_container"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:visibility="gone"
+            tools:visibility="visible">
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/repost_button_container"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:background="?attr/selectableItemBackground">
-            <ImageButton
-                android:id="@+id/btnRepost"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                app:srcCompat="@drawable/ic_repost_outline"
-                app:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="Repost post"/>
-            <TextView
-                android:id="@+id/tvRepostCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                style="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="89" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/bookmark_button_container"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp"
-            android:background="?attr/selectableItemBackground">
-            <ImageButton
-                android:id="@+id/btnBookmark"
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:background="@android:color/transparent"
-                app:srcCompat="@drawable/ic_bookmark_outline"
-                app:tint="?attr/colorOnSurfaceVariant"
-                android:contentDescription="Bookmark post"/>
-            <TextView
-                android:id="@+id/tvBookmarkCount"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                style="?attr/textAppearanceLabelLarge"
-                android:textColor="?attr/colorOnSurfaceVariant"
-                tools:text="56" />
-        </LinearLayout>
-    </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -5,28 +5,38 @@ import com.spidroid.starry.models.PostModel;
 import com.spidroid.starry.models.UserModel;
 import java.util.List;
 
-// تم نقل الواجهة إلى ملفها الخاص
 public interface PostInteractionListener {
+    // الدوال الموجودة لديك بالفعل
     void onHashtagClicked(String hashtag);
     void onLikeClicked(PostModel post);
     void onCommentClicked(PostModel post);
     void onRepostClicked(PostModel post);
     void onBookmarkClicked(PostModel post);
-    void onMenuClicked(PostModel post, View anchor);
+
+    void onMenuClicked(PostModel post, View anchorView);
     void onDeletePost(PostModel post);
     void onEditPost(PostModel post);
-    void onModeratePost(PostModel post);
+    void onReportPost(PostModel post);
+    void onSharePost(PostModel post);
+    void onCopyLink(PostModel post);
+    void onToggleBookmark(PostModel post);
+
+    void onLikeButtonLongClicked(PostModel post, View anchorView);
+    void onEmojiSelected(PostModel post, String emoji);
+
+    // ⭐ دالة جديدة للنقر على ملخص الإيموجي ⭐
+    void onEmojiSummaryClicked(PostModel post);
+
+    // دوال أخرى قد تكون موجودة لديك
     void onPostLongClicked(PostModel post);
     void onMediaClicked(List<String> mediaUrls, int position);
     void onVideoPlayClicked(String videoUrl);
-    void onSharePost(PostModel post);
-    void onCopyLink(PostModel post);
-    void onReportPost(PostModel post);
-    void onToggleBookmark(PostModel post);
     void onLayoutClicked(PostModel post);
     void onSeeMoreClicked(PostModel post);
     void onTranslateClicked(PostModel post);
     void onShowOriginalClicked(PostModel post);
-    void onFollowClicked(UserModel user);
+
     void onUserClicked(UserModel user);
+    void onFollowClicked(UserModel user);
+    void onModeratePost(PostModel post);
 }

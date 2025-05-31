@@ -18,7 +18,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.firestore.FieldValue;
+import com.google.firebase.firestore.FieldValue; // ★ استيراد FieldValue
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.spidroid.starry.R;
 import com.spidroid.starry.adapters.CommentAdapter;
@@ -58,16 +58,19 @@ public class PostDetailActivity extends AppCompatActivity {
     post = getIntent().getParcelableExtra(EXTRA_POST);
     if (post == null) {
       Log.e(TAG, "PostModel received is null.");
-      Toast.makeText(this, "Error: Post data not found.", Toast.LENGTH_LONG).show();
+      // استخدم string resource بدلاً من النص المباشر
+      Toast.makeText(this, getString(R.string.error_post_not_found), Toast.LENGTH_LONG).show();
       finish(); // إنهاء النشاط إذا لم يتم العثور على بيانات المنشور
       return;
     }
 
     // تحقق من أن postId ليس null قبل المتابعة
-    // هذا هو التحقق الأساسي الذي قد يحل المشكلة المباشرة للـ NullPointerException
     if (post.getPostId() == null || post.getPostId().isEmpty()) {
-      Log.e(TAG, "Post ID is null or empty in received PostModel. Author: " + post.getAuthorUsername() + ", Content: " + post.getContent());
-      Toast.makeText(this, "Error: Invalid post ID.", Toast.LENGTH_LONG).show();
+      Log.e(TAG, "Post ID is null or empty in received PostModel. Author: " +
+              (post.getAuthorUsername() != null ? post.getAuthorUsername() : "N/A") +
+              ", Content: " + (post.getContent() != null ? post.getContent() : "N/A"));
+      // استخدم string resource
+      Toast.makeText(this, getString(R.string.error_invalid_post_id), Toast.LENGTH_LONG).show();
       finish(); // إنهاء النشاط إذا كان معرّف المنشور غير صالح
       return;
     }
@@ -83,23 +86,22 @@ public class PostDetailActivity extends AppCompatActivity {
     setupInputSection();
 
     loadCurrentUserProfile();
-    commentViewModel.loadComments(post.getPostId()); // الآن postId مضمون أنه ليس null
+    commentViewModel.loadComments(post.getPostId());
   }
 
   private void setupToolbar() {
     binding.ivBack.setOnClickListener(v -> finish());
     // يمكنك إضافة المزيد من إعدادات Toolbar هنا إذا لزم الأمر
     // مثلاً، عنوان الـ Toolbar يمكن أن يكون اسم صاحب المنشور أو "Post"
+    binding.tvAppName.setText(post != null && post.getAuthorDisplayName() != null ? post.getAuthorDisplayName() + "'s Post" : "Post");
   }
 
   private void bindPostData() {
-    // تأكد من أن post ليس null مرة أخرى هنا احتياطًا، على الرغم من التحقق في onCreate
     if (post == null) {
       Log.e(TAG, "PostModel is null in bindPostData. This should not happen.");
       return;
     }
 
-    // استخدام binding للوصول إلى عناصر includedPostLayout
     binding.includedPostLayout.tvAuthorName.setText(post.getAuthorDisplayName() != null ? post.getAuthorDisplayName() : post.getAuthorUsername());
     binding.includedPostLayout.tvUsername.setText("@" + (post.getAuthorUsername() != null ? post.getAuthorUsername() : "unknown"));
     binding.includedPostLayout.tvPostContent.setText(post.getContent() != null ? post.getContent() : "");
@@ -117,14 +119,10 @@ public class PostDetailActivity extends AppCompatActivity {
     }
 
     binding.includedPostLayout.ivVerified.setVisibility(post.isAuthorVerified() ? View.VISIBLE : View.GONE);
-
-    // إخفاء عناصر التفاعل في النسخة المضمنة لأنها ستكون خاصة بالشاشة الرئيسية
     binding.includedPostLayout.interactionContainer.setVisibility(View.GONE);
-    // أو يمكنك إعدادها لتعمل بشكل مستقل هنا إذا أردت
   }
 
   private void setupCommentsRecyclerView() {
-    // تأكد أن post و postId ليسا null
     if (post == null || post.getPostId() == null) {
       Log.e(TAG, "Cannot setup Comments RecyclerView: post or postId is null.");
       return;
@@ -136,11 +134,11 @@ public class PostDetailActivity extends AppCompatActivity {
 
   private void setupCommentObservers() {
     commentViewModel.getVisibleComments().observe(this, comments -> {
-      if (comments != null && commentAdapter != null) { // تحقق من أن commentAdapter ليس null
+      if (comments != null && commentAdapter != null) {
         commentAdapter.submitList(comments);
-        // تحديث عدد التعليقات في شريط عنوان المنشور المضمن إذا لزم الأمر
-        if (post != null) { // تحقق من أن post ليس null
-          binding.commentstxt.setText(String.format(Locale.getDefault(), "%d Comments", comments.size()));
+        if (post != null) {
+          // استخدم string resource مع placeholder
+          binding.commentstxt.setText(getString(R.string.comments_count, comments.size()));
         }
       }
     });
@@ -152,33 +150,31 @@ public class PostDetailActivity extends AppCompatActivity {
               .addOnSuccessListener(documentSnapshot -> {
                 if (documentSnapshot.exists()) {
                   currentUserModel = documentSnapshot.toObject(UserModel.class);
-                  // يمكنك تمكين زر إرسال التعليق هنا إذا كان معطلاً مبدئيًا
                   if (binding.inputSection.postButton != null && (binding.inputSection.postInput.getText().length() > 0)) {
                     binding.inputSection.postButton.setEnabled(true);
                   }
                 } else {
-                  Toast.makeText(this, "Could not load your user profile.", Toast.LENGTH_SHORT).show();
+                  Toast.makeText(this, getString(R.string.error_loading_profile), Toast.LENGTH_SHORT).show();
                 }
               })
               .addOnFailureListener(e -> {
                 Log.e(TAG, "Failed to load current user profile", e);
-                Toast.makeText(this, "Failed to load your profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.error_loading_profile_with_message, e.getMessage()), Toast.LENGTH_SHORT).show();
               });
     } else {
-      // المستخدم غير مسجل الدخول، قد ترغب في تعطيل إمكانية إضافة تعليق
       if(binding.inputSection.postButton != null) binding.inputSection.postButton.setEnabled(false);
-      if(binding.inputSection.postInput != null) binding.inputSection.postInput.setHint("Log in to comment");
+      if(binding.inputSection.postInput != null) binding.inputSection.postInput.setHint(getString(R.string.login_to_comment));
     }
   }
 
   private void setupInputSection() {
-    binding.inputSection.charCounter.setText(String.valueOf(CommentModel.MAX_CONTENT_LENGTH)); // افترض وجود MAX_CONTENT_LENGTH في CommentModel
-    binding.inputSection.postButton.setEnabled(false); // تعطيل مبدئي حتى يتم تحميل بيانات المستخدم أو إدخال نص
+    binding.inputSection.charCounter.setText(String.valueOf(CommentModel.MAX_CONTENT_LENGTH));
+    binding.inputSection.postButton.setEnabled(false);
 
-    if (currentUserModel == null && currentUser != null) { // إذا لم يتم تحميل بيانات المستخدم بعد ولكن المستخدم مسجل
-      binding.inputSection.postInput.setHint("Loading user info...");
+    if (currentUserModel == null && currentUser != null) {
+      binding.inputSection.postInput.setHint(getString(R.string.loading_user_info));
     } else if (currentUser == null) {
-      binding.inputSection.postInput.setHint("Log in to comment");
+      binding.inputSection.postInput.setHint(getString(R.string.login_to_comment));
       binding.inputSection.postInput.setEnabled(false);
     }
 
@@ -189,9 +185,8 @@ public class PostDetailActivity extends AppCompatActivity {
 
       @Override
       public void onTextChanged(CharSequence s, int start, int before, int count) {
-        // تمكين زر الإرسال فقط إذا كان هناك نص والمستخدم قد تم تحميله
         binding.inputSection.postButton.setEnabled(s.toString().trim().length() > 0 && currentUserModel != null);
-        int remaining = CommentModel.MAX_CONTENT_LENGTH - s.length(); // افترض وجود MAX_CONTENT_LENGTH
+        int remaining = CommentModel.MAX_CONTENT_LENGTH - s.length();
         binding.inputSection.charCounter.setText(String.valueOf(remaining));
       }
 
@@ -200,26 +195,23 @@ public class PostDetailActivity extends AppCompatActivity {
     });
 
     binding.inputSection.postButton.setOnClickListener(v -> postComment());
-
-    // إخفاء الأزرار غير المستخدمة في سياق التعليقات إذا لزم الأمر
-    binding.inputSection.addMedia.setVisibility(View.GONE); // أو أي زر آخر غير مناسب للتعليقات
+    binding.inputSection.addMedia.setVisibility(View.GONE);
     binding.inputSection.addGif.setVisibility(View.GONE);
     binding.inputSection.addPoll.setVisibility(View.GONE);
-    // يمكنك إظهار زر لإرفاق صورة إذا كنت تدعم الصور في التعليقات
   }
 
   private void postComment() {
     String content = binding.inputSection.postInput.getText().toString().trim();
     if (content.isEmpty()) {
-      Toast.makeText(this, "Comment cannot be empty.", Toast.LENGTH_SHORT).show();
+      Toast.makeText(this, getString(R.string.comment_empty_error), Toast.LENGTH_SHORT).show();
       return;
     }
     if (currentUser == null || currentUserModel == null) {
-      Toast.makeText(this, "You need to be logged in to comment.", Toast.LENGTH_SHORT).show();
+      Toast.makeText(this, getString(R.string.login_to_comment_action), Toast.LENGTH_SHORT).show();
       return;
     }
     if (post == null || post.getPostId() == null) {
-      Toast.makeText(this, "Cannot comment on an invalid post.", Toast.LENGTH_SHORT).show();
+      Toast.makeText(this, getString(R.string.error_invalid_post_for_comment), Toast.LENGTH_SHORT).show();
       return;
     }
 
@@ -230,16 +222,14 @@ public class PostDetailActivity extends AppCompatActivity {
     commentData.put("authorUsername", currentUserModel.getUsername());
     commentData.put("authorAvatarUrl", currentUserModel.getProfileImageUrl());
     commentData.put("authorVerified", currentUserModel.isVerified());
-    commentData.put("timestamp", FieldValue.serverTimestamp()); // استخدام FieldValue.serverTimestamp()
+    commentData.put("timestamp", FieldValue.serverTimestamp());
     commentData.put("likeCount", 0);
     commentData.put("repliesCount", 0);
-    commentData.put("parentPostId", post.getPostId()); // إضافة parentPostId
-    // parentCommentId سيكون null للتعليقات الأساسية
+    commentData.put("parentPostId", post.getPostId());
 
     commentViewModel.addComment(post.getPostId(), commentData);
     binding.inputSection.postInput.setText("");
-    binding.inputSection.postInput.clearFocus(); // إزالة التركيز من حقل الإدخال
-    // إخفاء لوحة المفاتيح
+    binding.inputSection.postInput.clearFocus();
     android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
     if (imm != null && getCurrentFocus() != null) {
       imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
@@ -255,20 +245,15 @@ public class PostDetailActivity extends AppCompatActivity {
         Log.e(TAG, "Cannot toggle like: missing data. CurrentUser: " + (currentUser != null) +
                 ", Comment: " + (comment != null ? comment.getCommentId() : "null") +
                 ", Post: " + (post != null ? post.getPostId() : "null"));
-        Toast.makeText(PostDetailActivity.this, "Error liking comment.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(PostDetailActivity.this, getString(R.string.error_liking_comment), Toast.LENGTH_SHORT).show();
       }
     }
 
     @Override
     public void onReplyClicked(CommentModel comment) {
-      // منطق الرد على تعليق
-      // يمكنك تعديل واجهة المستخدم لإظهار أنك ترد على تعليق معين
-      // وتمرير parentCommentId عند إرسال الرد الجديد
-      binding.inputSection.postInput.setHint("Replying to " + comment.getAuthorUsername());
+      binding.inputSection.postInput.setHint(getString(R.string.replying_to_user, comment.getAuthorUsername()));
       binding.inputSection.postInput.requestFocus();
-      // يمكنك تخزين comment.getCommentId() لاستخدامه كـ parentCommentId للتعليق الجديد
-      // (ستحتاج لإضافة حقل في PostDetailActivity لتخزين parentCommentId مؤقتًا)
-      Toast.makeText(PostDetailActivity.this, "Replying to: " + comment.getAuthorUsername(), Toast.LENGTH_SHORT).show();
+      Toast.makeText(PostDetailActivity.this, getString(R.string.replying_to_user, comment.getAuthorUsername()), Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -291,27 +276,31 @@ public class PostDetailActivity extends AppCompatActivity {
     public void onDeleteComment(CommentModel comment) {
       if (currentUser != null && comment != null && comment.getAuthorId() != null && comment.getAuthorId().equals(currentUser.getUid())) {
         new android.app.AlertDialog.Builder(PostDetailActivity.this)
-                .setTitle("Delete Comment")
-                .setMessage("Are you sure you want to delete this comment?")
-                .setPositiveButton("Delete", (dialog, which) -> {
+                .setTitle(getString(R.string.delete_comment_title))
+                .setMessage(getString(R.string.delete_comment_confirmation))
+                .setPositiveButton(getString(R.string.delete_button), (dialog, which) -> {
                   if (post != null && post.getPostId() != null && comment.getCommentId() != null) {
                     commentViewModel.deleteComment(post.getPostId(), comment);
                   } else {
                     Log.e(TAG, "Cannot delete comment: missing post or comment ID.");
-                    Toast.makeText(PostDetailActivity.this, "Error deleting comment.", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(PostDetailActivity.this, getString(R.string.error_deleting_comment), Toast.LENGTH_SHORT).show();
                   }
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(getString(R.string.cancel_button), null)
                 .show();
       } else {
-        Toast.makeText(PostDetailActivity.this, "You can only delete your own comments.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(PostDetailActivity.this, getString(R.string.error_delete_own_comment_only), Toast.LENGTH_SHORT).show();
       }
     }
 
     @Override
     public void onReportComment(CommentModel comment) {
-      Toast.makeText(PostDetailActivity.this, "Reported comment: " + comment.getCommentId(), Toast.LENGTH_SHORT).show();
+      Toast.makeText(PostDetailActivity.this, getString(R.string.comment_reported_toast, comment.getCommentId()), Toast.LENGTH_SHORT).show();
       // يمكنك هنا فتح شاشة الإبلاغ أو إرسال البلاغ مباشرة
+      Intent intent = new Intent(PostDetailActivity.this, ReportActivity.class);
+      intent.putExtra("commentId", comment.getCommentId());
+      intent.putExtra("postId", post.getPostId());
+      startActivity(intent);
     }
   }
 }

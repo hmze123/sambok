@@ -62,7 +62,6 @@ public class UserModel implements Parcelable {
   private PrivacySettings privacySettings = new PrivacySettings();
   private Map<String, Boolean> notificationPreferences = new HashMap<>();
 
-  // Account Status Enum
   public enum AccountStatus {
     ACTIVE,
     SUSPENDED,
@@ -70,7 +69,6 @@ public class UserModel implements Parcelable {
     RESTRICTED
   }
 
-  // Constructors
   public UserModel() {}
 
   public UserModel(@NonNull String userId, @NonNull String username, @NonNull String email) {
@@ -80,8 +78,8 @@ public class UserModel implements Parcelable {
     this.userId = userId;
     this.username = username;
     this.email = email;
-    this.createdAt = null;
-    this.lastLogin = null;
+    this.createdAt = null; // Will be set by @ServerTimestamp
+    this.lastLogin = null; // Will be set by @ServerTimestamp
     this.followers = new HashMap<>();
     this.following = new HashMap<>();
     this.socialLinks = new HashMap<>();
@@ -90,7 +88,6 @@ public class UserModel implements Parcelable {
     this.notificationPreferences = new HashMap<>();
   }
 
-  // Parcelable implementation
   protected UserModel(Parcel in) {
     userId = in.readString();
     username = in.readString();
@@ -108,15 +105,19 @@ public class UserModel implements Parcelable {
     is2FAEnabled = in.readByte() != 0;
     backupCodes = in.createStringArrayList();
     trustedDevices = in.createTypedArrayList(LoginDevice.CREATOR);
-    followers = (Map<String, Boolean>) in.readHashMap(Boolean.class.getClassLoader());
-    following = (Map<String, Boolean>) in.readHashMap(Boolean.class.getClassLoader());
+    followers = new HashMap<>(); // Initialize before reading
+    in.readMap(followers, Boolean.class.getClassLoader());
+    following = new HashMap<>(); // Initialize before reading
+    in.readMap(following, Boolean.class.getClassLoader());
     postsCount = in.readInt();
-    socialLinks = in.readHashMap(String.class.getClassLoader());
+    socialLinks = new HashMap<>(); // Initialize before reading
+    in.readMap(socialLinks, String.class.getClassLoader());
     fcmToken = in.readString();
     accountStatus = AccountStatus.valueOf(in.readString());
     privacySettings = in.readParcelable(PrivacySettings.class.getClassLoader());
     passwordChangedAt = readNullableDate(in);
-    notificationPreferences = in.readHashMap(Boolean.class.getClassLoader());
+    notificationPreferences = new HashMap<>(); // Initialize before reading
+    in.readMap(notificationPreferences, Boolean.class.getClassLoader());
   }
 
   @Override
@@ -148,7 +149,6 @@ public class UserModel implements Parcelable {
     dest.writeMap(notificationPreferences);
   }
 
-  // Date handling helpers
   private Date readNullableDate(Parcel in) {
     long timestamp = in.readLong();
     return timestamp != -1 ? new Date(timestamp) : null;
@@ -158,7 +158,6 @@ public class UserModel implements Parcelable {
     dest.writeLong(date != null ? date.getTime() : -1);
   }
 
-  // Getters and setters with validation
   public String getUserId() {
     return userId;
   }
@@ -193,7 +192,7 @@ public class UserModel implements Parcelable {
   }
 
   public Map<String, Boolean> getFollowers() {
-    return Collections.unmodifiableMap(followers);
+    return followers != null ? Collections.unmodifiableMap(followers) : new HashMap<>();
   }
 
   public void setFollowers(@Nullable Map<String, Boolean> followers) {
@@ -201,14 +200,13 @@ public class UserModel implements Parcelable {
   }
 
   public Map<String, String> getSocialLinks() {
-    return Collections.unmodifiableMap(socialLinks);
+    return socialLinks != null ? Collections.unmodifiableMap(socialLinks) : new HashMap<>();
   }
 
   public void setSocialLinks(@Nullable Map<String, String> socialLinks) {
     this.socialLinks = socialLinks != null ? new HashMap<>(socialLinks) : new HashMap<>();
   }
 
-  // Helper methods
   public void addFollower(String userId) {
     if (userId != null && !followers.containsKey(userId)) {
       followers.put(userId, true);
@@ -222,10 +220,10 @@ public class UserModel implements Parcelable {
   }
 
   private boolean isValidPlatform(String platform) {
-    return platform.equalsIgnoreCase(SOCIAL_TWITTER)
+    return platform != null && (platform.equalsIgnoreCase(SOCIAL_TWITTER)
             || platform.equalsIgnoreCase(SOCIAL_INSTAGRAM)
             || platform.equalsIgnoreCase(SOCIAL_FACEBOOK)
-            || platform.equalsIgnoreCase(SOCIAL_LINKEDIN);
+            || platform.equalsIgnoreCase(SOCIAL_LINKEDIN));
   }
 
   private boolean isValidUrl(String url) {
@@ -290,9 +288,14 @@ public class UserModel implements Parcelable {
     return isVerified;
   }
 
+  // ⭐ Setter المضاف هنا ⭐
+  public void setVerified(boolean verified) {
+    isVerified = verified;
+  }
+
   public boolean isIs2FAEnabled() {
     return is2FAEnabled;
-  } // Firebase expects "is" prefix for boolean
+  }
 
   public List<String> getBackupCodes() {
     return backupCodes;
@@ -307,7 +310,7 @@ public class UserModel implements Parcelable {
   }
 
   public Map<String, Boolean> getFollowing() {
-    return Collections.unmodifiableMap(following);
+    return following != null ? Collections.unmodifiableMap(following) : new HashMap<>();
   }
 
   public void setFollowing(@Nullable Map<String, Boolean> following) {
@@ -346,22 +349,18 @@ public class UserModel implements Parcelable {
     this.privacySettings = privacySettings;
   }
 
-  // For 2FA
   public void set2FAEnabled(boolean is2FAEnabled) {
     this.is2FAEnabled = is2FAEnabled;
   }
 
-  // For notifications
   public void setNotificationPreferences(Map<String, Boolean> notificationPreferences) {
     this.notificationPreferences = notificationPreferences;
   }
 
-  // For trusted devices
   public void setTrustedDevices(List<LoginDevice> trustedDevices) {
     this.trustedDevices = trustedDevices;
   }
 
-  // PrivacySettings inner class
   @IgnoreExtraProperties
   public static class PrivacySettings implements Parcelable {
     private boolean privateAccount = false;
@@ -372,7 +371,6 @@ public class UserModel implements Parcelable {
 
     public PrivacySettings() {}
 
-    // Parcelable implementation
     protected PrivacySettings(Parcel in) {
       privateAccount = in.readByte() != 0;
       showActivityStatus = in.readByte() != 0;
@@ -390,7 +388,6 @@ public class UserModel implements Parcelable {
       dest.writeByte((byte) (allowTagging ? 1 : 0));
     }
 
-    // Getters and setters
     public boolean isPrivateAccount() {
       return privateAccount;
     }
@@ -403,7 +400,6 @@ public class UserModel implements Parcelable {
       this.showActivityStatus = showActivityStatus;
     }
 
-    // التعديل هنا: إضافة دالة setAllowDMsFromEveryone
     public void setAllowDMsFromEveryone(boolean allowDMsFromEveryone) {
       this.allowDMsFromEveryone = allowDMsFromEveryone;
     }
@@ -443,7 +439,6 @@ public class UserModel implements Parcelable {
             };
   }
 
-  // LoginDevice inner class with enhanced security
   @IgnoreExtraProperties
   public static class LoginDevice implements Parcelable {
     private String deviceId;
@@ -456,7 +451,6 @@ public class UserModel implements Parcelable {
 
     public LoginDevice() {}
 
-    // Add getters and setters
     public String getDeviceId() {
       return deviceId;
     }
@@ -485,7 +479,6 @@ public class UserModel implements Parcelable {
       return isCurrentDevice;
     }
 
-    // Parcelable implementation
     protected LoginDevice(Parcel in) {
       deviceId = in.readString();
       deviceName = in.readString();
@@ -526,7 +519,6 @@ public class UserModel implements Parcelable {
     }
   }
 
-  // Parcelable creator
   public static final Creator<UserModel> CREATOR =
           new Creator<UserModel>() {
             @Override

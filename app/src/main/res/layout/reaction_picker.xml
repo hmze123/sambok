@@ -1,101 +1,36 @@
-<?xml version="1.0" encoding="utf-8"?>
+
 <LinearLayout
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
-     xmlns:tools="http://schemas.android.com/tools"
-     android:layout_height="wrap_content"
-     android:layout_width="match_parent"
-     android:background="@drawable/bg_rounded_top"
-     android:padding="16dp"
-     android:orientation="vertical">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_height="wrap_content"
+    android:layout_width="match_parent"
+    android:background="@drawable/bg_rounded_top"
+    android:padding="16dp"
+    android:orientation="vertical">
 
     <TextView
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:gravity="center"
-         android:textSize="16sp"
-         android:fontFamily="sans-serif-medium"
-         android:paddingBottom="12dp"
-         android:textColor="@color/text_primary"
-         android:id="@+id/title"
-         android:text="Add Reaction" />
-
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:fontFamily="sans-serif-medium"
+        android:paddingBottom="12dp"
+        android:textColor="?attr/colorOnSurface"
+        android:id="@+id/title"
+        android:text="@string/add_reaction_title" />
     <View
-         android:layout_height="1dp"
-         android:layout_width="match_parent"
-         android:layout_marginBottom="12dp"
-         android:background="@color/divider" />
+    android:layout_height="1dp"
+    android:layout_width="match_parent"
+    android:layout_marginBottom="12dp"
+    android:background="?attr/colorOutline" />
 
     <GridLayout
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:columnOrderPreserved="false"
-         android:padding="8dp"
-         android:alignmentMode="alignMargins"
-         android:id="@+id/reaction_grid"
-         android:columnCount="3"
-         android:rowCount="2">
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="❤️"
-             android:tag="heart" />
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="😂"
-             android:tag="laugh" />
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="😂😮"
-             android:tag="wow" />
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="😂😮😢"
-             android:tag="sad" />
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="😂😮😢👍"
-             android:tag="like" />
-
-        <TextView
-             android:layout_height="48dp"
-             android:layout_width="0dp"
-             android:gravity="center"
-             android:background="?attr/selectableItemBackgroundBorderless"
-             android:textSize="24sp"
-             android:layout_columnWeight="1"
-             android:text="😂😮😢👍👎"
-             android:tag="dislike" />
-
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:columnOrderPreserved="false"
+        android:padding="8dp"
+        android:alignmentMode="alignMargins"
+        android:id="@+id/reaction_grid"
+        android:columnCount="4"
+        android:rowCount="2">
     </GridLayout>
-
 </LinearLayout>

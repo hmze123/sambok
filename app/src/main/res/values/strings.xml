@@ -1,28 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- App Info -->
     <string name="app_name">Starry</string>
 
-    <!-- Media & Link Preview -->
     <string name="link_preview_failed">Failed to fetch link preview</string>
     <string name="loading_preview">Loading preview…</string>
     <string name="no_title">No title available</string>
     <string name="your_story">Your Story</string>
 
-    <!-- Navigation Titles -->
+    <string name="reactions_dialog_title">Reactions</string>
+    <string name="no_reactions_to_show">No reactions to show.</string>
+    <string name="failed_to_load_some_user_details">Failed to load some user details.</string>
+
+        <string name="failed_to_load_profile">Failed to load profile: %1$s</string>
+
+    <string name="no_reactions_yet">No reactions yet.</string>
     <string name="title_home">Home</string>
     <string name="title_messages">Messages</string>
     <string name="title_notifications">Notifications</string>
     <string name="title_search">Search</string>
 
-    <!-- Post Actions -->
     <string name="cant_add_images_to_video_post">Cannot add images to video posts</string>
     <string name="cant_mix_video_images">Cannot mix videos with images</string>
     <string name="char_limit_exceeded">Exceeds character limit</string>
     <string name="edit_post">Edit Post</string>
     <string name="max_images_error">Maximum %d images allowed</string>
-    <string name="max_media_limit">Maximum %d images allowed</string>
+    <string name="max_media_limit">Maximum %d media items allowed</string>
     <string name="media_access_error">Error accessing selected media</string>
     <string name="media_upload_failed">Media upload failed</string>
     <string name="multiple_videos_error">Cannot add multiple videos</string>
@@ -36,20 +39,29 @@
     <string name="update_failed">Update failed</string>
     <string name="video_post_single_media">Video posts can only contain one video</string>
 
-    <!-- Replies -->
     <string name="hide_replies">Hide replies</string>
     <string name="replying_to">Replying to</string>
     <string name="replying_to_author">Replying to Author</string>
     <string name="replying_to_user">Replying to %1$s</string>
     <string name="show_replies">Show replies</string>
     <string name="show_replies_format">Show %d replies</string>
+    <string name="comments_count">%d Comments</string>
+    <string name="comment_empty_error">Comment cannot be empty.</string>
+    <string name="error_liking_comment">Error liking comment.</string>
+    <string name="delete_comment_title">Delete Comment</string>
+    <string name="delete_comment_confirmation">Are you sure you want to delete this comment?</string>
+    <string name="delete_button">Delete</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="error_deleting_comment">Error deleting comment.</string>
+    <string name="error_delete_own_comment_only">You can only delete your own comments.</string>
+    <string name="comment_reported_toast">Reported comment: %1$s</string>
+    <string name="add_reaction_title">Add Reaction</string>
 
-    <!-- Search -->
+
     <string name="action_retry">Retry</string>
     <string name="error_search_failed">Search failed. Please try again.</string>
     <string name="search_hint">Search users</string>
 
-    <!-- UI / Misc -->
     <string name="audio_duration">Duration: %s</string>
     <string name="author">Author</string>
     <string name="back">Back</string>
@@ -69,8 +81,25 @@
     <string name="translate">Translate</string>
     <string name="user_avatar">User avatar</string>
     <string name="video_message">Sent a video</string>
+    <string name="loading_text">Loading…</string>
+    <string name="unsupported_file_type">Unsupported file type: %1$s</string>
+    <string name="error_button_text">Error</string>
+    <string name="unsupported_media_type">Unsupported media type.</string>
+    <string name="error_post_data_missing">Post data is missing.</string>
+    <string name="delete_post_title">Delete Post</string>
+    <string name="delete_post_confirmation">Are you sure you want to delete this post?</string>
+    <string name="unknown_user_display_name">Unknown User</string>
+    <string name="cannot_open_profile_author_missing">Cannot open profile: Author information is missing.</string>
+    <string name="user_id_not_found_profile">User ID not found. Cannot load posts.</string>
+    <string name="no_posts_yet_profile">This user hasn\'t posted anything yet.</string>
+    <string name="failed_to_load_posts_profile">Failed to load posts.</string>
+    <string name="no_posts_for_you">No posts for you yet.</string>
+    <string name="explore_to_see_posts">Explore to discover new content or follow people to see their posts here.</string>
+    <string name="cannot_share_empty_post">Cannot share an empty post.</string>
+    <string name="share_post_via">Share post via</string>
+    <string name="link_copied_to_clipboard">Link copied to clipboard</string>
+    <string name="cannot_open_profile_user_missing">Cannot open profile, user data missing.</string>
 
-    <!-- User Profile -->
     <string name="edit_profile">Edit Profile</string>
     <string name="follow">Follow</string>
     <string name="followers">Followers</string>
@@ -78,5 +107,26 @@
     <string name="no_changes_detected">No changes detected</string>
     <string name="user_load_failed">Failed to load user data</string>
     <string name="username">Username</string>
+    <string name="error_post_not_found">Error: Post data not found.</string>
+    <string name="error_invalid_post_id">Error: Invalid post ID.</string>
+    <string name="error_loading_profile">Could not load your user profile.</string>
+    <string name="error_loading_profile_with_message">Failed to load your profile: %1$s</string>
+    <string name="login_to_comment">Log in to comment</string>
+    <string name="loading_user_info">Loading user info...</string>
+    <string name="login_to_comment_action">You need to be logged in to comment.</string>
+    <string name="error_invalid_post_for_comment">Cannot comment on an invalid post.</string>
+    <string name="user_not_authenticated_error">User not authenticated. Please log in.</string>
+    <string name="error_loading_user_data_generic">Failed to load user data.</string>
+    <string name="user_profile_not_found">User profile not found.</string>
+    <string name="error_user_data_not_loaded_wait">User data not loaded yet, please wait.</string>
+    <string name="error_user_data_cannot_save_post">Error: User data not available. Cannot save post.</string>
+    <string name="post_created_finalize_failed">Post created, but failed to finalize: %1$s</string>
+    <string name="user_data_not_loaded_yet">User data not loaded yet. Please try again.</string>
+    <string name="user_id_not_provided">User ID not provided.</string>
+    <string name="failed_to_load_profile_unknown_error">Failed to load profile.</string>
+    <string name="failed_to_parse_user_data">Failed to parse user data.</string>
+    <string name="login_to_follow">You need to be logged in to follow users.</string>
+    <string name="cannot_follow_no_user_data">Cannot follow: User data not available.</string>
+    <string name="failed_to_update_follow_status">Failed to update follow status: %1$s</string>
 
 </resources>

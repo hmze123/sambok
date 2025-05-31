@@ -3,11 +3,12 @@ package com.spidroid.starry.activities;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.ImageView;
-import android.widget.LinearLayout; // تأكد من هذا الاستيراد
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -26,7 +27,9 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreException;
 import com.google.firebase.firestore.ListenerRegistration;
+import com.google.firebase.firestore.SetOptions;
 import com.spidroid.starry.R;
 import com.spidroid.starry.databinding.ActivityProfileBinding;
 import com.spidroid.starry.fragments.ProfileMediaFragment;
@@ -38,16 +41,20 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Locale;
+import java.util.Objects;
 
 public class ProfileActivity extends AppCompatActivity {
   private ActivityProfileBinding binding;
   private FirebaseFirestore db;
   private FirebaseAuth auth;
   private String userId;
-  private boolean isCurrentUser;
+  private String currentAuthUserId;
+  private boolean isCurrentUserProfile;
   private boolean isFollowing;
-  private UserModel currentUserProfile;
+  private UserModel displayedUserProfile;
   private ListenerRegistration userProfileListener;
+
+  private static final String TAG = "ProfileActivity"; // لإضافة تسجيل
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
@@ -60,13 +67,20 @@ public class ProfileActivity extends AppCompatActivity {
 
     userId = getIntent().getStringExtra("userId");
     if (userId == null || userId.isEmpty()) {
-      Toast.makeText(this, "User ID not provided.", Toast.LENGTH_SHORT).show();
+      Toast.makeText(this, getString(R.string.user_id_not_provided), Toast.LENGTH_SHORT).show();
       finish();
       return;
     }
-    isCurrentUser = (auth.getCurrentUser() != null) && userId.equals(auth.getCurrentUser().getUid());
 
-    setupUI(); // استدعاء setupUI هنا
+    if (auth.getCurrentUser() != null) {
+      currentAuthUserId = auth.getCurrentUser().getUid();
+      isCurrentUserProfile = userId.equals(currentAuthUserId);
+    } else {
+      currentAuthUserId = null;
+      isCurrentUserProfile = false;
+    }
+
+    setupUI();
     setupTabs();
   }
 
@@ -91,7 +105,7 @@ public class ProfileActivity extends AppCompatActivity {
     }
     binding.btnBack.setOnClickListener(v -> finish());
 
-    if (isCurrentUser) {
+    if (isCurrentUserProfile) {
       binding.btnAction.setText(R.string.edit_profile);
       binding.btnAction.setIconResource(R.drawable.ic_edit);
       binding.btnAction.setOnClickListener(v ->
@@ -103,7 +117,8 @@ public class ProfileActivity extends AppCompatActivity {
       );
     } else {
       binding.btnSettings.setVisibility(View.GONE);
-      // سيتم تحديث زر المتابعة في loadUserDataWithListener
+      binding.btnAction.setVisibility(View.VISIBLE);
+      binding.btnAction.setOnClickListener(v -> toggleFollow());
     }
 
     final CollapsingToolbarLayout collapsingToolbarLayout = binding.collapsingToolbar;
@@ -118,8 +133,10 @@ public class ProfileActivity extends AppCompatActivity {
           scrollRange = appBarLayout.getTotalScrollRange();
         }
         if (scrollRange + verticalOffset == 0) {
-          if (currentUserProfile != null) {
-            collapsingToolbarLayout.setTitle(currentUserProfile.getDisplayName());
+          if (displayedUserProfile != null && displayedUserProfile.getDisplayName() != null && !displayedUserProfile.getDisplayName().isEmpty()) {
+            collapsingToolbarLayout.setTitle(displayedUserProfile.getDisplayName());
+          } else if (displayedUserProfile != null && displayedUserProfile.getUsername() != null) {
+            collapsingToolbarLayout.setTitle(displayedUserProfile.getUsername());
           }
           isShow = true;
         } else if (isShow) {
@@ -129,27 +146,28 @@ public class ProfileActivity extends AppCompatActivity {
       }
     });
 
-    // --- ★★ بداية إضافة مستمعي النقر لقوائم المتابعين والمتابَعين ★★ ---
     binding.layoutFollowingInfo.setOnClickListener(v -> {
-      if (currentUserProfile != null && !userId.isEmpty()) { // تحقق من userId أيضًا
+      if (displayedUserProfile != null && !userId.isEmpty()) {
         Intent intent = new Intent(ProfileActivity.this, FollowingListActivity.class);
-        intent.putExtra(FollowersListActivity.EXTRA_USER_ID, userId); // استخدام userId من Intent
+        intent.putExtra(FollowersListActivity.EXTRA_USER_ID, userId);
         startActivity(intent);
       } else {
-        Toast.makeText(ProfileActivity.this, "User data not loaded yet.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(ProfileActivity.this, getString(R.string.user_data_not_loaded_yet), Toast.LENGTH_SHORT).show();
       }
     });
 
     binding.layoutFollowersInfo.setOnClickListener(v -> {
-      if (currentUserProfile != null && !userId.isEmpty()) { // تحقق من userId أيضًا
+      if (displayedUserProfile != null && !userId.isEmpty()) {
         Intent intent = new Intent(ProfileActivity.this, FollowersListActivity.class);
-        intent.putExtra(FollowersListActivity.EXTRA_USER_ID, userId); // استخدام userId من Intent
+        intent.putExtra(FollowersListActivity.EXTRA_USER_ID, userId);
+        // ⭐ بداية التعديل: إضافة هذا السطر لتمرير نوع القائمة ⭐
+        intent.putExtra(FollowersListActivity.EXTRA_LIST_TYPE, "followers");
+        // ⭐ نهاية التعديل ⭐
         startActivity(intent);
       } else {
-        Toast.makeText(ProfileActivity.this, "User data not loaded yet.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(ProfileActivity.this, getString(R.string.user_data_not_loaded_yet), Toast.LENGTH_SHORT).show();
       }
     });
-    // --- ★★ نهاية إضافة مستمعي النقر ★★ ---
   }
 
   private void loadUserDataWithListener() {
@@ -157,15 +175,14 @@ public class ProfileActivity extends AppCompatActivity {
       userProfileListener.remove();
     }
     binding.btnAction.setEnabled(false);
-    binding.layoutFollowingInfo.setEnabled(false); // تعطيل مبدئي
-    binding.layoutFollowersInfo.setEnabled(false); // تعطيل مبدئي
-
+    binding.layoutFollowingInfo.setEnabled(false);
+    binding.layoutFollowersInfo.setEnabled(false);
 
     DocumentReference userRef = db.collection("users").document(userId);
     userProfileListener = userRef.addSnapshotListener((snapshot, e) -> {
       if (e != null) {
-        Log.w("ProfileActivity", "Listen failed.", e);
-        Toast.makeText(ProfileActivity.this, "Failed to load profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        Log.w(TAG, "Listen failed for user " + userId, e);
+        Toast.makeText(ProfileActivity.this, getString(R.string.failed_to_load_profile, e.getMessage()), Toast.LENGTH_SHORT).show();
         binding.btnAction.setEnabled(true);
         binding.layoutFollowingInfo.setEnabled(true);
         binding.layoutFollowersInfo.setEnabled(true);
@@ -173,76 +190,77 @@ public class ProfileActivity extends AppCompatActivity {
       }
 
       if (snapshot != null && snapshot.exists()) {
-        currentUserProfile = snapshot.toObject(UserModel.class);
-        if (currentUserProfile != null) {
-          currentUserProfile.setUserId(snapshot.getId());
-          populateProfileData(currentUserProfile);
-          if (!isCurrentUser) {
-            checkFollowingStatus();
-          } else {
+        displayedUserProfile = snapshot.toObject(UserModel.class);
+        if (displayedUserProfile != null) {
+          displayedUserProfile.setUserId(snapshot.getId());
+          populateProfileData(displayedUserProfile);
+          if (!isCurrentUserProfile && currentAuthUserId != null) {
+            checkFollowingStatus(); // سيمكن الزر بعد التحقق
+          } else if (isCurrentUserProfile) {
             binding.btnAction.setEnabled(true);
           }
         } else {
-          Toast.makeText(ProfileActivity.this, "Failed to parse user data.", Toast.LENGTH_SHORT).show();
+          Toast.makeText(ProfileActivity.this, getString(R.string.failed_to_parse_user_data), Toast.LENGTH_SHORT).show();
           binding.btnAction.setEnabled(true);
         }
       } else {
-        Log.d("ProfileActivity", "Current data: null for userId: " + userId);
-        Toast.makeText(ProfileActivity.this, "User profile not found.", Toast.LENGTH_SHORT).show();
-        binding.btnAction.setEnabled(true);
+        Log.d(TAG, "User document does not exist for userId: " + userId);
+        Toast.makeText(ProfileActivity.this, getString(R.string.user_profile_not_found), Toast.LENGTH_SHORT).show();
+        binding.btnAction.setEnabled(true); // تمكين حتى لو لم يتم العثور على الملف الشخصي للسماح بالرجوع
       }
-      // تمكين الأزرار بعد اكتمال تحميل البيانات (سواء نجح أو فشل جزئيًا)
       binding.layoutFollowingInfo.setEnabled(true);
       binding.layoutFollowersInfo.setEnabled(true);
     });
   }
 
   private void checkFollowingStatus() {
-    if (auth.getCurrentUser() == null) {
-      binding.btnAction.setEnabled(true); // تمكين الزر إذا لم يكن هناك مستخدم مسجل
+    if (currentAuthUserId == null) {
+      updateFollowButtonState(false);
+      binding.btnAction.setEnabled(true);
       return;
     }
-    String currentAuthUserId = auth.getCurrentUser().getUid();
-
-    db.collection("users").document(currentAuthUserId)
-            .get()
-            .addOnSuccessListener(documentSnapshot -> {
-              UserModel loggedInUser = documentSnapshot.toObject(UserModel.class);
-              if (loggedInUser != null && loggedInUser.getFollowing() != null) {
-                isFollowing = loggedInUser.getFollowing().containsKey(userId);
-              } else {
-                isFollowing = false;
-              }
-              updateFollowButton();
-              binding.btnAction.setEnabled(true);
-            })
-            .addOnFailureListener(e -> {
-              Log.e("ProfileActivity", "Error checking following status", e);
-              binding.btnAction.setEnabled(true);
-            });
+    if (displayedUserProfile == null || displayedUserProfile.getFollowers() == null) {
+      Log.w(TAG, "Cannot check following status: displayedUserProfile or its followers map is null");
+      updateFollowButtonState(false);
+      binding.btnAction.setEnabled(true);
+      return;
+    }
+    isFollowing = displayedUserProfile.getFollowers().containsKey(currentAuthUserId);
+    updateFollowButtonState(isFollowing);
+    binding.btnAction.setEnabled(true);
   }
 
-  private void updateFollowButton() {
-    if (isCurrentUser) return;
 
+  private void updateFollowButtonState(boolean following) {
+    if (isCurrentUserProfile) return;
+
+    isFollowing = following;
     if (isFollowing) {
       binding.btnAction.setText(R.string.following);
       binding.btnAction.setIcon(null);
+      // يمكنك تخصيص الألوان والخلفيات هنا إذا أردت
+      // binding.btnAction.setBackgroundColor(ContextCompat.getColor(this, R.color.m3_surface_container_highest));
+      // binding.btnAction.setTextColor(ContextCompat.getColor(this, R.color.m3_onSurface));
     } else {
       binding.btnAction.setText(R.string.follow);
       binding.btnAction.setIconResource(R.drawable.ic_add);
+      // binding.btnAction.setBackgroundColor(ContextCompat.getColor(this, R.color.m3_primary));
+      // binding.btnAction.setTextColor(ContextCompat.getColor(this, R.color.m3_onPrimary));
     }
-    binding.btnAction.setOnClickListener(v -> toggleFollow());
   }
 
   private void toggleFollow() {
-    if (auth.getCurrentUser() == null) {
-      Toast.makeText(this, "You need to be logged in.", Toast.LENGTH_SHORT).show();
+    if (currentAuthUserId == null) {
+      Toast.makeText(this, getString(R.string.login_to_follow), Toast.LENGTH_SHORT).show();
       return;
     }
+    if (displayedUserProfile == null || userId == null) {
+      Toast.makeText(this, getString(R.string.cannot_follow_no_user_data), Toast.LENGTH_SHORT).show();
+      return;
+    }
+
     binding.btnAction.setEnabled(false);
 
-    String currentAuthUserId = auth.getCurrentUser().getUid();
     DocumentReference currentUserDocRef = db.collection("users").document(currentAuthUserId);
     DocumentReference targetUserDocRef = db.collection("users").document(userId);
 
@@ -250,10 +268,12 @@ public class ProfileActivity extends AppCompatActivity {
       DocumentSnapshot currentUserSnap = transaction.get(currentUserDocRef);
       DocumentSnapshot targetUserSnap = transaction.get(targetUserDocRef);
 
-      Map<String, Object> currentUserFollowing = currentUserSnap.get("following") != null ?
-              new HashMap<>((Map<String, Object>) currentUserSnap.get("following")) : new HashMap<>();
-      Map<String, Object> targetUserFollowers = targetUserSnap.get("followers") != null ?
-              new HashMap<>((Map<String, Object>) targetUserSnap.get("followers")) : new HashMap<>();
+      if (!currentUserSnap.exists() || !targetUserSnap.exists()) {
+        throw new FirebaseFirestoreException("User document not found for transaction.", FirebaseFirestoreException.Code.NOT_FOUND);
+      }
+
+      Map<String, Boolean> currentUserFollowing = currentUserSnap.get("following") instanceof Map ? new HashMap<>((Map<String, Boolean>) currentUserSnap.get("following")) : new HashMap<>();
+      Map<String, Boolean> targetUserFollowers = targetUserSnap.get("followers") instanceof Map ? new HashMap<>((Map<String, Boolean>) targetUserSnap.get("followers")) : new HashMap<>();
 
       if (isFollowing) {
         currentUserFollowing.remove(userId);
@@ -263,29 +283,35 @@ public class ProfileActivity extends AppCompatActivity {
         targetUserFollowers.put(currentAuthUserId, true);
       }
 
-      transaction.update(currentUserDocRef, "following", currentUserFollowing);
-      transaction.update(targetUserDocRef, "followers", targetUserFollowers);
+      transaction.set(currentUserDocRef, new HashMap<String, Object>() {{ put("following", currentUserFollowing); }}, SetOptions.merge());
+      transaction.set(targetUserDocRef, new HashMap<String, Object>() {{ put("followers", targetUserFollowers); }}, SetOptions.merge());
+
       return null;
     }).addOnSuccessListener(aVoid -> {
-      // تم نقل تحديث isFollowing و updateFollowButton إلى داخل addSnapshotListener
-      // لضمان أن الواجهة تعكس دائمًا البيانات الفعلية من Firestore.
-      // لا حاجة لإعادة تحميل البيانات يدويًا هنا إذا كان الـ listener يعمل.
       binding.btnAction.setEnabled(true);
+      Log.d(TAG, "Follow status toggled successfully for user: " + userId);
+      // SnapshotListener سيتولى تحديث واجهة المستخدم لـ isFollowing وعدد المتابعين
     }).addOnFailureListener(e -> {
-      Log.e("ProfileActivity", "Failed to toggle follow", e);
-      Toast.makeText(ProfileActivity.this, "Failed to update follow status: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+      Log.e(TAG, "Failed to toggle follow for user: " + userId, e);
+      Toast.makeText(ProfileActivity.this, getString(R.string.failed_to_update_follow_status, e.getMessage()), Toast.LENGTH_SHORT).show();
+      checkFollowingStatus(); // إعادة الزر إلى حالته الصحيحة
       binding.btnAction.setEnabled(true);
     });
   }
 
   private void populateProfileData(UserModel user) {
     if (user == null) {
-      Log.e("ProfileActivity", "User model is null in populateProfileData");
+      Log.e(TAG, "User model is null in populateProfileData");
       return;
     }
 
-    binding.tvDisplayName.setText(user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
-    binding.tvUsername.setText("@" + user.getUsername());
+    String displayName = (TextUtils.isEmpty(user.getDisplayName()) && user.getUsername() != null) ? user.getUsername() : user.getDisplayName();
+    if (TextUtils.isEmpty(displayName)) displayName = "User"; // قيمة افتراضية نهائية
+
+    String username = user.getUsername() != null ? "@" + user.getUsername() : "@unknown";
+
+    binding.tvDisplayName.setText(displayName);
+    binding.tvUsername.setText(username);
 
     if (user.getBio() != null && !user.getBio().isEmpty()) {
       binding.tvBio.setVisibility(View.VISIBLE);
@@ -304,14 +330,13 @@ public class ProfileActivity extends AppCompatActivity {
 
     Glide.with(this)
             .load(user.getCoverImageUrl())
-            .placeholder(R.color.m3_surfaceContainer)
-            .error(R.color.m3_surfaceContainer)
+            .placeholder(R.color.m3_surfaceContainerLow)
+            .error(R.color.m3_surfaceContainerLow)
             .into(binding.ivCover);
 
     binding.tvFollowersCount.setText(String.format(Locale.getDefault(), "%d", user.getFollowers() != null ? user.getFollowers().size() : 0));
     binding.tvFollowingCount.setText(String.format(Locale.getDefault(), "%d", user.getFollowing() != null ? user.getFollowing().size() : 0));
 
-    // --- كود الروابط الاجتماعية (من الرد السابق) ---
     binding.layoutSocialLinksContainer.removeAllViews();
     Map<String, String> socialLinks = user.getSocialLinks();
 
@@ -331,26 +356,16 @@ public class ProfileActivity extends AppCompatActivity {
 
         switch (platform.toLowerCase()) {
           case UserModel.SOCIAL_TWITTER:
-            ivPlatformIcon.setImageResource(R.drawable.ic_share); // استبدل بأيقونة تويتر
-            tvPlatformUrl.setText(platform.substring(0, 1).toUpperCase() + platform.substring(1));
+            ivPlatformIcon.setImageResource(R.drawable.ic_share); // استبدل بأيقونة تويتر المناسبة
             break;
           case UserModel.SOCIAL_INSTAGRAM:
-            ivPlatformIcon.setImageResource(R.drawable.ic_add_photo); // استبدل بأيقونة انستغرام
-            tvPlatformUrl.setText(platform.substring(0, 1).toUpperCase() + platform.substring(1));
-            break;
-          case UserModel.SOCIAL_FACEBOOK:
-            ivPlatformIcon.setImageResource(R.drawable.ic_group_add); // استبدل بأيقونة فيسبوك
-            tvPlatformUrl.setText(platform.substring(0, 1).toUpperCase() + platform.substring(1));
-            break;
-          case UserModel.SOCIAL_LINKEDIN:
-            ivPlatformIcon.setImageResource(R.drawable.ic_social_connections); // استبدل بأيقونة لينكدإن
-            tvPlatformUrl.setText(platform.substring(0, 1).toUpperCase() + platform.substring(1));
+            ivPlatformIcon.setImageResource(R.drawable.ic_add_photo); // استبدل بأيقونة انستغرام المناسبة
             break;
           default:
             ivPlatformIcon.setImageResource(R.drawable.ic_link);
-            tvPlatformUrl.setText(url);
             break;
         }
+        tvPlatformUrl.setText(url);
 
         socialLinkView.setOnClickListener(v -> {
           try {
@@ -361,7 +376,7 @@ public class ProfileActivity extends AppCompatActivity {
             Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(formattedUrl));
             startActivity(intent);
           } catch (Exception ex) {
-            Log.e("ProfileActivity", "Could not open social link: " + url, ex);
+            Log.e(TAG, "Could not open social link: " + url, ex);
             Toast.makeText(ProfileActivity.this, "Could not open link: " + url, Toast.LENGTH_SHORT).show();
           }
         });
@@ -388,11 +403,11 @@ public class ProfileActivity extends AppCompatActivity {
 
   private static class ProfilePagerAdapter extends FragmentStateAdapter {
     private final String[] tabTitles = new String[] {"Posts", "Replies", "Media"};
-    private final String userId;
+    private final String userIdForFragments;
 
     public ProfilePagerAdapter(@NonNull FragmentActivity fragmentActivity, String userId) {
       super(fragmentActivity);
-      this.userId = userId;
+      this.userIdForFragments = userId;
     }
 
     @NonNull
@@ -400,13 +415,14 @@ public class ProfileActivity extends AppCompatActivity {
     public Fragment createFragment(int position) {
       switch (position) {
         case 0:
-          return ProfilePostsFragment.newInstance(userId);
+          return ProfilePostsFragment.newInstance(userIdForFragments);
         case 1:
-          return new ProfileRepliesFragment();
+          return ProfileRepliesFragment.newInstance(userIdForFragments);
         case 2:
-          return new ProfileMediaFragment();
+          return ProfileMediaFragment.newInstance(userIdForFragments);
         default:
-          return ProfilePostsFragment.newInstance(userId);
+          // Should not happen
+          return ProfilePostsFragment.newInstance(userIdForFragments);
       }
     }
 
