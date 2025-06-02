@@ -15,11 +15,11 @@ import com.bumptech.glide.Glide;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.spidroid.starry.R;
-import com.spidroid.starry.models.Chat;
+import com.spidroid.starry.models.Chat; // ★ تأكد من هذا الاستيراد
 import com.spidroid.starry.models.ChatMessage;
 import com.spidroid.starry.models.UserModel;
 import de.hdodenhof.circleimageview.CircleImageView;
-import java.util.Objects;
+import java.util.Objects; // ★ تأكد من هذا الاستيراد
 
 public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder> {
 
@@ -34,23 +34,34 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
   public ChatsAdapter(ChatClickListener listener) {
     super(DIFF_CALLBACK);
     this.listener = listener;
-    currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+    // تأكد من أن المستخدم مسجل دخوله قبل محاولة الحصول على UID
+    if (FirebaseAuth.getInstance().getCurrentUser() != null) {
+      this.currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    } else {
+      // يمكنك معالجة هذه الحالة هنا، مثلاً، رمي استثناء أو تسجيل خطأ
+      // أو تعيين قيمة افتراضية إذا كان ذلك مناسبًا لسياق تطبيقك
+      this.currentUserId = ""; // أو null، لكن تأكد من معالجة NullPointerException لاحقًا
+      Log.e("ChatsAdapter", "Current user is null, cannot get UID.");
+      // قد ترغب في منع إنشاء الـ adapter إذا لم يكن هناك مستخدم حالي
+    }
   }
 
   private static final DiffUtil.ItemCallback<Chat> DIFF_CALLBACK =
-      new DiffUtil.ItemCallback<Chat>() {
-        @Override
-        public boolean areItemsTheSame(@NonNull Chat oldItem, @NonNull Chat newItem) {
-          return oldItem.getId().equals(newItem.getId());
-        }
+          new DiffUtil.ItemCallback<Chat>() {
+            @Override
+            public boolean areItemsTheSame(@NonNull Chat oldItem, @NonNull Chat newItem) {
+              return oldItem.getId().equals(newItem.getId());
+            }
 
-        @Override
-        public boolean areContentsTheSame(@NonNull Chat oldItem, @NonNull Chat newItem) {
-          return oldItem.getLastMessageTimestamp() == newItem.getLastMessageTimestamp()
-              && oldItem.getUnreadCounts().equals(newItem.getUnreadCounts())
-              && Objects.equals(oldItem.getLastMessage(), newItem.getLastMessage());
-        }
-      };
+            @Override
+            public boolean areContentsTheSame(@NonNull Chat oldItem, @NonNull Chat newItem) {
+              // --- ★★ السطر الذي تم تعديله هنا ★★ ---
+              // تأكد أن دالة getLastMessageTimestamp() موجودة في كلاس Chat وتُرجع long
+              return oldItem.getLastMessageTimestamp() == newItem.getLastMessageTimestamp()
+                      && oldItem.getUnreadCounts().equals(newItem.getUnreadCounts())
+                      && Objects.equals(oldItem.getLastMessage(), newItem.getLastMessage());
+            }
+          };
 
   @NonNull
   @Override
@@ -72,7 +83,7 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
     private final TextView tvLastMessage;
     private final TextView tvTime;
     private final TextView tvUnreadCount;
-    private String currentChatId;
+    private String currentChatId; // لتتبع الدردشة الحالية التي يعرضها الـ ViewHolder
 
     public ChatViewHolder(@NonNull View itemView) {
       super(itemView);
@@ -85,16 +96,16 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
     }
 
     void bind(Chat chat, ChatClickListener listener) {
-      currentChatId = chat.getId();
+      currentChatId = chat.getId(); // حفظ معرّف الدردشة الحالي
       itemView.setOnClickListener(v -> listener.onChatClick(chat));
 
       // Handle time display
       if (chat.getLastMessageTime() != null) {
         tvTime.setText(
-            DateUtils.formatDateTime(
-                itemView.getContext(),
-                chat.getLastMessageTime().getTime(),
-                DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_TIME));
+                DateUtils.formatDateTime(
+                        itemView.getContext(),
+                        chat.getLastMessageTime().getTime(),
+                        DateUtils.FORMAT_SHOW_TIME | DateUtils.FORMAT_ABBREV_TIME));
       } else {
         tvTime.setText("");
       }
@@ -113,7 +124,8 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
 
     private void bindDirectChat(Chat chat) {
       for (String participant : chat.getParticipants()) {
-        if (!participant.equals(currentUserId)) {
+        // تأكد من أن currentUserId ليس فارغًا قبل المقارنة
+        if (currentUserId != null && !participant.equals(currentUserId)) {
           fetchUserInfo(participant);
           break;
         }
@@ -122,26 +134,37 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
 
     private void fetchUserInfo(String userId) {
       db.collection("users")
-          .document(userId)
-          .get()
-          .addOnSuccessListener(
-              documentSnapshot -> {
-                UserModel user = documentSnapshot.toObject(UserModel.class);
-                if (user != null && currentChatId.equals(getItem(getAdapterPosition()).getId())) {
-                  updateUserInfo(user);
-                }
-              })
-          .addOnFailureListener(e -> Log.e("ChatsAdapter", "Error fetching user info", e));
+              .document(userId)
+              .get()
+              .addOnSuccessListener(
+                      documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                          UserModel user = documentSnapshot.toObject(UserModel.class);
+                          // تحقق من أن الـ ViewHolder لا يزال يعرض نفس الدردشة قبل تحديث الواجهة
+                          if (user != null && currentChatId != null && getItem(getAdapterPosition()) != null && currentChatId.equals(getItem(getAdapterPosition()).getId())) {
+                            updateUserInfo(user);
+                          }
+                        } else {
+                          Log.w("ChatsAdapter", "User document not found for ID: " + userId);
+                          // يمكنك هنا تعيين قيم افتراضية أو إخفاء العنصر إذا لم يتم العثور على المستخدم
+                          tvUserName.setText("Unknown User");
+                          ivAvatar.setImageResource(R.drawable.ic_default_avatar);
+                          ivVerified.setVisibility(View.GONE);
+                        }
+                      })
+              .addOnFailureListener(e -> Log.e("ChatsAdapter", "Error fetching user info for ID: " + userId, e));
     }
 
     private void updateUserInfo(UserModel user) {
-      tvUserName.setText(user.getDisplayName());
+      tvUserName.setText(user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
       ivVerified.setVisibility(user.isVerified() ? View.VISIBLE : View.GONE);
-      Glide.with(itemView)
-          .load(user.getProfileImageUrl())
-          .placeholder(R.drawable.ic_default_avatar)
-          .error(R.drawable.ic_default_avatar)
-          .into(ivAvatar);
+      if (itemView.getContext() != null) { // تحقق من أن السياق متاح
+        Glide.with(itemView.getContext())
+                .load(user.getProfileImageUrl())
+                .placeholder(R.drawable.ic_default_avatar)
+                .error(R.drawable.ic_default_avatar)
+                .into(ivAvatar);
+      }
     }
 
     private void bindLastMessage(Chat chat) {
@@ -149,20 +172,20 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
       String messageType = chat.getLastMessageType();
 
       if (message == null) {
-        tvLastMessage.setText(R.string.no_messages);
+        tvLastMessage.setText(R.string.no_messages); // استخدم string resource
         return;
       }
 
       if (messageType != null) {
         switch (messageType) {
           case ChatMessage.TYPE_IMAGE:
-            tvLastMessage.setText(R.string.photo_message);
+            tvLastMessage.setText(R.string.photo_message); // استخدم string resource
             break;
           case ChatMessage.TYPE_VIDEO:
-            tvLastMessage.setText(R.string.video_message);
+            tvLastMessage.setText(R.string.video_message); // استخدم string resource
             break;
           case ChatMessage.TYPE_FILE:
-            tvLastMessage.setText(R.string.file_message);
+            tvLastMessage.setText(R.string.file_message); // استخدم string resource
             break;
           default:
             tvLastMessage.setText(message);
@@ -173,7 +196,8 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
     }
 
     private void bindUnreadCount(Chat chat) {
-      int unread = chat.getUnreadCounts().getOrDefault(currentUserId, 0);
+      // تأكد من أن currentUserId ليس فارغًا
+      Integer unread = chat.getUnreadCounts() != null && currentUserId != null ? chat.getUnreadCounts().getOrDefault(currentUserId, 0) : 0;
       if (unread > 0) {
         tvUnreadCount.setVisibility(View.VISIBLE);
         tvUnreadCount.setText(String.valueOf(unread));
@@ -184,12 +208,14 @@ public class ChatsAdapter extends ListAdapter<Chat, ChatsAdapter.ChatViewHolder>
 
     private void bindGroupChat(Chat chat) {
       tvUserName.setText(chat.getGroupName());
-      ivVerified.setVisibility(View.GONE);
-      Glide.with(itemView)
-          .load(chat.getGroupImage())
-          .placeholder(R.drawable.ic_default_group)
-          .error(R.drawable.ic_default_group)
-          .into(ivAvatar);
+      ivVerified.setVisibility(View.GONE); // المجموعات عادة لا تكون "موثقة" بنفس طريقة المستخدمين
+      if (itemView.getContext() != null) { // تحقق من أن السياق متاح
+        Glide.with(itemView.getContext())
+                .load(chat.getGroupImage())
+                .placeholder(R.drawable.ic_default_group) // أيقونة افتراضية للمجموعات
+                .error(R.drawable.ic_default_group)
+                .into(ivAvatar);
+      }
     }
   }
 }

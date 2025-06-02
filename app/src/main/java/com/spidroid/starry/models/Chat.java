@@ -1,6 +1,5 @@
 package com.spidroid.starry.models;
 
-import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.PropertyName;
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.Date;
@@ -8,28 +7,39 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.ArrayList;
 
 public class Chat {
     private String id;
-    private List<String> participants;
+    private List<String> participants = new ArrayList<>();
     private String lastMessage;
     private String lastMessageType;
-    private String lastMessageSender;
-    
+    private String lastMessageSender; // اسم العرض لمرسل آخر رسالة
+
     @ServerTimestamp
     private Date lastMessageTime;
-    
+
+    @ServerTimestamp
+    private Date createdAt; // ★ وقت إنشاء الدردشة/المجموعة
+
     private Map<String, Integer> unreadCounts = new HashMap<>();
 
     @PropertyName("isGroup")
     private boolean isGroup;
 
+    // --- حقول خاصة بالمجموعات ---
     private String groupName;
     private String groupImage;
+    private String creatorId;
+    private List<String> admins = new ArrayList<>();
+    private String groupDescription;
 
-    public Chat() {}
+    public Chat() {
+        // مطلوب لـ Firestore
+    }
 
     // Getters and Setters
+
     public String getId() {
         return id;
     }
@@ -78,17 +88,21 @@ public class Chat {
         this.lastMessageTime = lastMessageTime;
     }
 
-    // Remove the Timestamp setter and use this converter instead
-    public void updateTimestamp(Timestamp timestamp) {
-        this.lastMessageTime = timestamp.toDate();
-    }
-
     public long getLastMessageTimestamp() {
         return lastMessageTime != null ? lastMessageTime.getTime() : 0L;
     }
 
+    public Date getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(Date createdAt) {
+        this.createdAt = createdAt;
+    }
+
+
     public Map<String, Integer> getUnreadCounts() {
-        return unreadCounts;
+        return unreadCounts != null ? unreadCounts : new HashMap<>(); // ★ تحقق من null
     }
 
     public void setUnreadCounts(Map<String, Integer> unreadCounts) {
@@ -104,6 +118,11 @@ public class Chat {
     public void setGroup(boolean group) {
         isGroup = group;
     }
+    // أو إذا كنت تفضل setter باسم setIsGroup
+    // public void setIsGroup(boolean group) {
+    //     isGroup = group;
+    // }
+
 
     public String getGroupName() {
         return groupName;
@@ -119,6 +138,30 @@ public class Chat {
 
     public void setGroupImage(String groupImage) {
         this.groupImage = groupImage;
+    }
+
+    public String getCreatorId() {
+        return creatorId;
+    }
+
+    public void setCreatorId(String creatorId) {
+        this.creatorId = creatorId;
+    }
+
+    public List<String> getAdmins() {
+        return admins;
+    }
+
+    public void setAdmins(List<String> admins) {
+        this.admins = admins;
+    }
+
+    public String getGroupDescription() {
+        return groupDescription;
+    }
+
+    public void setGroupDescription(String groupDescription) {
+        this.groupDescription = groupDescription;
     }
 
     @Override

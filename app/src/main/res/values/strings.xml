@@ -7,10 +7,12 @@
     <string name="loading_preview">Loading preview…</string>
     <string name="no_title">No title available</string>
     <string name="your_story">Your Story</string>
-
+    <string name="selected_members_count_format">%d members selected</string>
     <string name="reactions_dialog_title">Reactions</string>
     <string name="no_reactions_to_show">No reactions to show.</string>
     <string name="failed_to_load_some_user_details">Failed to load some user details.</string>
+    <string name="invalid_chat_id_error">Invalid Chat ID. Cannot open chat.</string>
+    <string name="authentication_required_error">Authentication is required to proceed.</string>
 
         <string name="failed_to_load_profile">Failed to load profile: %1$s</string>
 

@@ -4,88 +4,187 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/surface"
+    android:background="@android:color/black"
     tools:context=".activities.CreateStoryActivity">
 
     <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+        android:id="@+id/toolbar_create_story"
         android:layout_width="0dp"
         android:layout_height="?attr/actionBarSize"
-        android:background="@color/surface"
+        android:background="#80000000"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:elevation="4dp">
+        app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_height="match_parent">
 
             <ImageButton
-                android:id="@+id/btnClose"
+                android:id="@+id/btnCloseStory"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@drawable/ic_close"
                 android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="@color/text_secondary"
+                app:tint="@android:color/white"
+                android:layout_centerVertical="true"
+                android:layout_alignParentStart="true"
                 android:contentDescription="Close" />
 
             <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:text="New Story"
-                android:textColor="@color/text_primary"
-                android:textSize="20sp"
-                android:textStyle="bold" />
-
-            <ProgressBar
-                android:id="@+id/progressBar"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:visibility="gone"
-                style="?android:attr/progressBarStyleSmall" />
+                android:text="New Story"
+                android:textColor="@android:color/white"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:layout_centerInParent="true"/>
 
-            <ImageButton
+            <Button
                 android:id="@+id/btnPublishStory"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Post"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:textColor="@color/twitter_primary"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
                 android:layout_marginEnd="8dp"
-                android:src="@drawable/ic_send"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                app:tint="@color/primary"
-                android:contentDescription="Publish Story"
-                android:enabled="false" />
-
-        </LinearLayout>
+                android:enabled="false"/>
+        </RelativeLayout>
     </androidx.appcompat.widget.Toolbar>
 
-    <ImageView
-        android:id="@+id/ivPreviewMedia"
+    <androidx.camera.view.PreviewView
+        android:id="@+id/camera_preview_view"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:scaleType="centerCrop"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_create_story"
+        app:layout_constraintBottom_toTopOf="@+id/capture_controls_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ImageView
+        android:id="@+id/iv_story_image_preview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:scaleType="fitCenter"
         android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/toolbar"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_create_story"
+        app:layout_constraintBottom_toTopOf="@+id/capture_controls_container"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/btnSelectMedia"
-        tools:src="@drawable/ic_cover_placeholder" />
+        tools:visibility="visible"
+        tools:src="@tools:sample/backgrounds/scenic"/>
 
-    <ImageButton
-        android:id="@+id/btnSelectMedia"
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/story_video_preview"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:use_controller="false"
+        app:show_buffering="when_playing"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_create_story"
+        app:layout_constraintBottom_toTopOf="@+id/capture_controls_container"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <ProgressBar
+        android:id="@+id/pb_story_upload_progress"
+        style="?android:attr/progressBarStyleLarge"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:src="@drawable/ic_add_photo"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        app:tint="@color/text_secondary"
-        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        android:indeterminateTint="@color/white"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+
+    <LinearLayout
+        android:id="@+id/capture_controls_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="16dp"
+        android:background="#80000000"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <ImageButton
+            android:id="@+id/btn_gallery_story"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_add_photo"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@android:color/white"
+            android:scaleType="centerInside"
+            android:contentDescription="Open Gallery"/>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <ImageButton
+            android:id="@+id/btn_capture_story"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:src="@drawable/ic_capture_story_button"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:scaleType="centerInside"
+            android:contentDescription="Capture Story"/>
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1"/>
+
+        <ImageButton
+            android:id="@+id/btn_switch_camera_story"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_switch_camera"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@android:color/white"
+            android:scaleType="centerInside"
+            android:contentDescription="Switch Camera"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/edit_tools_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        app:layout_constraintTop_toBottomOf="@id/toolbar_create_story"
         app:layout_constraintEnd_toEndOf="parent"
-        android:contentDescription="Select Media" />
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <ImageButton
+            android:id="@+id/btn_add_text_story"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_text_fields"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@android:color/white"
+            android:contentDescription="Add Text"/>
+
+        <ImageButton
+            android:id="@+id/btn_draw_story"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_edit"
+            android:layout_marginTop="12dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@android:color/white"
+            android:contentDescription="Draw"/>
+
+    </LinearLayout>
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

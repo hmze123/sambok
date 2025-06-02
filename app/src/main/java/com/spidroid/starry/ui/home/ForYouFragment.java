@@ -343,17 +343,22 @@ public class ForYouFragment extends Fragment implements PostInteractionListener,
     }
   }
 
+  // ... داخل onReportPost في ForYouFragment.java أو أي مكان آخر ...
   @Override
   public void onReportPost(PostModel post) {
     Log.d(TAG, "Report post: " + (post != null ? post.getPostId() : "null"));
-    if (getContext() != null && post != null) {
-      // Intent intent = new Intent(getActivity(), ReportActivity.class);
-      // intent.putExtra("REPORTED_POST_ID", post.getPostId());
-      // intent.putExtra("REPORTED_USER_ID", post.getAuthorId());
-      // startActivity(intent);
-      Toast.makeText(getContext(), "TODO: Open ReportActivity for: " + post.getPostId(), Toast.LENGTH_SHORT).show();
+    if (getContext() != null && post != null && post.getPostId() != null && post.getAuthorId() != null) { // تأكد من وجود authorId
+      Intent intent = new Intent(getActivity(), ReportActivity.class);
+      intent.putExtra(ReportActivity.EXTRA_REPORTED_ITEM_ID, post.getPostId());
+      intent.putExtra(ReportActivity.EXTRA_REPORT_TYPE, "post"); // أو "comment" أو "user"
+      intent.putExtra(ReportActivity.EXTRA_REPORTED_AUTHOR_ID, post.getAuthorId()); // تمرير معرّف صاحب المنشور
+      startActivity(intent);
+    } else if (getContext() != null && post != null) {
+      Toast.makeText(getContext(), "Cannot report post: missing necessary data.", Toast.LENGTH_SHORT).show();
+      Log.e(TAG, "Cannot report post: postId=" + (post.getPostId() != null) + ", authorId=" + (post.getAuthorId() != null));
     }
   }
+
 
   @Override
   public void onLikeButtonLongClicked(PostModel post, View anchorView) {

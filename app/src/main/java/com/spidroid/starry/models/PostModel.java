@@ -5,6 +5,8 @@ import android.os.Parcelable;
 import android.util.Log;
 import androidx.annotation.NonNull;
 import com.google.firebase.firestore.Exclude;
+import com.google.firebase.firestore.IgnoreExtraProperties; // ★ تأكد من هذا الاستيراد
+import com.google.firebase.firestore.PropertyName;       // ★ تأكد من هذا الاستيراد
 import com.google.firebase.firestore.ServerTimestamp;
 import java.util.ArrayList;
 import java.util.Date;
@@ -13,12 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+@IgnoreExtraProperties // ★ سيتم تجاهل "stability" و "emojiCounts" إذا لم تكن معرّفة هنا
 public class PostModel implements Parcelable {
   private static final String TAG = "PostModel";
 
   public static final String TYPE_TEXT = "text";
   public static final String TYPE_IMAGE = "image";
-  public static final String TYPE_VIDEO = "video"; // ★★★ تأكد من وجود هذا السطر ★★★
+  public static final String TYPE_VIDEO = "video";
   public static final String TYPE_POLL = "poll";
   public static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "mkv", "webm");
   public static final int MAX_CONTENT_LENGTH = 280;
@@ -43,7 +46,12 @@ public class PostModel implements Parcelable {
   private Map<String, Boolean> likes = new HashMap<>();
   private Map<String, Boolean> bookmarks = new HashMap<>();
   private Map<String, Boolean> reposts = new HashMap<>();
+
+  // إذا كان اسم الحقل في Firestore هو emojiReactions
+  @PropertyName("emojiReactions")
   private Map<String, String> reactions = new HashMap<>();
+
+  @PropertyName("isPinned")
   private boolean isPinned = false;
 
   @Exclude private boolean isLiked;
@@ -60,7 +68,7 @@ public class PostModel implements Parcelable {
     this.contentType = TYPE_TEXT;
   }
 
-  // --- Getters and Setters (كما تم تعديلها سابقًا) ---
+  // --- Getters and Setters ---
   public String getPostId() { return postId; }
   public void setPostId(String postId) { this.postId = postId; }
   public String getAuthorId() { return authorId; }
@@ -101,10 +109,17 @@ public class PostModel implements Parcelable {
   public void setBookmarks(Map<String, Boolean> bookmarks) { this.bookmarks = bookmarks; }
   public Map<String, Boolean> getReposts() { return reposts != null ? reposts : new HashMap<>(); }
   public void setReposts(Map<String, Boolean> reposts) { this.reposts = reposts; }
+
+  @PropertyName("emojiReactions")
   public Map<String, String> getReactions() { return reactions != null ? reactions : new HashMap<>(); }
+  @PropertyName("emojiReactions")
   public void setReactions(Map<String, String> reactions) { this.reactions = reactions; }
+
+  @PropertyName("isPinned")
   public boolean isPinned() { return isPinned; }
+  @PropertyName("isPinned")
   public void setPinned(boolean pinned) { isPinned = pinned; }
+
   @Exclude public boolean isLiked() { return isLiked; }
   @Exclude public void setLiked(boolean liked) { isLiked = liked; }
   @Exclude public boolean isBookmarked() { return isBookmarked; }
@@ -114,7 +129,8 @@ public class PostModel implements Parcelable {
   public String getLanguage() { return language; }
   public void setLanguage(String language) { this.language = language; }
 
-  // --- Helper Methods ---
+  // ... (باقي دوال toggleLike, toggleRepost, toggleBookmark, addReaction, etc.) ...
+  // ... (Parcelable implementation كما هي) ...
   public void toggleLike() {
     Log.d(TAG, "Before toggleLike: postId=" + postId + ", isLiked=" + isLiked + ", likeCount=" + likeCount);
     isLiked = !isLiked;
@@ -159,7 +175,6 @@ public class PostModel implements Parcelable {
     return (mediaUrls != null && !mediaUrls.isEmpty()) ? mediaUrls.get(0) : null;
   }
 
-  // --- Parcelable Implementation (كما هي مع إضافة isPinned) ---
   protected PostModel(Parcel in) {
     postId = in.readString();
     authorId = in.readString();

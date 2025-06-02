@@ -5,6 +5,12 @@
     <color name="m3_primaryContainer">#C7E7FF</color>
     <color name="m3_onPrimaryContainer">#001E2E</color>
 
+    <color name="white_opacity_50">#80FFFFFF</color>
+    <color name="white_opacity_70">#B3FFFFFF</color>
+    <color name="story_progress_active">@color/white</color>
+    <color name="story_progress_inactive_track">#4DFFFFFF</color>
+    <color name="story_progress_inactive_segment">#80FFFFFF</color>
+
     <color name="m3_secondary">#E91E63</color>
     <color name="m3_onSecondary">#FFFFFF</color>
     <color name="m3_secondaryContainer">#FFD9E2</color>
