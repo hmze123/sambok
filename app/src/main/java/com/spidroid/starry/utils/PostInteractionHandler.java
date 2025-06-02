@@ -2,14 +2,13 @@ package com.spidroid.starry.utils;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.util.Log; // ★ إضافة استيراد Log إذا كنت ستستخدمه هنا
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
-import com.spidroid.starry.R; // ★ تأكد من استيراد R
+import com.spidroid.starry.R;
 import com.spidroid.starry.adapters.PostInteractionListener;
 import com.spidroid.starry.models.PostModel;
 import java.util.Locale;
@@ -29,6 +28,7 @@ public class PostInteractionHandler {
   private PostModel currentPost;
   private final PostInteractionListener listener;
   private String currentUserId;
+  private final ImageButton btnMenu; // ★ إضافة المتغير لزر القائمة
 
   public PostInteractionHandler(
           @NonNull View rootView,
@@ -48,6 +48,7 @@ public class PostInteractionHandler {
     tvRepostCount = rootView.findViewById(R.id.tvRepostCount);
     tvCommentCount = rootView.findViewById(R.id.tvCommentCount);
     ivLikeReaction = rootView.findViewById(R.id.ivLikeReaction);
+    btnMenu = rootView.findViewById(R.id.btnMenu); // ★ تهيئة زر القائمة
 
     setupClickListeners();
   }
@@ -101,6 +102,14 @@ public class PostInteractionHandler {
     btnLike.setOnClickListener(v -> {
       if (currentPost != null && listener != null) toggleLike();
     });
+    // ★ إضافة مستمع الضغط المطول لزر الإعجاب (إذا كنت قد أضفت الدالة للواجهة)
+    btnLike.setOnLongClickListener(v -> {
+      if (currentPost != null && listener != null) {
+        listener.onLikeButtonLongClicked(currentPost, btnLike);
+        return true;
+      }
+      return false;
+    });
     btnBookmark.setOnClickListener(v -> {
       if (currentPost != null && listener != null) toggleBookmark();
     });
@@ -110,6 +119,14 @@ public class PostInteractionHandler {
     btnComment.setOnClickListener(v -> {
       if (listener != null && currentPost != null) listener.onCommentClicked(currentPost);
     });
+    // ★★★ إضافة مستمع النقر لزر القائمة ★★★
+    if (btnMenu != null) {
+      btnMenu.setOnClickListener(v -> {
+        if (listener != null && currentPost != null) {
+          listener.onMenuClicked(currentPost, btnMenu);
+        }
+      });
+    }
   }
 
   private void toggleLike() {
@@ -197,39 +214,25 @@ public class PostInteractionHandler {
     return String.valueOf(count);
   }
 
-  // ★★★ الدالة الجديدة التي تمت إضافتها (جعلناها public static) ★★★
   public static int getDrawableIdForEmoji(String reactionEmoji, boolean isSmallIcon) {
     if (reactionEmoji == null) {
-      return R.drawable.ic_emoji; // أيقونة افتراضية عامة للريأكشن
+      return R.drawable.ic_emoji;
     }
-    // حاليًا، سنفترض أن isSmallIcon لا يغير الأيقونة، ولكن يمكنك تطوير هذا لاحقًا
-    // إذا كان لديك أيقونات بأحجام مختلفة.
     switch (reactionEmoji) {
       case "❤️":
-        // افترض أن لديك drawable اسمه ic_emoji_heart_small أو ic_like_filled_red
-        // return isSmallIcon ? R.drawable.ic_emoji_heart_small : R.drawable.ic_like_filled_red;
-        // ملف ic_like_filled_red.xml تم تعديله في الردود السابقة ليحتوي على أيقونة قلب أحمر
-        return R.drawable.ic_like_filled_red; //
+        return R.drawable.ic_like_filled_red;
       case "😂":
-        // ملف ic_emoji_laugh_small.xml كان فارغًا. ستحتاج لإضافة رسمة له.
-        // إذا لم يكن موجودًا أو فارغًا، سيعطي خطأ عند محاولة استخدامه.
-        // return R.drawable.ic_emoji_laugh_small;
-        return R.drawable.ic_emoji; // مؤقتًا، استخدم أيقونة عامة حتى تنشئ drawable للضحك
+        return R.drawable.ic_emoji_laugh_small; // تأكد أن هذا الـ drawable موجود ومُعرَّف
       case "😮":
-        // return R.drawable.ic_emoji_wow_small; // ستحتاج لإنشاء هذا
         return R.drawable.ic_emoji; // مؤقتًا
       case "😢":
-        // return R.drawable.ic_emoji_sad_small; // ستحتاج لإنشاء هذا
         return R.drawable.ic_emoji; // مؤقتًا
       case "👍":
-        // return R.drawable.ic_emoji_like_small; // ستحتاج لإنشاء هذا
-        // ملف ic_like_filled.xml يعرض أيقونة إعجاب عامة (ليست بالضرورة "thumbs up")
-        return R.drawable.ic_like_filled; //
+        return R.drawable.ic_like_filled;
       case "👎":
-        // return R.drawable.ic_emoji_dislike_small; // ستحتاج لإنشاء هذا
         return R.drawable.ic_emoji; // مؤقتًا
       default:
-        return R.drawable.ic_emoji; // أيقونة افتراضية إذا لم يتم التعرف على الـ emoji
+        return R.drawable.ic_emoji;
     }
   }
 }

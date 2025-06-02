@@ -2,7 +2,7 @@ package com.spidroid.starry.models;
 
 import android.os.Parcel;
 import android.os.Parcelable;
-//import android.text.SpannableStringBuilder; // لم يعد هذا الاستيراد ضروريًا هنا مباشرة
+import android.util.Log;
 import androidx.annotation.NonNull;
 import com.google.firebase.firestore.Exclude;
 import com.google.firebase.firestore.ServerTimestamp;
@@ -14,10 +14,11 @@ import java.util.Map;
 import java.util.Objects;
 
 public class PostModel implements Parcelable {
+  private static final String TAG = "PostModel";
 
   public static final String TYPE_TEXT = "text";
   public static final String TYPE_IMAGE = "image";
-  public static final String TYPE_VIDEO = "video";
+  public static final String TYPE_VIDEO = "video"; // ★★★ تأكد من وجود هذا السطر ★★★
   public static final String TYPE_POLL = "poll";
   public static final List<String> VIDEO_EXTENSIONS = List.of("mp4", "mov", "avi", "mkv", "webm");
   public static final int MAX_CONTENT_LENGTH = 280;
@@ -33,18 +34,17 @@ public class PostModel implements Parcelable {
   private String contentType;
   private long videoDuration;
   private List<LinkPreview> linkPreviews = new ArrayList<>();
-  private long likeCount;
-  private long repostCount;
-  private long replyCount;
-  private long bookmarkCount;
+  private long likeCount = 0;
+  private long repostCount = 0;
+  private long replyCount = 0;
+  private long bookmarkCount = 0;
   @ServerTimestamp private Date createdAt;
   private Date updatedAt;
   private Map<String, Boolean> likes = new HashMap<>();
   private Map<String, Boolean> bookmarks = new HashMap<>();
   private Map<String, Boolean> reposts = new HashMap<>();
-
-  // ★★★ الحقل الجديد للريأكشنات ★★★
-  private Map<String, String> reactions = new HashMap<>(); // Key: userId, Value: emoji_unicode
+  private Map<String, String> reactions = new HashMap<>();
+  private boolean isPinned = false;
 
   @Exclude private boolean isLiked;
   @Exclude private boolean isBookmarked;
@@ -56,16 +56,11 @@ public class PostModel implements Parcelable {
   public PostModel(@NonNull String authorId, @NonNull String content) {
     this.authorId = authorId;
     this.content = content;
-    this.createdAt = new Date(); // سيتم الكتابة فوقه بواسطة @ServerTimestamp إذا تم الحفظ بشكل صحيح
+    this.createdAt = new Date();
     this.contentType = TYPE_TEXT;
-    this.mediaUrls = new ArrayList<>();
-    this.likes = new HashMap<>();
-    this.bookmarks = new HashMap<>();
-    this.reposts = new HashMap<>();
-    this.reactions = new HashMap<>(); // ★ تهيئة الخريطة الجديدة
   }
 
-  // --- Getters and Setters ---
+  // --- Getters and Setters (كما تم تعديلها سابقًا) ---
   public String getPostId() { return postId; }
   public void setPostId(String postId) { this.postId = postId; }
   public String getAuthorId() { return authorId; }
@@ -80,109 +75,91 @@ public class PostModel implements Parcelable {
   public void setAuthorVerified(boolean authorVerified) { isAuthorVerified = authorVerified; }
   public String getContent() { return content; }
   public void setContent(String content) { this.content = content; }
-  public List<String> getMediaUrls() { return mediaUrls; }
+  public List<String> getMediaUrls() { return mediaUrls != null ? mediaUrls : new ArrayList<>(); }
   public void setMediaUrls(List<String> mediaUrls) { this.mediaUrls = mediaUrls; }
   public String getContentType() { return contentType; }
   public void setContentType(String contentType) { this.contentType = contentType; }
   public long getVideoDuration() { return videoDuration; }
   public void setVideoDuration(long videoDuration) { this.videoDuration = videoDuration; }
-  public List<LinkPreview> getLinkPreviews() { return linkPreviews; }
+  public List<LinkPreview> getLinkPreviews() { return linkPreviews != null ? linkPreviews : new ArrayList<>(); }
   public void setLinkPreviews(List<LinkPreview> linkPreviews) { this.linkPreviews = linkPreviews; }
   public long getLikeCount() { return likeCount; }
-  public void setLikeCount(long likeCount) { this.likeCount = likeCount; }
+  public void setLikeCount(long likeCount) { this.likeCount = likeCount < 0 ? 0 : likeCount; }
   public long getRepostCount() { return repostCount; }
-  public void setRepostCount(long repostCount) { this.repostCount = repostCount; }
+  public void setRepostCount(long repostCount) { this.repostCount = repostCount < 0 ? 0 : repostCount; }
   public long getReplyCount() { return replyCount; }
-  public void setReplyCount(long replyCount) { this.replyCount = replyCount; }
+  public void setReplyCount(long replyCount) { this.replyCount = replyCount < 0 ? 0 : replyCount; }
   public long getBookmarkCount() { return bookmarkCount; }
-  public void setBookmarkCount(long bookmarkCount) { this.bookmarkCount = bookmarkCount; }
+  public void setBookmarkCount(long bookmarkCount) { this.bookmarkCount = bookmarkCount < 0 ? 0 : bookmarkCount; }
   public Date getCreatedAt() { return createdAt; }
   public void setCreatedAt(Date createdAt) { this.createdAt = createdAt; }
   public Date getUpdatedAt() { return updatedAt; }
   public void setUpdatedAt(Date updatedAt) { this.updatedAt = updatedAt; }
-  public Map<String, Boolean> getLikes() { return likes; }
+  public Map<String, Boolean> getLikes() { return likes != null ? likes : new HashMap<>(); }
   public void setLikes(Map<String, Boolean> likes) { this.likes = likes; }
-  public Map<String, Boolean> getBookmarks() { return bookmarks; }
+  public Map<String, Boolean> getBookmarks() { return bookmarks != null ? bookmarks : new HashMap<>(); }
   public void setBookmarks(Map<String, Boolean> bookmarks) { this.bookmarks = bookmarks; }
-  public Map<String, Boolean> getReposts() { return reposts; }
+  public Map<String, Boolean> getReposts() { return reposts != null ? reposts : new HashMap<>(); }
   public void setReposts(Map<String, Boolean> reposts) { this.reposts = reposts; }
-
-  // ★★★ Getters and Setters للريأكشنات ★★★
-  public Map<String, String> getReactions() {
-    return reactions;
-  }
-  public void setReactions(Map<String, String> reactions) {
-    this.reactions = reactions;
-  }
-
+  public Map<String, String> getReactions() { return reactions != null ? reactions : new HashMap<>(); }
+  public void setReactions(Map<String, String> reactions) { this.reactions = reactions; }
+  public boolean isPinned() { return isPinned; }
+  public void setPinned(boolean pinned) { isPinned = pinned; }
   @Exclude public boolean isLiked() { return isLiked; }
   @Exclude public void setLiked(boolean liked) { isLiked = liked; }
   @Exclude public boolean isBookmarked() { return isBookmarked; }
   @Exclude public void setBookmarked(boolean bookmarked) { isBookmarked = bookmarked; }
   @Exclude public boolean isReposted() { return isReposted; }
   @Exclude public void setReposted(boolean reposted) { isReposted = reposted; }
-
   public String getLanguage() { return language; }
   public void setLanguage(String language) { this.language = language; }
 
-
   // --- Helper Methods ---
   public void toggleLike() {
+    Log.d(TAG, "Before toggleLike: postId=" + postId + ", isLiked=" + isLiked + ", likeCount=" + likeCount);
     isLiked = !isLiked;
     likeCount += (isLiked ? 1 : -1);
+    if (likeCount < 0) likeCount = 0;
+    Log.d(TAG, "After toggleLike: postId=" + postId + ", isLiked=" + isLiked + ", likeCount=" + likeCount);
   }
   public void toggleRepost() {
+    Log.d(TAG, "Before toggleRepost: postId=" + postId + ", isReposted=" + isReposted + ", repostCount=" + repostCount);
     isReposted = !isReposted;
     repostCount += (isReposted ? 1 : -1);
+    if (repostCount < 0) repostCount = 0;
+    Log.d(TAG, "After toggleRepost: postId=" + postId + ", isReposted=" + isReposted + ", repostCount=" + repostCount);
   }
   public void toggleBookmark() {
+    Log.d(TAG, "Before toggleBookmark: postId=" + postId + ", isBookmarked=" + isBookmarked + ", bookmarkCount=" + bookmarkCount);
     isBookmarked = !isBookmarked;
     bookmarkCount += (isBookmarked ? 1 : -1);
+    if (bookmarkCount < 0) bookmarkCount = 0;
+    Log.d(TAG, "After toggleBookmark: postId=" + postId + ", isBookmarked=" + isBookmarked + ", bookmarkCount=" + bookmarkCount);
   }
-
-  // ★★★ دوال مساعدة للريأكشنات ★★★
   @Exclude
   public void addReaction(String userId, String emoji) {
-    if (userId == null || userId.isEmpty() || emoji == null || emoji.isEmpty()) {
-      return;
-    }
+    if (userId == null || userId.isEmpty() || emoji == null || emoji.isEmpty()) return;
+    if (this.reactions == null) this.reactions = new HashMap<>();
     this.reactions.put(userId, emoji);
-    // ملاحظة: تحديث عدد الريأكشنات الكلي أو عدد كل نوع يتطلب منطقًا إضافيًا
-    // يمكننا إضافته لاحقًا إذا أردنا عرض العدادات.
   }
-
   @Exclude
   public void removeReaction(String userId) {
-    if (userId == null || userId.isEmpty()) {
-      return;
-    }
+    if (userId == null || userId.isEmpty() || this.reactions == null) return;
     this.reactions.remove(userId);
   }
-
   @Exclude
   public String getUserReaction(String userId) {
-    if (userId == null) {
-      return null;
-    }
+    if (userId == null || this.reactions == null) return null;
     return this.reactions.get(userId);
   }
-
-  @Exclude
-  public boolean isVideoPost() {
-    return TYPE_VIDEO.equals(contentType);
-  }
-
-  @Exclude
-  public boolean isImagePost() {
-    return TYPE_IMAGE.equals(contentType);
-  }
-
+  @Exclude public boolean isVideoPost() { return TYPE_VIDEO.equals(contentType); }
+  @Exclude public boolean isImagePost() { return TYPE_IMAGE.equals(contentType); }
   @Exclude
   public String getFirstMediaUrl() {
     return (mediaUrls != null && !mediaUrls.isEmpty()) ? mediaUrls.get(0) : null;
   }
 
-  // --- Parcelable Implementation ---
+  // --- Parcelable Implementation (كما هي مع إضافة isPinned) ---
   protected PostModel(Parcel in) {
     postId = in.readString();
     authorId = in.readString();
@@ -203,16 +180,15 @@ public class PostModel implements Parcelable {
     createdAt = tmpCreatedAt == -1 ? null : new Date(tmpCreatedAt);
     long tmpUpdatedAt = in.readLong();
     updatedAt = tmpUpdatedAt == -1 ? null : new Date(tmpUpdatedAt);
-    // قراءة الخرائط
     likes = new HashMap<>();
     in.readMap(likes, Boolean.class.getClassLoader());
     bookmarks = new HashMap<>();
     in.readMap(bookmarks, Boolean.class.getClassLoader());
     reposts = new HashMap<>();
     in.readMap(reposts, Boolean.class.getClassLoader());
-    reactions = new HashMap<>(); // ★ قراءة خريطة الريأكشنات
-    in.readMap(reactions, String.class.getClassLoader()); // ★ استخدام String.class للمفاتيح والقيم
-
+    reactions = new HashMap<>();
+    in.readMap(reactions, String.class.getClassLoader());
+    isPinned = in.readByte() != 0;
     isLiked = in.readByte() != 0;
     isBookmarked = in.readByte() != 0;
     isReposted = in.readByte() != 0;
@@ -248,19 +224,17 @@ public class PostModel implements Parcelable {
     dest.writeLong(bookmarkCount);
     dest.writeLong(createdAt != null ? createdAt.getTime() : -1);
     dest.writeLong(updatedAt != null ? updatedAt.getTime() : -1);
-    // كتابة الخرائط
     dest.writeMap(likes);
     dest.writeMap(bookmarks);
     dest.writeMap(reposts);
-    dest.writeMap(reactions); // ★ كتابة خريطة الريأكشنات
-
+    dest.writeMap(reactions);
+    dest.writeByte((byte) (isPinned ? 1 : 0));
     dest.writeByte((byte) (isLiked ? 1 : 0));
     dest.writeByte((byte) (isBookmarked ? 1 : 0));
     dest.writeByte((byte) (isReposted ? 1 : 0));
     dest.writeString(language);
   }
 
-  // --- LinkPreview inner class ---
   public static class LinkPreview implements Parcelable {
     private String url;
     private String title;
@@ -303,20 +277,23 @@ public class PostModel implements Parcelable {
     public void setSiteName(String siteName) { this.siteName = siteName; }
   }
 
-  // ★★★ للمقارنة بين الكائنات في DiffUtil ★★★
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     PostModel postModel = (PostModel) o;
     return Objects.equals(postId, postModel.postId) &&
-            Objects.equals(content, postModel.content) && // قارن المحتوى
-            likeCount == postModel.likeCount &&           // قارن عدد الإعجابات
-            Objects.equals(reactions, postModel.reactions); // قارن الريأكشنات
+            likeCount == postModel.likeCount &&
+            repostCount == postModel.repostCount &&
+            bookmarkCount == postModel.bookmarkCount &&
+            isPinned == postModel.isPinned &&
+            Objects.equals(content, postModel.content) &&
+            Objects.equals(authorId, postModel.authorId) &&
+            Objects.equals(reactions, postModel.reactions);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(postId, content, likeCount, reactions); // أضف الريأكشنات إلى hash
+    return Objects.hash(postId, content, authorId, likeCount, repostCount, bookmarkCount, reactions, isPinned);
   }
 }
