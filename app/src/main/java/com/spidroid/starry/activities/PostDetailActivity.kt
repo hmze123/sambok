@@ -1,53 +1,60 @@
 package com.spidroid.starry.activities
 
-// استيراد Log
-// ★ استيراد FieldValue
-// استيراد Objects
+import android.content.DialogInterface
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.addTextChangedListener
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.spidroid.starry.R
+import com.spidroid.starry.adapters.CommentAdapter
+import com.spidroid.starry.databinding.ActivityPostDetailBinding
+import com.spidroid.starry.models.CommentModel
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.viewmodels.CommentUiState
+import com.spidroid.starry.viewmodels.CommentViewModel
 
 class PostDetailActivity : AppCompatActivity() {
-    private var binding: com.spidroid.starry.databinding.ActivityPostDetailBinding? = null
-    private var commentViewModel: CommentViewModel? = null
-    private var commentAdapter: CommentAdapter? = null
+
+    private lateinit var binding: ActivityPostDetailBinding
+    private lateinit var commentViewModel: CommentViewModel
+    private lateinit var commentAdapter: CommentAdapter
+
     private var post: PostModel? = null
     private var currentUser: FirebaseUser? = null
-    private var currentUserModel: UserModel? = null // افترض أنك ستحتاج إليه لإضافة تعليقات
+    private var currentUserModel: UserModel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding =
-            com.spidroid.starry.databinding.ActivityPostDetailBinding.inflate(getLayoutInflater())
-        setContentView(binding!!.getRoot())
+        binding = ActivityPostDetailBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // --- ★★ بداية التعديل والتحقق ★★ ---
-        post = getIntent().getParcelableExtra<PostModel?>(PostDetailActivity.Companion.EXTRA_POST)
-        if (post == null) {
-            android.util.Log.e(PostDetailActivity.Companion.TAG, "PostModel received is null.")
-            // استخدم string resource بدلاً من النص المباشر
-            Toast.makeText(this, getString(R.string.error_post_not_found), Toast.LENGTH_LONG).show()
-            finish() // إنهاء النشاط إذا لم يتم العثور على بيانات المنشور
+        // استلام بيانات المنشور بطريقة آمنة
+        // ملاحظة: getParcelableExtra تم تحديثه في SDK 33
+        @Suppress("DEPRECATION")
+        post = intent.getParcelableExtra(EXTRA_POST)
+
+        // التحقق من صحة بيانات المنشور
+        if (post?.postId.isNullOrEmpty()) {
+            Log.e(TAG, "Post or Post ID received is null or empty.")
+            Toast.makeText(this, getString(R.string.error_post_data_missing), Toast.LENGTH_LONG).show()
+            finish()
             return
         }
 
-        // تحقق من أن postId ليس null قبل المتابعة
-        if (post.getPostId() == null || post.getPostId().isEmpty()) {
-            android.util.Log.e(
-                PostDetailActivity.Companion.TAG,
-                "Post ID is null or empty in received PostModel. Author: " +
-                        (if (post.getAuthorUsername() != null) post.getAuthorUsername() else "N/A") +
-                        ", Content: " + (if (post.getContent() != null) post.getContent() else "N/A")
-            )
-            // استخدم string resource
-            Toast.makeText(this, getString(R.string.error_invalid_post_id), Toast.LENGTH_LONG)
-                .show()
-            finish() // إنهاء النشاط إذا كان معرّف المنشور غير صالح
-            return
-        }
-
-        // --- ★★ نهاية التعديل والتحقق ★★ ---
-        currentUser = FirebaseAuth.getInstance().getCurrentUser()
-        commentViewModel =
-            ViewModelProvider(this).get<CommentViewModel>(CommentViewModel::class.java)
+        currentUser = FirebaseAuth.getInstance().currentUser
+        commentViewModel = ViewModelProvider(this)[CommentViewModel::class.java]
 
         setupToolbar()
         bindPostData()
@@ -56,299 +63,197 @@ class PostDetailActivity : AppCompatActivity() {
         setupInputSection()
 
         loadCurrentUserProfile()
-        commentViewModel.loadComments(post.getPostId())
+        commentViewModel.loadComments(post?.postId)
     }
 
     private fun setupToolbar() {
-        binding!!.ivBack.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> finish() })
-        // يمكنك إضافة المزيد من إعدادات Toolbar هنا إذا لزم الأمر
-        // مثلاً، عنوان الـ Toolbar يمكن أن يكون اسم صاحب المنشور أو "Post"
-        binding!!.tvAppName.setText(if (post != null && post.getAuthorDisplayName() != null) post.getAuthorDisplayName() + "'s Post" else "Post")
+        binding.ivBack.setOnClickListener { finish() }
+        binding.tvAppName.text = getString(R.string.post)
     }
 
     private fun bindPostData() {
-        if (post == null) {
-            android.util.Log.e(
-                PostDetailActivity.Companion.TAG,
-                "PostModel is null in bindPostData. This should not happen."
-            )
-            return
-        }
+        val currentPost = post ?: return
+        with(binding.includedPostLayout) {
+            tvAuthorName.text = currentPost.authorDisplayName ?: currentPost.authorUsername
+            tvUsername.text = "@${currentPost.authorUsername ?: "unknown"}"
+            tvPostContent.text = currentPost.content ?: ""
+            ivVerified.visibility = if (currentPost.isAuthorVerified) View.VISIBLE else View.GONE
+            // إخفاء منطقة التفاعل الخاصة بالمنشور الرئيسي لأنها غير ضرورية في هذه الشاشة
+            interactionContainer.visibility = View.GONE
 
-        binding!!.includedPostLayout.tvAuthorName.setText(if (post.getAuthorDisplayName() != null) post.getAuthorDisplayName() else post.getAuthorUsername())
-        binding!!.includedPostLayout.tvUsername.setText("@" + (if (post.getAuthorUsername() != null) post.getAuthorUsername() else "unknown"))
-        binding!!.includedPostLayout.tvPostContent.setText(if (post.getContent() != null) post.getContent() else "")
-
-        // يمكنك إضافة عرض التاريخ والوقت هنا إذا أردت
-        // binding.includedPostLayout.tvTimestamp.setText(formatTimestamp(post.getCreatedAt()));
-        if (post.getAuthorAvatarUrl() != null && !post.getAuthorAvatarUrl().isEmpty()) {
-            Glide.with(this)
-                .load(post.getAuthorAvatarUrl())
+            Glide.with(this@PostDetailActivity)
+                .load(currentPost.authorAvatarUrl)
                 .placeholder(R.drawable.ic_default_avatar)
                 .error(R.drawable.ic_default_avatar)
-                .into(binding!!.includedPostLayout.ivAuthorAvatar)
-        } else {
-            binding!!.includedPostLayout.ivAuthorAvatar.setImageResource(R.drawable.ic_default_avatar)
+                .into(ivAuthorAvatar)
         }
-
-        binding!!.includedPostLayout.ivVerified.setVisibility(if (post.isAuthorVerified()) android.view.View.VISIBLE else android.view.View.GONE)
-        binding!!.includedPostLayout.interactionContainer.setVisibility(android.view.View.GONE)
     }
 
     private fun setupCommentsRecyclerView() {
-        if (post == null || post.getPostId() == null) {
-            android.util.Log.e(
-                PostDetailActivity.Companion.TAG,
-                "Cannot setup Comments RecyclerView: post or postId is null."
-            )
-            return
-        }
-        commentAdapter = CommentAdapter(this, post.getAuthorId(), CommentInteractionListenerImpl())
-        binding!!.recyclerView.setLayoutManager(LinearLayoutManager(this))
-        binding!!.recyclerView.setAdapter(commentAdapter)
+        val currentPost = post ?: return
+        commentAdapter = CommentAdapter(this, currentPost.authorId, CommentInteractionListenerImpl())
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
+        binding.recyclerView.adapter = commentAdapter
     }
 
     private fun setupCommentObservers() {
-        commentViewModel.getVisibleComments().observe(
-            this,
-            androidx.lifecycle.Observer { comments: kotlin.collections.MutableList<CommentModel?>? ->
-                if (comments != null && commentAdapter != null) {
-                    commentAdapter.submitList(comments)
-                    if (post != null) {
-                        // استخدم string resource مع placeholder
-                        binding!!.commentstxt.setText(
-                            getString(
-                                R.string.comments_count,
-                                comments.size
-                            )
-                        )
-                    }
+        commentViewModel.commentState.observe(this) { state ->
+            when (state) {
+                is CommentUiState.Loading -> {
+                    // يمكنك إظهار مؤشر تحميل هنا إذا أردت
                 }
-            })
+                is CommentUiState.Success -> {
+                    commentAdapter.submitList(state.comments)
+                    binding.commentstxt.text = getString(R.string.comments_count, state.comments.size)
+                }
+                is CommentUiState.Error -> {
+                    Toast.makeText(this, state.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     private fun loadCurrentUserProfile() {
-        if (currentUser != null) {
-            FirebaseFirestore.getInstance().collection("users").document(currentUser.getUid()).get()
-                .addOnSuccessListener({ documentSnapshot ->
-                    if (documentSnapshot.exists()) {
-                        currentUserModel = documentSnapshot.toObject(UserModel::class.java)
-                        if (binding!!.inputSection.postButton != null && (binding!!.inputSection.postInput.getText().length > 0)) {
-                            binding!!.inputSection.postButton.setEnabled(true)
-                        }
-                    } else {
-                        Toast.makeText(
-                            this,
-                            getString(R.string.error_loading_profile),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                })
-                .addOnFailureListener({ e ->
-                    android.util.Log.e(
-                        PostDetailActivity.Companion.TAG,
-                        "Failed to load current user profile",
-                        e
-                    )
-                    Toast.makeText(
-                        this,
-                        getString(R.string.error_loading_profile_with_message, e.getMessage()),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                })
-        } else {
-            if (binding!!.inputSection.postButton != null) binding!!.inputSection.postButton.setEnabled(
-                false
-            )
-            if (binding!!.inputSection.postInput != null) binding!!.inputSection.postInput.setHint(
-                getString(R.string.login_to_comment)
-            )
+        if (currentUser == null) {
+            binding.inputSection.postInput.hint = getString(R.string.login_to_comment)
+            binding.inputSection.postInput.isEnabled = false
+            return
         }
+
+        binding.inputSection.postInput.hint = getString(R.string.loading_user_info)
+        FirebaseFirestore.getInstance().collection("users").document(currentUser!!.uid).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    currentUserModel = document.toObject(UserModel::class.java)
+                    binding.inputSection.postInput.hint = "Post your reply"
+                    updatePostButtonState()
+                } else {
+                    handleProfileLoadError(R.string.user_profile_not_found)
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "Failed to load current user profile", e)
+                handleProfileLoadError(R.string.error_loading_profile)
+            }
+    }
+
+    private fun handleProfileLoadError(stringResId: Int) {
+        Toast.makeText(this, getString(stringResId), Toast.LENGTH_SHORT).show()
+        binding.inputSection.postInput.isEnabled = false
+        binding.inputSection.postInput.hint = getString(R.string.error_loading_profile)
     }
 
     private fun setupInputSection() {
-        binding!!.inputSection.charCounter.setText(CommentModel.Companion.MAX_CONTENT_LENGTH.toString())
-        binding!!.inputSection.postButton.setEnabled(false)
+        with(binding.inputSection) {
+            charCounter.text = CommentModel.MAX_CONTENT_LENGTH.toString()
+            postButton.isEnabled = false
 
-        if (currentUserModel == null && currentUser != null) {
-            binding!!.inputSection.postInput.setHint(getString(R.string.loading_user_info))
-        } else if (currentUser == null) {
-            binding!!.inputSection.postInput.setHint(getString(R.string.login_to_comment))
-            binding!!.inputSection.postInput.setEnabled(false)
+            // إخفاء الأزرار غير المستخدمة في هذه الشاشة
+            addMedia.visibility = View.GONE
+            addGif.visibility = View.GONE
+            addPoll.visibility = View.GONE
+
+            postInput.addTextChangedListener {
+                updatePostButtonState()
+                val remaining = CommentModel.MAX_CONTENT_LENGTH - (it?.length ?: 0)
+                charCounter.text = remaining.toString()
+            }
+
+            postButton.setOnClickListener { postComment() }
         }
+    }
 
-
-        binding!!.inputSection.postInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
-
-            override fun onTextChanged(
-                s: kotlin.CharSequence,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-                binding!!.inputSection.postButton.setEnabled(
-                    s.toString().trim { it <= ' ' }.length > 0 && currentUserModel != null
-                )
-                val remaining: Int = CommentModel.Companion.MAX_CONTENT_LENGTH - s.length
-                binding!!.inputSection.charCounter.setText(remaining.toString())
-            }
-
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        binding!!.inputSection.postButton.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> postComment() })
-        binding!!.inputSection.addMedia.setVisibility(android.view.View.GONE)
-        binding!!.inputSection.addGif.setVisibility(android.view.View.GONE)
-        binding!!.inputSection.addPoll.setVisibility(android.view.View.GONE)
+    private fun updatePostButtonState() {
+        val hasText = binding.inputSection.postInput.text.trim().isNotEmpty()
+        binding.inputSection.postButton.isEnabled = hasText && currentUserModel != null
     }
 
     private fun postComment() {
-        val content = binding!!.inputSection.postInput.getText().toString().trim { it <= ' ' }
+        val content = binding.inputSection.postInput.text.toString().trim()
+        val currentPost = post
+        val user = currentUserModel
+
         if (content.isEmpty()) {
             Toast.makeText(this, getString(R.string.comment_empty_error), Toast.LENGTH_SHORT).show()
             return
         }
-        if (currentUser == null || currentUserModel == null) {
-            Toast.makeText(this, getString(R.string.login_to_comment_action), Toast.LENGTH_SHORT)
-                .show()
+        if (user == null) {
+            Toast.makeText(this, getString(R.string.error_user_data_not_loaded_wait), Toast.LENGTH_SHORT).show()
             return
         }
-        if (post == null || post.getPostId() == null) {
-            Toast.makeText(
-                this,
-                getString(R.string.error_invalid_post_for_comment),
-                Toast.LENGTH_SHORT
-            ).show()
+        if (currentPost?.postId == null) {
+            Toast.makeText(this, getString(R.string.error_invalid_post_for_comment), Toast.LENGTH_SHORT).show()
             return
         }
 
-        val commentData: kotlin.collections.MutableMap<kotlin.String?, kotlin.Any?> =
-            java.util.HashMap<kotlin.String?, kotlin.Any?>()
-        commentData.put("content", content)
-        commentData.put("authorId", currentUser.getUid())
-        commentData.put("authorDisplayName", currentUserModel.getDisplayName())
-        commentData.put("authorUsername", currentUserModel.getUsername())
-        commentData.put("authorAvatarUrl", currentUserModel.getProfileImageUrl())
-        commentData.put("authorVerified", currentUserModel.isVerified())
-        commentData.put("timestamp", FieldValue.serverTimestamp())
-        commentData.put("likeCount", 0)
-        commentData.put("repliesCount", 0)
-        commentData.put("parentPostId", post.getPostId())
+        val commentData = mapOf(
+            "content" to content,
+            "authorId" to user.userId,
+            "authorDisplayName" to user.displayName,
+            "authorUsername" to user.username,
+            "authorAvatarUrl" to user.profileImageUrl,
+            "authorVerified" to user.isVerified,
+            "timestamp" to FieldValue.serverTimestamp(),
+            "likeCount" to 0,
+            "repliesCount" to 0,
+            "parentPostId" to currentPost.postId
+        )
 
-        commentViewModel.addComment(post.getPostId(), commentData)
-        binding!!.inputSection.postInput.setText("")
-        binding!!.inputSection.postInput.clearFocus()
-        val imm =
-            getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager?
-        if (imm != null && getCurrentFocus() != null) {
-            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0)
-        }
+        commentViewModel.addComment(currentPost.postId, commentData)
+
+        // مسح حقل الإدخال وإخفاء لوحة المفاتيح
+        binding.inputSection.postInput.text.clear()
+        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager?
+        imm?.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
     }
 
-    private inner class CommentInteractionListenerImpl : CommentInteractionListener {
-        override fun onLikeClicked(comment: CommentModel?) {
-            if (currentUser != null && comment != null && comment.getCommentId() != null && post != null && post.getPostId() != null) {
-                commentViewModel.toggleLike(post.getPostId(), comment, currentUser.getUid())
-            } else {
-                android.util.Log.e(
-                    PostDetailActivity.Companion.TAG,
-                    "Cannot toggle like: missing data. CurrentUser: " + (currentUser != null) +
-                            ", Comment: " + (if (comment != null) comment.getCommentId() else "null") +
-                            ", Post: " + (if (post != null) post.getPostId() else "null")
-                )
-                Toast.makeText(
-                    this@PostDetailActivity,
-                    getString(R.string.error_liking_comment),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
+    private inner class CommentInteractionListenerImpl : CommentAdapter.CommentInteractionListener {
+        override fun onLikeClicked(comment: CommentModel) {
+            commentViewModel.toggleLike(post?.postId, comment)
         }
 
         override fun onReplyClicked(comment: CommentModel) {
-            binding!!.inputSection.postInput.setHint(
-                getString(
-                    R.string.replying_to_user,
-                    comment.getAuthorUsername()
-                )
-            )
-            binding!!.inputSection.postInput.requestFocus()
-            Toast.makeText(
-                this@PostDetailActivity,
-                getString(R.string.replying_to_user, comment.getAuthorUsername()),
-                Toast.LENGTH_SHORT
-            ).show()
+            binding.inputSection.postInput.hint = getString(R.string.replying_to_user, comment.authorUsername)
+            binding.inputSection.postInput.requestFocus()
         }
 
-        override fun onAuthorClicked(authorId: kotlin.String?) {
-            if (authorId != null && !authorId.isEmpty()) {
-                val intent: Intent = Intent(this@PostDetailActivity, ProfileActivity::class.java)
-                intent.putExtra("userId", authorId)
-                startActivity(intent)
-            }
+        override fun onAuthorClicked(authorId: String) {
+            val intent = Intent(this@PostDetailActivity, ProfileActivity::class.java)
+            intent.putExtra("userId", authorId)
+            startActivity(intent)
         }
 
-        override fun onShowRepliesClicked(comment: CommentModel?) {
-            if (comment != null && comment.getCommentId() != null) {
-                commentViewModel.toggleReplies(comment)
-            }
+        override fun onShowRepliesClicked(comment: CommentModel) {
+            commentViewModel.toggleReplies(comment)
         }
 
-        override fun onDeleteComment(comment: CommentModel?) {
-            if (currentUser != null && comment != null && comment.getAuthorId() != null && comment.getAuthorId() == currentUser.getUid()) {
-                android.app.AlertDialog.Builder(this@PostDetailActivity)
-                    .setTitle(getString(R.string.delete_comment_title))
-                    .setMessage(getString(R.string.delete_comment_confirmation))
-                    .setPositiveButton(
-                        getString(R.string.delete_button),
-                        DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int ->
-                            if (post != null && post.getPostId() != null && comment.getCommentId() != null) {
-                                commentViewModel.deleteComment(post.getPostId(), comment)
-                            } else {
-                                android.util.Log.e(
-                                    PostDetailActivity.Companion.TAG,
-                                    "Cannot delete comment: missing post or comment ID."
-                                )
-                                Toast.makeText(
-                                    this@PostDetailActivity,
-                                    getString(R.string.error_deleting_comment),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        })
-                    .setNegativeButton(getString(R.string.cancel_button), null)
-                    .show()
-            } else {
-                Toast.makeText(
-                    this@PostDetailActivity,
-                    getString(R.string.error_delete_own_comment_only),
-                    Toast.LENGTH_SHORT
-                ).show()
+        override fun onDeleteComment(comment: CommentModel) {
+            if (currentUser?.uid != comment.authorId) {
+                Toast.makeText(this@PostDetailActivity, getString(R.string.error_delete_own_comment_only), Toast.LENGTH_SHORT).show()
+                return
             }
+            androidx.appcompat.app.AlertDialog.Builder(this@PostDetailActivity)
+                .setTitle(getString(R.string.delete_comment_title))
+                .setMessage(getString(R.string.delete_comment_confirmation))
+                .setPositiveButton(getString(R.string.delete_button)) { _, _ ->
+                    commentViewModel.deleteComment(post?.postId, comment)
+                }
+                .setNegativeButton(getString(R.string.cancel_button), null)
+                .show()
         }
 
         override fun onReportComment(comment: CommentModel) {
-            Toast.makeText(
-                this@PostDetailActivity,
-                getString(R.string.comment_reported_toast, comment.getCommentId()),
-                Toast.LENGTH_SHORT
-            ).show()
-            // يمكنك هنا فتح شاشة الإبلاغ أو إرسال البلاغ مباشرة
-            val intent: Intent = Intent(this@PostDetailActivity, ReportActivity::class.java)
-            intent.putExtra("commentId", comment.getCommentId())
-            intent.putExtra("postId", post.getPostId())
+            Toast.makeText(this@PostDetailActivity, getString(R.string.comment_reported_toast, comment.commentId), Toast.LENGTH_SHORT).show()
+            val intent = Intent(this@PostDetailActivity, ReportActivity::class.java).apply {
+                putExtra("commentId", comment.commentId)
+                putExtra("postId", post?.postId)
+            }
             startActivity(intent)
         }
     }
 
     companion object {
-        const val EXTRA_POST: kotlin.String = "post"
-        private const val TAG = "PostDetailActivity" // لـ Log
+        const val EXTRA_POST: String = "EXTRA_POST"
+        private const val TAG = "PostDetailActivity"
     }
 }

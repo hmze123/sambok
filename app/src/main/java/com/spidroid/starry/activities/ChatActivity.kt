@@ -1,6 +1,7 @@
 package com.spidroid.starry.activities
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -32,7 +33,8 @@ import com.spidroid.starry.models.ChatMessage
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.ui.messages.MessageAdapter
 import com.spidroid.starry.ui.messages.MessageClickListener
-import java.util.*
+import java.util.Date
+import java.util.UUID
 
 class ChatActivity : AppCompatActivity(), MessageClickListener {
 
@@ -47,14 +49,13 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     private var isGroupChat = false
 
     private var messagesListener: ListenerRegistration? = null
-    private var userDeletedMessagesListener: ListenerRegistration? = null
     private var chatDetailsListener: ListenerRegistration? = null
 
     private lateinit var messageAdapter: MessageAdapter
-    private val userDeletedMessageIds = HashSet<String>()
-
     private var currentMediaUri: Uri? = null
-    private val mediaPicker: ActivityResultLauncher<String> =
+
+    // لانتقاء الوسائط من الجهاز
+    private val mediaPickerLauncher: ActivityResultLauncher<String> =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
             uri?.let {
                 currentMediaUri = it
@@ -75,6 +76,7 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
 
         chatId = intent.getStringExtra("chatId")
         isGroupChat = intent.getBooleanExtra("isGroup", false)
+
         if (chatId.isNullOrEmpty()) {
             Toast.makeText(this, getString(R.string.invalid_chat_id_error), Toast.LENGTH_LONG).show()
             finish()
@@ -83,7 +85,8 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
 
         setupUI()
         loadCurrentUserData()
-        listenForDeletedMessages()
+        listenForChatDetails()
+        listenForMessages()
     }
 
     private fun handleAuthError() {
@@ -93,7 +96,7 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
 
     private fun setupUI() {
         setupRecyclerView()
-        setupInputBehavior()
+        setupInputLayout()
         setupAppBar()
     }
 
@@ -101,10 +104,13 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
         currentUserId?.let { userId ->
             db.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
-                    if (document.exists()) {
-                        currentUserModel = document.toObject(UserModel::class.java)
-                        updateSendButtonState()
-                    }
+                    if (isActivityInvalid()) return@addOnSuccessListener
+                    currentUserModel = document.toObject(UserModel::class.java)
+                    updateSendButtonState() // تحديث حالة زر الإرسال بعد تحميل بيانات المستخدم
+                }
+                .addOnFailureListener {
+                    if (isActivityInvalid()) return@addOnFailureListener
+                    Toast.makeText(this, "Failed to load user data.", Toast.LENGTH_SHORT).show()
                 }
         }
     }
@@ -112,45 +118,41 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     private fun setupRecyclerView() {
         messageAdapter = MessageAdapter(currentUserId!!, this, this)
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@ChatActivity).apply { stackFromEnd = true }
+            layoutManager = LinearLayoutManager(this@ChatActivity).apply {
+                stackFromEnd = true
+            }
             adapter = messageAdapter
+            // إضافة مسافة في الأسفل لتجنب تداخل لوحة المفاتيح
+            setPadding(0,0,0, 16)
+            clipToPadding = false
         }
-        listenForMessages()
     }
 
     private fun listenForMessages() {
-        val safeChatId = chatId ?: return
-        messagesListener?.remove()
-        messagesListener = db.collection("chats").document(safeChatId).collection("messages")
+        messagesListener = db.collection("chats").document(chatId!!).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshots, error ->
-                if (error != null) return@addSnapshotListener
-                val messages = snapshots?.documents?.mapNotNull { doc ->
-                    if (doc.exists() && !userDeletedMessageIds.contains(doc.id)) {
-                        doc.toObject(ChatMessage::class.java)?.apply { messageId = doc.id }
-                    } else null
+                if (isActivityInvalid() || error != null) {
+                    Log.w(TAG, "Listen failed.", error)
+                    return@addSnapshotListener
+                }
+                val messages = snapshots?.documents?.mapNotNull {
+                    it.toObject(ChatMessage::class.java)?.apply { messageId = it.id }
                 } ?: emptyList()
-                messageAdapter.submitList(messages) { scrollToBottom() }
+                messageAdapter.submitList(messages) {
+                    scrollToBottom()
+                }
             }
     }
 
-    private fun listenForDeletedMessages() {
-        val userId = currentUserId ?: return
-        userDeletedMessagesListener = db.collection("users").document(userId).collection("deleted_messages")
-            .addSnapshotListener { snapshots, _ ->
-                val needsRefresh = snapshots?.documentChanges?.any { userDeletedMessageIds.add(it.document.id) } == true
-                if (needsRefresh) listenForMessages()
-            }
-    }
-
-    private fun setupInputBehavior() {
+    private fun setupInputLayout() {
         with(binding.inputSection) {
             triggerButton.setOnClickListener { toggleMediaOptions() }
             btnSend.setOnClickListener { sendMessage() }
-            btnAddPhoto.setOnClickListener { mediaPicker.launch("image/*") }
-            btnAddVideo.setOnClickListener { mediaPicker.launch("video/*") }
-            addGif.setOnClickListener { showGifPicker() }
-            addPoll.setOnClickListener { createPoll() }
+            addPhoto.setOnClickListener { mediaPickerLauncher.launch("image/*") }
+            addVideo.setOnClickListener { mediaPickerLauncher.launch("video/*") }
+            addGif.setOnClickListener { Toast.makeText(this@ChatActivity, "GIFs coming soon!", Toast.LENGTH_SHORT).show() }
+            addPoll.setOnClickListener { Toast.makeText(this@ChatActivity, "Polls coming soon!", Toast.LENGTH_SHORT).show() }
 
             postInput.addTextChangedListener(object : TextWatcher {
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -172,60 +174,57 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
 
     private fun sendMessage() {
         val messageText = binding.inputSection.postInput.text.toString().trim()
-        if (messageText.isEmpty() && currentMediaUri == null) return
+        val mediaUri = currentMediaUri
+
+        if (messageText.isEmpty() && mediaUri == null) return
 
         showProgress(true)
-        currentMediaUri?.let {
-            uploadMediaAndSendMessage(it, messageText)
-        } ?: run {
-            val message = createTextMessage(messageText)
+
+        if (mediaUri != null) {
+            uploadMediaAndSendMessage(mediaUri, messageText)
+        } else {
+            val message = createMessageObject(content = messageText, type = ChatMessage.TYPE_TEXT)
             saveMessageToFirestore(message)
         }
     }
 
-    private fun createTextMessage(content: String): ChatMessage {
+    private fun createMessageObject(content: String, type: String, mediaUrl: String? = null, thumbnailUrl: String? = null): ChatMessage {
         val user = currentUserModel!!
-        val userId = currentUserId!!
-        val replyToMessageId = binding.inputSection.replyHeader.getTag(R.id.tag_reply_to_message_id) as? String
-
-        return ChatMessage(senderId = userId, content = content, type = ChatMessage.TYPE_TEXT).apply {
-            senderName = user.displayName ?: user.username
-            senderAvatar = user.profileImageUrl
-            if (replyToMessageId != null) {
-                this.replyToId = replyToMessageId
-                this.replyPreview = binding.inputSection.replyHeader.text.toString()
-            }
+        return ChatMessage(senderId = user.userId, type = type).apply {
+            this.content = if (content.isNotBlank()) content else null
+            this.senderName = user.displayName ?: user.username
+            this.senderAvatar = user.profileImageUrl
+            this.mediaUrl = mediaUrl
+            this.thumbnailUrl = thumbnailUrl
+            // Handle reply logic here if needed
         }
     }
 
     private fun uploadMediaAndSendMessage(uri: Uri, text: String) {
-        val safeChatId = chatId ?: return
-        val fileName = "chat_media/$safeChatId/${UUID.randomUUID()}"
+        val fileName = "chat_media/${chatId}/${UUID.randomUUID()}"
         val storageRef = storage.reference.child(fileName)
 
-        storageRef.putFile(uri).continueWithTask { task ->
-            if (!task.isSuccessful) task.exception?.let { throw it }
-            storageRef.downloadUrl
-        }.addOnCompleteListener { task ->
-            if (task.isSuccessful) {
-                val message = createTextMessage(text).apply {
-                    type = if (contentResolver.getType(uri)?.startsWith("video/") == true) ChatMessage.TYPE_VIDEO else ChatMessage.TYPE_IMAGE
-                    mediaUrl = task.result.toString()
-                    thumbnailUrl = task.result.toString()
+        storageRef.putFile(uri)
+            .addOnProgressListener { showProgress(true) }
+            .continueWithTask { task ->
+                if (!task.isSuccessful) task.exception?.let { throw it }
+                storageRef.downloadUrl
+            }.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val mediaType = if (contentResolver.getType(uri)?.startsWith("video/") == true) ChatMessage.TYPE_VIDEO else ChatMessage.TYPE_IMAGE
+                    val message = createMessageObject(content = text, type = mediaType, mediaUrl = task.result.toString(), thumbnailUrl = task.result.toString())
+                    saveMessageToFirestore(message)
+                } else {
+                    handleUploadFailure(task.exception)
                 }
-                saveMessageToFirestore(message)
-            } else {
-                handleUploadFailure(task.exception)
             }
-        }
     }
 
     private fun saveMessageToFirestore(message: ChatMessage) {
-        val safeChatId = chatId ?: return
-        db.collection("chats").document(safeChatId).collection("messages").add(message)
+        db.collection("chats").document(chatId!!).collection("messages").add(message)
             .addOnSuccessListener { docRef ->
-                docRef.update("messageId", docRef.id)
-                clearInputFields()
+                docRef.update("messageId", docRef.id) // Save the auto-generated ID
+                clearInput()
                 updateChatLastMessage(message)
             }
             .addOnFailureListener { e -> Log.e(TAG, "Failed to send message", e) }
@@ -233,24 +232,29 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     }
 
     private fun updateChatLastMessage(message: ChatMessage) {
-        // ... (نفس الكود من الرد السابق)
+        val lastMessageData = mapOf(
+            "lastMessage" to (message.content ?: message.type.capitalize()),
+            "lastMessageType" to message.type,
+            "lastMessageTime" to FieldValue.serverTimestamp(),
+            "lastMessageSender" to message.senderId
+        )
+        db.collection("chats").document(chatId!!).update(lastMessageData)
     }
 
     private fun setupAppBar() {
-        binding.toolbar.ivBack.setOnClickListener { finish() }
-        loadChatDetails()
+        binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
-    private fun loadChatDetails() {
-        val safeChatId = chatId ?: return
-        chatDetailsListener?.remove()
-        chatDetailsListener = db.collection("chats").document(safeChatId)
-            .addSnapshotListener { document, _ ->
-                if (!isActivityValid() || document == null || !document.exists()) return@addSnapshotListener
-
-                val chat = document.toObject(Chat::class.java) ?: return@addSnapshotListener
-                if (chat.isGroup) bindGroupHeader(chat)
-                else {
+    private fun listenForChatDetails() {
+        chatDetailsListener = db.collection("chats").document(chatId!!)
+            .addSnapshotListener { snapshot, error ->
+                if (isActivityInvalid() || error != null || snapshot == null || !snapshot.exists()) {
+                    return@addSnapshotListener
+                }
+                val chat = snapshot.toObject(Chat::class.java) ?: return@addSnapshotListener
+                if (chat.isGroup) {
+                    bindGroupHeader(chat)
+                } else {
                     val otherUserId = chat.participants.firstOrNull { it != currentUserId }
                     otherUserId?.let { bindUserHeader(it) }
                 }
@@ -258,26 +262,24 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     }
 
     private fun bindGroupHeader(chat: Chat) {
-        binding.toolbar.tvAppName.text = chat.groupName ?: "Group"
-        Glide.with(this).load(chat.groupImage).placeholder(R.drawable.ic_default_group).into(binding.toolbar.ivAvatar)
-        binding.toolbar.ivVerified.visibility = View.GONE
+        binding.tvAppName.text = chat.groupName ?: "Group"
+        Glide.with(this).load(chat.groupImage).placeholder(R.drawable.ic_default_group).into(binding.ivAvatar)
+        binding.ivVerified.visibility = View.GONE
     }
 
     private fun bindUserHeader(userId: String) {
         db.collection("users").document(userId).get().addOnSuccessListener { doc ->
-            if (isActivityValid() && doc.exists()) {
-                val user = doc.toObject(UserModel::class.java)
-                binding.toolbar.tvAppName.text = user?.displayName ?: user?.username
-                Glide.with(this).load(user?.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.toolbar.ivAvatar)
-                binding.toolbar.ivVerified.isVisible = user?.isVerified == true
-            }
+            if (isActivityInvalid() || !doc.exists()) return@addOnSuccessListener
+            val user = doc.toObject(UserModel::class.java)
+            binding.tvAppName.text = user?.displayName ?: user?.username
+            Glide.with(this).load(user?.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
+            binding.ivVerified.isVisible = user?.isVerified == true
         }
     }
 
-    private fun clearInputFields() {
+    private fun clearInput() {
         binding.inputSection.postInput.text.clear()
         clearMediaPreview()
-        clearReplyUI()
     }
 
     private fun showMediaPreview(uri: Uri) {
@@ -285,6 +287,9 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
         mediaPreviewLayout.visibility = View.VISIBLE
         val ivMedia = mediaPreviewLayout.findViewById<ImageView>(R.id.ivMedia)
         Glide.with(this).load(uri).into(ivMedia)
+        mediaPreviewLayout.findViewById<View>(R.id.btnRemove).setOnClickListener {
+            clearMediaPreview()
+        }
         updateSendButtonState()
     }
 
@@ -294,59 +299,54 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
         updateSendButtonState()
     }
 
-    private fun clearReplyUI() {
-        binding.inputSection.replyHeader.visibility = View.GONE
-        binding.inputSection.replyHeader.tag = null
-    }
-
     private fun toggleMediaOptions() {
         binding.inputSection.bottomToolbar.isVisible = !binding.inputSection.bottomToolbar.isVisible
     }
 
-    private fun showGifPicker() = Toast.makeText(this, "GIFs coming soon!", Toast.LENGTH_SHORT).show()
-    private fun createPoll() = Toast.makeText(this, "Polls coming soon!", Toast.LENGTH_SHORT).show()
-
-    private fun scrollToBottom() {
-        if (messageAdapter.itemCount > 0) {
-            binding.recyclerView.post { binding.recyclerView.smoothScrollToPosition(messageAdapter.itemCount - 1) }
-        }
-    }
-
     private fun showProgress(show: Boolean) {
-        binding.inputSection.progressBar.visibility = if (show) View.VISIBLE else View.GONE
+        binding.inputSection.progressBar.isVisible = show
         binding.inputSection.btnSend.isEnabled = !show
     }
 
-    private fun isActivityValid(): Boolean = !isFinishing && !isDestroyed
-    private fun handleUploadFailure(e: Exception?) { /* ... */ }
-
-    // --- MessageClickListener Implementation ---
-    override fun onMessageLongClick(message: ChatMessage, position: Int) { /* ... */ }
-    override fun onMediaClick(mediaUrl: String, position: Int) { /* ... */ }
-
-    @SuppressLint("SetTextI18n")
-    override fun onReplyClick(messageId: String) {
-        val safeChatId = chatId ?: return
-        db.collection("chats").document(safeChatId).collection("messages").document(messageId).get()
-            .addOnSuccessListener { doc ->
-                if (doc.exists()) {
-                    val msg = doc.toObject(ChatMessage::class.java)
-                    binding.inputSection.replyHeader.text = "Replying to ${msg?.senderName ?: "User"}"
-                    binding.inputSection.replyHeader.visibility = View.VISIBLE
-                    binding.inputSection.replyHeader.tag = messageId
-                }
-            }
+    private fun handleUploadFailure(exception: Exception?) {
+        showProgress(false)
+        Toast.makeText(this, "Upload failed: ${exception?.message}", Toast.LENGTH_LONG).show()
     }
 
-    override fun onPollVote(pollId: String, optionIndex: Int) { /* ... */ }
-    override fun onFileClick(fileUrl: String) { /* ... */ }
+    private fun scrollToBottom() {
+        if (messageAdapter.itemCount > 0) {
+            binding.recyclerView.post {
+                binding.recyclerView.smoothScrollToPosition(messageAdapter.itemCount - 1)
+            }
+        }
+    }
+
+    private fun isActivityInvalid(): Boolean = isFinishing || isDestroyed
+
+    // --- MessageClickListener Implementation ---
+    override fun onMessageLongClick(message: ChatMessage, position: Int) {
+        // Implement context menu logic here
+        Toast.makeText(this, "Long clicked: ${message.content}", Toast.LENGTH_SHORT).show()
+    }
+    override fun onMediaClick(mediaUrl: String, position: Int) {
+        // Implement full-screen media viewer
+        val intent = Intent(this, MediaViewerActivity::class.java).apply {
+            putStringArrayListExtra("media_urls", arrayListOf(mediaUrl))
+            putExtra("position", 0)
+        }
+        startActivity(intent)
+    }
+    override fun onReplyClick(messageId: String) {}
+    override fun onPollVote(pollId: String, optionIndex: Int) {}
+    override fun onFileClick(fileUrl: String) {}
 
     override fun onDestroy() {
         super.onDestroy()
         messagesListener?.remove()
-        userDeletedMessagesListener?.remove()
         chatDetailsListener?.remove()
     }
 
-    companion object { private const val TAG = "ChatActivity" }
+    companion object {
+        private const val TAG = "ChatActivity"
+    }
 }

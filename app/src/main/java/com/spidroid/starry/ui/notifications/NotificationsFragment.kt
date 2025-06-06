@@ -1,316 +1,208 @@
 package com.spidroid.starry.ui.notifications
 
-// ★ استيراد Log
-// ★ استيراد ProgressBar
-// ★ استيراد TextView
-// ★ استيراد Nullable
-// ★ استيراد LinearLayoutManager
-// ★ استيراد RecyclerView
-// ★ استيراد SwipeRefreshLayout
-// ★ استيراد TabLayoutMediator (إذا كنت لا تزال تستخدمه)
-// ★ استيراد PostDetailActivity
-// ★ استيراد SettingsActivity
-// ★ استيراد NotificationModel
-// ★ استيراد ArrayList
+import android.content.ContentValues
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.spidroid.starry.R
+import com.spidroid.starry.activities.PostDetailActivity
+import com.spidroid.starry.activities.ProfileActivity
+import com.spidroid.starry.activities.SettingsActivity
+import com.spidroid.starry.databinding.FragmentNotificationsBinding
+import com.spidroid.starry.models.NotificationModel
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
 
-class NotificationsFragment : androidx.fragment.app.Fragment(), OnNotificationClickListener {
-    private var binding: com.spidroid.starry.databinding.FragmentNotificationsBinding? = null
-    private var auth: FirebaseAuth? = null
+// ★ تطبيق الواجهة OnNotificationClickListener
+class NotificationsFragment : Fragment(), NotificationAdapter.OnNotificationClickListener {
+
+    private var _binding: FragmentNotificationsBinding? = null
+    private val binding get() = _binding!!
+
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private var userListener: ListenerRegistration? = null
-    private var notificationsViewModel: NotificationsViewModel? = null // ★ إضافة ViewModel
-    private var notificationAdapter: NotificationAdapter? = null // ★ إضافة Adapter
-
-    // ★ لم نعد بحاجة لـ ViewPager و TabLayout هنا إذا كانت هذه الشاشة فقط للإشعارات
-    // private ViewPager2 viewPager;
-    // private TabLayout tabLayout;
-    private var notificationsRecyclerView: RecyclerView? = null // ★ إضافة RecyclerView للإشعارات
-    private var loadingIndicator: ProgressBar? = null // ★ إضافة ProgressBar
-    private var emptyNotificationsTextView: TextView? = null // ★ إضافة TextView لحالة الفراغ
-    private var swipeRefreshLayout: SwipeRefreshLayout? = null // ★ إضافة SwipeRefreshLayout
-
+    private lateinit var notificationsViewModel: NotificationsViewModel
+    private lateinit var notificationAdapter: NotificationAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): android.view.View {
-        // استخدام ViewModelProvider للحصول على مثيل من NotificationsViewModel
-        notificationsViewModel =
-            ViewModelProvider(this).get<NotificationsViewModel>(NotificationsViewModel::class.java)
-
-        binding = com.spidroid.starry.databinding.FragmentNotificationsBinding.inflate(
-            inflater,
-            container,
-            false
-        )
-        val root: android.view.View = binding!!.getRoot()
-        auth = FirebaseAuth.getInstance()
-
-        // تهيئة عناصر واجهة المستخدم الجديدة
-        notificationsRecyclerView =
-            root.findViewById<RecyclerView?>(R.id.recycler_view_notifications) // ستحتاج لإضافة هذا ID في XML
-        loadingIndicator =
-            root.findViewById<ProgressBar?>(R.id.progress_bar_notifications) // ستحتاج لإضافة هذا ID في XML
-        emptyNotificationsTextView =
-            root.findViewById<TextView?>(R.id.text_view_empty_notifications) // ستحتاج لإضافة هذا ID في XML
-        swipeRefreshLayout =
-            root.findViewById<SwipeRefreshLayout?>(R.id.swipe_refresh_notifications) // ستحتاج لإضافة هذا ID في XML
-
-
-        // إعداد RecyclerView
-        setupRecyclerView()
-        setupSwipeToRefresh() // إعداد السحب للتحديث
-
-        return root
+    ): View {
+        _binding = FragmentNotificationsBinding.inflate(inflater, container, false)
+        // تهيئة ViewModel
+        notificationsViewModel = ViewModelProvider(this)[NotificationsViewModel::class.java]
+        return binding.root
     }
 
-    override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        // لم نعد بحاجة لإعداد ViewPager هنا إذا كانت الشاشة مخصصة فقط للإشعارات
-        // setupViewPager();
-        setupToolbarAvatarClick() // نقل إعداد النقر على الأفاتار هنا
+        setupRecyclerView()
+        setupToolbar()
+        setupSwipeToRefresh()
         observeViewModel()
     }
 
     override fun onStart() {
         super.onStart()
-        // نقل setupToolbar إلى onStart أو onViewCreated إذا لم يكن يعتمد على بيانات متغيرة كثيرًا
-        // لكن بما أنه يعتمد على بيانات المستخدم، قد يكون من الأفضل تحديثه عند توفر البيانات
-        // سنقوم بتحديث الأفاتار من خلال مراقب بيانات المستخدم في UserModel إذا كان لديك
-        loadCurrentUserData() // جلب بيانات المستخدم لتحديث الأفاتار
+        loadCurrentUserData()
     }
 
-    private fun loadCurrentUserData() {
-        val currentUser: FirebaseUser? = auth.getCurrentUser()
-        if (currentUser != null && binding != null) {
-            if (userListener != null) userListener.remove()
-            userListener =
-                FirebaseFirestore.getInstance().collection("users").document(currentUser.getUid())
-                    .addSnapshotListener({ documentSnapshot, error ->
-                        if (binding == null) return@addSnapshotListener  // تحقق من أن binding ليس null (قد يكون Fragment تم تدميره)
-
-
-                        if (error != null) {
-                            android.util.Log.w(
-                                ContentValues.TAG,
-                                "Listen failed for user data.",
-                                error
-                            )
-                            binding!!.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
-                            return@addSnapshotListener
-                        }
-                        if (documentSnapshot != null && documentSnapshot.exists()) {
-                            val user: UserModel? = documentSnapshot.toObject(UserModel::class.java)
-                            if (user != null && user.getProfileImageUrl() != null && !user.getProfileImageUrl()
-                                    .isEmpty() && getContext() != null
-                            ) {
-                                Glide.with(getContext())
-                                    .load(user.getProfileImageUrl())
-                                    .placeholder(R.drawable.ic_default_avatar)
-                                    .error(R.drawable.ic_default_avatar)
-                                    .transition(DrawableTransitionOptions.withCrossFade())
-                                    .into(binding!!.ivUserAvatar)
-                            } else {
-                                binding!!.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
-                            }
-                        } else {
-                            binding!!.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
-                        }
-                    })
-        } else if (binding != null) {
-            binding!!.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
-        }
-    }
-
-
-    private fun setupToolbarAvatarClick() {
-        // إعداد النقر على صورة المستخدم في الشريط العلوي
-        if (binding != null) { // التأكد من أن binding ليس null
-            binding!!.ivUserAvatar.setOnClickListener(
-                android.view.View.OnClickListener { v: android.view.View? ->
-                    val currentUser: FirebaseUser? = auth.getCurrentUser()
-                    if (currentUser != null) {
-                        val profileIntent: Intent =
-                            Intent(getActivity(), ProfileActivity::class.java)
-                        profileIntent.putExtra("userId", currentUser.getUid())
-                        startActivity(profileIntent)
-                    } else {
-                        Toast.makeText(
-                            getContext(),
-                            "Please login to view profile",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                })
-            // إعداد زر الإعدادات
-            binding!!.ivSettings.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
-                val settingsIntent: Intent = Intent(getActivity(), SettingsActivity::class.java)
-                startActivity(settingsIntent)
-            })
-        }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        userListener?.remove()
+        userListener = null
+        _binding = null // ★ مهم لتجنب تسرب الذاكرة
     }
 
     private fun setupRecyclerView() {
-        if (getContext() == null || notificationsRecyclerView == null) return  // ★ حماية إضافية
+        notificationAdapter = NotificationAdapter(requireContext(), this)
+        binding.recyclerViewNotifications.apply {
+            layoutManager = LinearLayoutManager(context)
+            adapter = notificationAdapter
+        }
+    }
 
-
-        notificationAdapter = NotificationAdapter(getContext(), this)
-        notificationsRecyclerView.setLayoutManager(LinearLayoutManager(getContext()))
-        notificationsRecyclerView.setAdapter(notificationAdapter)
+    private fun setupToolbar() {
+        binding.ivSettings.setOnClickListener {
+            startActivity(Intent(activity, SettingsActivity::class.java))
+        }
     }
 
     private fun setupSwipeToRefresh() {
-        if (swipeRefreshLayout == null) return  // ★ حماية إضافية
+        binding.swipeRefreshNotifications.setOnRefreshListener {
+            Log.d(ContentValues.TAG, "Swipe to refresh triggered.")
+            notificationsViewModel.fetchNotifications()
+        }
+    }
 
+    private fun loadCurrentUserData() {
+        val currentUser = auth.currentUser ?: return
+        userListener?.remove() // إزالة المستمع القديم
+        userListener = FirebaseFirestore.getInstance().collection("users").document(currentUser.uid)
+            .addSnapshotListener { snapshot, error ->
+                if (_binding == null) return@addSnapshotListener // تحقق من أن الواجهة ما زالت موجودة
 
-        swipeRefreshLayout.setOnRefreshListener(OnRefreshListener {
-            android.util.Log.d(ContentValues.TAG, "Swipe to refresh triggered.")
-            notificationsViewModel!!.fetchNotifications() // إعادة جلب الإشعارات
-        })
+                if (error != null) {
+                    Log.w(ContentValues.TAG, "Listen failed for user data.", error)
+                    binding.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null && snapshot.exists()) {
+                    val user = snapshot.toObject(UserModel::class.java)
+                    if (user?.profileImageUrl != null && context != null) {
+                        Glide.with(requireContext())
+                            .load(user.profileImageUrl)
+                            .placeholder(R.drawable.ic_default_avatar)
+                            .error(R.drawable.ic_default_avatar)
+                            .transition(DrawableTransitionOptions.withCrossFade())
+                            .into(binding.ivUserAvatar)
+                    } else {
+                        binding.ivUserAvatar.setImageResource(R.drawable.ic_default_avatar)
+                    }
+
+                    // النقر على الصورة الرمزية للانتقال للملف الشخصي
+                    binding.ivUserAvatar.setOnClickListener {
+                        val intent = Intent(activity, ProfileActivity::class.java).apply {
+                            putExtra("userId", currentUser.uid)
+                        }
+                        startActivity(intent)
+                    }
+                }
+            }
     }
 
 
     private fun observeViewModel() {
-        notificationsViewModel!!.getNotificationsList().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { notifications: kotlin.collections.MutableList<NotificationModel?>? ->
-                if (notificationAdapter != null) { // ★ حماية إضافية
-                    notificationAdapter!!.submitList(notifications)
-                    if (emptyNotificationsTextView != null) { // ★ حماية إضافية
-                        emptyNotificationsTextView.setVisibility(if (notifications!!.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE)
-                    }
-                    android.util.Log.d(
-                        ContentValues.TAG,
-                        "Notifications list updated in Fragment: " + notifications!!.size
-                    )
-                }
-            })
-
-        notificationsViewModel!!.getIsLoading().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { isLoading: kotlin.Boolean? ->
-                if (loadingIndicator != null) { // ★ حماية إضافية
-                    // لا نظهر مؤشر التحميل الرئيسي إذا كان السحب للتحديث نشطًا
-                    if (swipeRefreshLayout != null && !swipeRefreshLayout.isRefreshing()) {
-                        loadingIndicator.setVisibility(if (isLoading) android.view.View.VISIBLE else android.view.View.GONE)
-                    }
-                }
-                if (swipeRefreshLayout != null && !isLoading!!) { // ★ حماية إضافية
-                    swipeRefreshLayout.setRefreshing(false) // إيقاف مؤشر السحب للتحديث عند انتهاء التحميل
-                }
-                android.util.Log.d(ContentValues.TAG, "Loading state changed: " + isLoading)
-            })
-
-        notificationsViewModel!!.getError().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { errorMsg: kotlin.String? ->
-                if (errorMsg != null && !errorMsg.isEmpty() && getContext() != null) { // ★ حماية إضافية
-                    Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show()
-                    android.util.Log.e(ContentValues.TAG, "Error observed: " + errorMsg)
-                }
-            })
-    }
-
-    // تطبيق واجهة OnNotificationClickListener
-    override fun onNotificationClick(notification: NotificationModel?) {
-        if (getContext() == null || notification == null) return  // ★ حماية إضافية
-
-
-        // تحديث حالة الإشعار إلى مقروء (اختياري، يمكنك القيام به هنا أو عند فتح الشاشة)
-        if (!notification.isRead()) {
-            notificationsViewModel!!.markNotificationAsRead(notification.getNotificationId())
+        notificationsViewModel.notificationsList.observe(viewLifecycleOwner) { notifications ->
+            notificationAdapter.submitList(notifications)
+            binding.textViewEmptyNotifications.visibility = if (notifications.isNullOrEmpty()) View.VISIBLE else View.GONE
         }
 
-        // الانتقال إلى الوجهة المناسبة بناءً على نوع الإشعار
-        if (NotificationModel.Companion.TYPE_LIKE == notification.getType() || NotificationModel.Companion.TYPE_COMMENT == notification.getType()) {
-            if (notification.getPostId() != null && !notification.getPostId().isEmpty()) {
-                // ملاحظة: PostDetailActivity يتوقع كائن PostModel كاملاً.
-                // هنا لدينا فقط postId. ستحتاج إلى تعديل هذا الجزء إما:
-                // 1. لجلب PostModel كاملاً بناءً على postId قبل الانتقال.
-                // 2. أو تعديل PostDetailActivity لقبول postId فقط وجلب البيانات هناك.
-                // للتبسيط الآن، سنفترض أن PostDetailActivity يمكنه التعامل مع postId فقط (وهو ليس صحيحًا حاليًا بناءً على الكود).
-                // ★★ هذا الجزء يحتاج إلى مراجعة وتعديل ليتناسب مع كيفية عمل PostDetailActivity ★★
-                // Intent intent = new Intent(getActivity(), PostDetailActivity.class);
-                // intent.putExtra("postId", notification.getPostId()); // هذا مثال، قد تحتاج لتمرير PostModel
-                // startActivity(intent);
-                Toast.makeText(
-                    getContext(),
-                    "Clicked on notification for post: " + notification.getPostId(),
-                    Toast.LENGTH_SHORT
-                ).show()
-                // ★★★ لتشغيل هذا بشكل صحيح، ستحتاج لجلب بيانات المنشور أولاً ★★★
-                FirebaseFirestore.getInstance().collection("posts")
-                    .document(notification.getPostId()).get()
-                    .addOnSuccessListener({ documentSnapshot ->
-                        if (documentSnapshot.exists()) {
-                            val post: PostModel? = documentSnapshot.toObject(PostModel::class.java)
-                            if (post != null) {
-                                post.setPostId(documentSnapshot.getId()) // التأكد من تعيين ID المنشور
-                                val intent: Intent =
-                                    Intent(getActivity(), PostDetailActivity::class.java)
-                                intent.putExtra(PostDetailActivity.Companion.EXTRA_POST, post)
-                                startActivity(intent)
-                            } else {
-                                Toast.makeText(
-                                    getContext(),
-                                    "Failed to load post details.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        } else {
-                            Toast.makeText(getContext(), "Post not found.", Toast.LENGTH_SHORT)
-                                .show()
+        notificationsViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            // إظهار/إخفاء مؤشر التحميل الرئيسي فقط إذا لم يكن السحب للتحديث نشطًا
+            if (!binding.swipeRefreshNotifications.isRefreshing) {
+                binding.progressBarNotifications.visibility = if (isLoading) View.VISIBLE else View.GONE
+            }
+            // إيقاف مؤشر السحب للتحديث عند انتهاء التحميل
+            if (!isLoading) {
+                binding.swipeRefreshNotifications.isRefreshing = false
+            }
+        }
+
+        notificationsViewModel.error.observe(viewLifecycleOwner) { errorMsg ->
+            if (!errorMsg.isNullOrEmpty()) {
+                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                Log.e(ContentValues.TAG, "Error observed: $errorMsg")
+            }
+        }
+    }
+
+    // ★ تطبيق الواجهة OnNotificationClickListener
+    override fun onNotificationClick(notification: NotificationModel) {
+        // تحديث حالة الإشعار إلى مقروء
+        if (!notification.isRead) {
+            notificationsViewModel.markNotificationAsRead(notification.notificationId)
+        }
+
+        // تحديد الوجهة بناءً على نوع الإشعار
+        when (notification.type) {
+            NotificationModel.TYPE_LIKE, NotificationModel.TYPE_COMMENT -> {
+                notification.postId?.let { openPostDetails(it) } ?: showMissingDataError("Post ID")
+            }
+            NotificationModel.TYPE_FOLLOW -> {
+                notification.fromUserId?.let { openUserProfile(it) } ?: showMissingDataError("User ID")
+            }
+            else -> {
+                Toast.makeText(context, "Notification type: ${notification.type}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun openPostDetails(postId: String) {
+        FirebaseFirestore.getInstance().collection("posts").document(postId).get()
+            .addOnSuccessListener { documentSnapshot ->
+                if (documentSnapshot.exists()) {
+                    val post = documentSnapshot.toObject(PostModel::class.java)?.apply {
+                        this.postId = documentSnapshot.id
+                    }
+                    if (post != null) {
+                        val intent = Intent(activity, PostDetailActivity::class.java).apply {
+                            putExtra(PostDetailActivity.EXTRA_POST, post)
                         }
-                    })
-                    .addOnFailureListener({ e ->
-                        Toast.makeText(
-                            getContext(),
-                            "Error loading post: " + e.getMessage(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    })
-            } else {
-                Toast.makeText(
-                    getContext(),
-                    "Post ID is missing for this notification.",
-                    Toast.LENGTH_SHORT
-                ).show()
+                        startActivity(intent)
+                    } else {
+                        Toast.makeText(context, "Failed to load post details.", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Post not found.", Toast.LENGTH_SHORT).show()
+                }
             }
-        } else if (NotificationModel.Companion.TYPE_FOLLOW == notification.getType()) {
-            if (notification.getFromUserId() != null && !notification.getFromUserId().isEmpty()) {
-                val intent: Intent = Intent(getActivity(), ProfileActivity::class.java)
-                intent.putExtra("userId", notification.getFromUserId())
-                startActivity(intent)
-            } else {
-                Toast.makeText(
-                    getContext(),
-                    "User ID is missing for follow notification.",
-                    Toast.LENGTH_SHORT
-                ).show()
+            .addOnFailureListener { e ->
+                Toast.makeText(context, "Error loading post: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-        } else {
-            Toast.makeText(
-                getContext(),
-                "Notification type: " + notification.getType(),
-                Toast.LENGTH_SHORT
-            ).show()
-        }
     }
 
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        if (userListener != null) {
-            userListener.remove() // Clean up listener
-            userListener = null
+    private fun openUserProfile(userId: String) {
+        val intent = Intent(activity, ProfileActivity::class.java).apply {
+            putExtra("userId", userId)
         }
-        // لا تقم بإلغاء تسجيل notificationListener هنا، لأن ViewModel هو الذي يدير دورة حياته
-        // notificationListener يتم إلغاء تسجيله في onCleared() داخل ViewModel
-        binding = null // ★ مهم جدًا لتجنب تسرب الذاكرة
-        notificationsRecyclerView = null // ★
-        loadingIndicator = null // ★
-        emptyNotificationsTextView = null // ★
-        swipeRefreshLayout = null // ★
-        notificationAdapter = null // ★
-    } // لم نعد بحاجة لهذه الدالة هنا، فكل قسم له Fragment خاص به
-    // private static class ViewPagerAdapter extends FragmentStateAdapter { /* ... */ }
+        startActivity(intent)
+    }
+
+    private fun showMissingDataError(missingField: String) {
+        Toast.makeText(context, "$missingField is missing for this notification.", Toast.LENGTH_SHORT).show()
+    }
 }

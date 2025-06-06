@@ -1,7 +1,7 @@
 package com.spidroid.starry.adapters
 
 import android.content.Context
-import android.text.TextUtils
+import android.text.format.DateUtils
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +12,12 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.utils.PostInteractionHandler
+import java.util.Date
 
+/**
+ * ViewHolder أساسي ومجرد يحتوي على المنطق المشترك لعرض المنشورات.
+ * هذا يمنع تكرار الكود في الـ Adapters المختلفة التي قد تعرض منشورات.
+ */
 abstract class BasePostViewHolder(
     private val binding: ViewBinding,
     private val listener: PostInteractionListener?,
@@ -20,38 +25,64 @@ abstract class BasePostViewHolder(
     private val currentUserId: String?
 ) : RecyclerView.ViewHolder(binding.root) {
 
+    // Handler متخصص للتعامل مع نقرات الإعجاب، المشاركة، الخ.
     protected val interactionHandler: PostInteractionHandler =
         PostInteractionHandler(binding.root, listener, context, currentUserId)
 
+    // دالة عامة لربط البيانات المشتركة
     open fun bindCommon(post: PostModel) {
-        if (binding is ItemPostBinding) {
-            // Check for valid data to prevent crashes from malformed posts
-            if (post.authorId.isNullOrEmpty()) {
-                Log.e("BasePostViewHolder", "Post with null or empty authorId. Hiding view. Post content: ${post.content}")
-                itemView.visibility = View.GONE
-                itemView.layoutParams = RecyclerView.LayoutParams(0, 0)
-                return
-            }
+        // تأكد من أن الـ binding من النوع الصحيح قبل المتابعة
+        val itemBinding = binding as? ItemPostBinding ?: return
 
-            itemView.visibility = View.VISIBLE
-            itemView.layoutParams = RecyclerView.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-
-            binding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
-            binding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
-            binding.tvPostContent.text = post.content ?: ""
-            binding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
-
-            Glide.with(context)
-                .load(post.authorAvatarUrl)
-                .placeholder(R.drawable.ic_default_avatar)
-                .error(R.drawable.ic_default_avatar)
-                .into(binding.ivAuthorAvatar)
-
-            // Bind the post to the interaction handler
-            interactionHandler.bind(post)
+        // التحقق من صحة البيانات الأساسية لمنع توقف التطبيق
+        if (post.authorId.isNullOrEmpty()) {
+            Log.e("BasePostViewHolder", "Post with null or empty authorId. Hiding view. Post ID: ${post.postId}")
+            itemView.visibility = View.GONE
+            itemView.layoutParams = RecyclerView.LayoutParams(0, 0)
+            return
         }
+
+        // إعادة إظهار الـ View وتعيين أبعاده في حال كان مخفياً
+        itemView.visibility = View.VISIBLE
+        itemView.layoutParams = RecyclerView.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        // ربط بيانات المؤلف
+        itemBinding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
+        itemBinding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
+        itemBinding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
+
+        // عرض الوقت النسبي للمنشور
+        itemBinding.tvTimestamp.text = formatTimestamp(post.createdAt)
+
+        // تحميل صورة المؤلف
+        Glide.with(context)
+            .load(post.authorAvatarUrl)
+            .placeholder(R.drawable.ic_default_avatar)
+            .error(R.drawable.ic_default_avatar)
+            .into(itemBinding.ivAuthorAvatar)
+
+        // ربط محتوى المنشور
+        itemBinding.tvPostContent.text = post.content ?: ""
+        itemBinding.tvPostContent.visibility = if (post.content.isNullOrBlank()) View.GONE else View.VISIBLE
+
+        // ربط المنشور مع معالج التفاعلات
+        interactionHandler.bind(post)
+
+        // تعيين مستمعي النقرات على معلومات المؤلف
+        itemBinding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(post.authorId) }
+        itemBinding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(post.authorId) }
+    }
+
+    private fun formatTimestamp(date: Date?): String {
+        if (date == null) return ""
+        return DateUtils.getRelativeTimeSpanString(
+            date.time,
+            System.currentTimeMillis(),
+            DateUtils.MINUTE_IN_MILLIS,
+            DateUtils.FORMAT_ABBREV_RELATIVE
+        ).toString()
     }
 }

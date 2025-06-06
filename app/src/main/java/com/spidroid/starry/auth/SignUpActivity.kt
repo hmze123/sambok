@@ -85,7 +85,6 @@ class SignUpActivity : AppCompatActivity() {
 
         val textWatcher = object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                // Enable button only if checkbox is also checked
                 signUpButton.isEnabled = termsCheckBox.isChecked && isFormValid()
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -160,6 +159,7 @@ class SignUpActivity : AppCompatActivity() {
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val username = usernameInput.text.toString().trim()
+                    // ✨ تم التعديل هنا ✨
                     createUserProfile(username, email)
                 } else {
                     showProgress(false)
@@ -204,11 +204,16 @@ class SignUpActivity : AppCompatActivity() {
             return
         }
 
+        // ✨ تم التعديل هنا:
+        // لم نعد نضع رابط صورة افتراضي، بل نترك الحقل null
+        // لكي يستخدم Glide الصورة الافتراضية من placeholder.
         val user = UserModel(
             userId = firebaseUser.uid,
             username = username,
             email = email,
-            displayName = username // Initially set displayName to username
+            displayName = username,
+            profileImageUrl = null, // ✨ تم التعديل
+            coverImageUrl = null
         )
 
         db.collection("users").document(firebaseUser.uid).set(user)

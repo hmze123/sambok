@@ -17,12 +17,9 @@ import com.bumptech.glide.Glide
 import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.tabs.TabLayoutMediator
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.FirebaseFirestoreException
 import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.SetOptions
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityProfileBinding
 import com.spidroid.starry.fragments.ProfileMediaFragment
@@ -37,10 +34,10 @@ class ProfileActivity : AppCompatActivity() {
     private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
-    private var userId: String? = null
+    private var targetUserId: String? = null
     private var currentAuthUserId: String? = null
     private var isCurrentUserProfile: Boolean = false
-    private var isFollowing: Boolean = false
+
     private var displayedUserProfile: UserModel? = null
     private var userProfileListener: ListenerRegistration? = null
 
@@ -53,15 +50,15 @@ class ProfileActivity : AppCompatActivity() {
         binding = ActivityProfileBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        userId = intent.getStringExtra("userId")
-        if (userId.isNullOrEmpty()) {
+        targetUserId = intent.getStringExtra("userId")
+        if (targetUserId.isNullOrEmpty()) {
             Toast.makeText(this, getString(R.string.user_id_not_provided), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
         currentAuthUserId = auth.currentUser?.uid
-        isCurrentUserProfile = userId == currentAuthUserId
+        isCurrentUserProfile = targetUserId == currentAuthUserId
 
         setupUI()
         setupTabs()
@@ -69,7 +66,7 @@ class ProfileActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
-        loadUserDataWithListener()
+        attachProfileListener()
     }
 
     override fun onStop() {
@@ -80,10 +77,17 @@ class ProfileActivity : AppCompatActivity() {
     private fun setupUI() {
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayShowTitleEnabled(false)
+
         binding.btnBack.setOnClickListener { finish() }
 
+        setupActionAndSettingsButtons()
+        setupCollapsingToolbar()
+        setupFollowClickListeners()
+    }
+
+    private fun setupActionAndSettingsButtons() {
         if (isCurrentUserProfile) {
-            binding.btnAction.setText(R.string.edit_profile)
+            binding.btnAction.text = getString(R.string.edit_profile)
             binding.btnAction.setIconResource(R.drawable.ic_edit)
             binding.btnAction.setOnClickListener {
                 startActivity(Intent(this, EditProfileActivity::class.java))
@@ -97,9 +101,6 @@ class ProfileActivity : AppCompatActivity() {
             binding.btnAction.visibility = View.VISIBLE
             binding.btnAction.setOnClickListener { toggleFollow() }
         }
-
-        setupCollapsingToolbar()
-        setupFollowClickListeners()
     }
 
     private fun setupCollapsingToolbar() {
@@ -110,11 +111,10 @@ class ProfileActivity : AppCompatActivity() {
                 scrollRange = appBarLayout.totalScrollRange
             }
             if (scrollRange + verticalOffset == 0) {
-                val user = displayedUserProfile
-                binding.collapsingToolbar.title = user?.displayName ?: user?.username
+                binding.collapsingToolbar.title = displayedUserProfile?.displayName ?: displayedUserProfile?.username
                 isShow = true
             } else if (isShow) {
-                binding.collapsingToolbar.title = " " // Empty space to hide title
+                binding.collapsingToolbar.title = " " // مسافة لإخفاء العنوان عند التوسيع
                 isShow = false
             }
         })
@@ -122,26 +122,25 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun setupFollowClickListeners() {
         binding.layoutFollowingInfo.setOnClickListener {
-            val intent = Intent(this, FollowingListActivity::class.java).apply {
-                putExtra(FollowersListActivity.EXTRA_USER_ID, userId)
+            val intent = Intent(this, UserListActivity::class.java).apply {
+                putExtra(UserListActivity.EXTRA_USER_ID, targetUserId)
+                putExtra(UserListActivity.EXTRA_LIST_TYPE, "following")
             }
             startActivity(intent)
         }
 
         binding.layoutFollowersInfo.setOnClickListener {
-            val intent = Intent(this, FollowersListActivity::class.java).apply {
-                putExtra(FollowersListActivity.EXTRA_USER_ID, userId)
-                putExtra(FollowersListActivity.EXTRA_LIST_TYPE, "followers")
+            val intent = Intent(this, UserListActivity::class.java).apply {
+                putExtra(UserListActivity.EXTRA_USER_ID, targetUserId)
+                putExtra(UserListActivity.EXTRA_LIST_TYPE, "followers")
             }
             startActivity(intent)
         }
     }
 
-    private fun loadUserDataWithListener() {
+    private fun attachProfileListener() {
         userProfileListener?.remove()
-        val targetUserId = userId ?: return
-
-        userProfileListener = db.collection("users").document(targetUserId)
+        userProfileListener = db.collection("users").document(targetUserId!!)
             .addSnapshotListener { snapshot, e ->
                 if (e != null) {
                     Log.w(TAG, "Listen failed.", e)
@@ -151,32 +150,40 @@ class ProfileActivity : AppCompatActivity() {
 
                 if (snapshot != null && snapshot.exists()) {
                     displayedUserProfile = snapshot.toObject(UserModel::class.java)?.apply { this.userId = snapshot.id }
-                    displayedUserProfile?.let {
-                        populateProfileData(it)
-                        if (!isCurrentUserProfile) {
-                            checkFollowingStatus()
-                        }
-                    }
+                    displayedUserProfile?.let { updateProfileUI(it) }
                 } else {
                     Toast.makeText(this, "User not found.", Toast.LENGTH_SHORT).show()
                 }
             }
     }
 
-    private fun checkFollowingStatus() {
-        val authId = currentAuthUserId ?: return
-        isFollowing = displayedUserProfile?.followers?.containsKey(authId) == true
-        updateFollowButtonState(isFollowing)
+    private fun updateProfileUI(user: UserModel) {
+        binding.tvDisplayName.text = user.displayName ?: user.username
+        binding.tvUsername.text = "@${user.username}"
+        binding.tvBio.text = user.bio
+        binding.tvBio.visibility = if (user.bio.isNullOrBlank()) View.GONE else View.VISIBLE
+        binding.ivVerified.visibility = if (user.isVerified) View.VISIBLE else View.GONE
+
+        Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
+        Glide.with(this).load(user.coverImageUrl).placeholder(R.color.m3_surfaceContainerLow).into(binding.ivCover)
+
+        binding.tvFollowersCount.text = user.followers.size.toString()
+        binding.tvFollowingCount.text = user.following.size.toString()
+
+        if (!isCurrentUserProfile) {
+            val isFollowing = user.followers.containsKey(currentAuthUserId)
+            updateFollowButtonState(isFollowing)
+        }
+
+        populateSocialLinks(user.socialLinks)
     }
 
     private fun updateFollowButtonState(isCurrentlyFollowing: Boolean) {
-        if (isCurrentUserProfile) return
-        isFollowing = isCurrentlyFollowing
-        if (isFollowing) {
-            binding.btnAction.setText(R.string.following)
+        if (isCurrentlyFollowing) {
+            binding.btnAction.text = getString(R.string.following)
             binding.btnAction.icon = null
         } else {
-            binding.btnAction.setText(R.string.follow)
+            binding.btnAction.text = getString(R.string.follow)
             binding.btnAction.setIconResource(R.drawable.ic_add)
         }
         binding.btnAction.isEnabled = true
@@ -187,50 +194,35 @@ class ProfileActivity : AppCompatActivity() {
             Toast.makeText(this, getString(R.string.login_to_follow), Toast.LENGTH_SHORT).show()
             return
         }
-        val targetId = userId ?: return
-        binding.btnAction.isEnabled = false
 
-        val currentUserDocRef = db.collection("users").document(authId)
-        val targetUserDocRef = db.collection("users").document(targetId)
+        binding.btnAction.isEnabled = false // تعطيل الزر لمنع النقرات المتعددة
+
+        val targetUserRef = db.collection("users").document(targetUserId!!)
+        val currentUserRef = db.collection("users").document(authId)
 
         db.runTransaction { transaction ->
-            val isCurrentlyFollowing = transaction.get(targetUserDocRef)
-                .get("followers.$authId") as? Boolean ?: false
+            val snapshot = transaction.get(targetUserRef)
+            val followers = snapshot.get("followers") as? Map<String, Boolean> ?: emptyMap()
+            val isCurrentlyFollowing = followers.containsKey(authId)
 
             if (isCurrentlyFollowing) {
                 // Unfollow
-                transaction.update(currentUserDocRef, "following.$targetId", FieldValue.delete())
-                transaction.update(targetUserDocRef, "followers.$authId", FieldValue.delete())
+                transaction.update(targetUserRef, "followers.$authId", FieldValue.delete())
+                transaction.update(currentUserRef, "following.$targetUserId", FieldValue.delete())
             } else {
                 // Follow
-                transaction.update(currentUserDocRef, "following.$targetId", true)
-                transaction.update(targetUserDocRef, "followers.$authId", true)
+                transaction.update(targetUserRef, "followers.$authId", true)
+                transaction.update(currentUserRef, "following.$targetUserId", true)
             }
-            null
+            // لا حاجة لإعادة أي شيء
         }.addOnSuccessListener {
             Log.d(TAG, "Follow status toggled successfully.")
-            // The snapshot listener will automatically update the UI
+            // سيتم تحديث الواجهة تلقائياً بفضل الـ SnapshotListener
         }.addOnFailureListener { e ->
             Log.e(TAG, "Failed to toggle follow", e)
-            Toast.makeText(this, "Failed to update follow status: ${e.message}", Toast.LENGTH_SHORT).show()
-            binding.btnAction.isEnabled = true
+            binding.btnAction.isEnabled = true // إعادة تفعيل الزر عند الفشل
+            Toast.makeText(this, getString(R.string.failed_to_update_follow_status, e.message), Toast.LENGTH_SHORT).show()
         }
-    }
-
-    private fun populateProfileData(user: UserModel) {
-        binding.tvDisplayName.text = user.displayName ?: user.username
-        binding.tvUsername.text = "@${user.username}"
-        binding.tvBio.text = user.bio
-        binding.tvBio.visibility = if (user.bio.isNullOrEmpty()) View.GONE else View.VISIBLE
-        binding.ivVerified.visibility = if (user.isVerified) View.VISIBLE else View.GONE
-
-        Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
-        Glide.with(this).load(user.coverImageUrl).placeholder(R.color.m3_surfaceContainerLow).into(binding.ivCover)
-
-        binding.tvFollowersCount.text = (user.followers.size).toString()
-        binding.tvFollowingCount.text = (user.following.size).toString()
-
-        populateSocialLinks(user.socialLinks)
     }
 
     private fun populateSocialLinks(socialLinks: Map<String, String>) {
@@ -255,18 +247,15 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun getPlatformIcon(platform: String): Int {
         return when (platform.lowercase(Locale.getDefault())) {
-            UserModel.SOCIAL_TWITTER -> R.drawable.ic_share // Replace with Twitter icon
-            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_add_photo // Replace with Instagram icon
+            UserModel.SOCIAL_TWITTER -> R.drawable.ic_share // استبدل بالأيقونة الصحيحة
+            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_add_photo // استبدل بالأيقونة الصحيحة
             else -> R.drawable.ic_link
         }
     }
 
     private fun openUrl(url: String) {
         try {
-            var formattedUrl = url
-            if (!url.startsWith("http://") && !url.startsWith("https://")) {
-                formattedUrl = "https://$url"
-            }
+            val formattedUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) "https://$url" else url
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(formattedUrl)))
         } catch (e: Exception) {
             Toast.makeText(this, "Could not open link", Toast.LENGTH_SHORT).show()
@@ -274,23 +263,16 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun setupTabs() {
-        val safeUserId = userId ?: return
-        val pagerAdapter = ProfilePagerAdapter(this, safeUserId)
+        val pagerAdapter = ProfilePagerAdapter(this, targetUserId!!)
         binding.viewPager.adapter = pagerAdapter
         TabLayoutMediator(binding.tabLayout, binding.viewPager) { tab, position ->
             tab.text = pagerAdapter.tabTitles[position]
         }.attach()
     }
 
-    private class ProfilePagerAdapter(
-        fa: FragmentActivity,
-        private val userId: String
-    ) : FragmentStateAdapter(fa) {
-
+    private class ProfilePagerAdapter(fa: FragmentActivity, private val userId: String) : FragmentStateAdapter(fa) {
         val tabTitles = arrayOf("Posts", "Replies", "Media")
-
         override fun getItemCount(): Int = tabTitles.size
-
         override fun createFragment(position: Int): Fragment {
             return when (position) {
                 0 -> ProfilePostsFragment.newInstance(userId)

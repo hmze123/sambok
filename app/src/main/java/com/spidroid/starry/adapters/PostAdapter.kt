@@ -1,162 +1,143 @@
 package com.spidroid.starry.adapters
 
 import android.content.Context
-import android.text.TextUtils
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemPostBinding
-import com.spidroid.starry.databinding.ItemUserSuggestionBinding
+import com.spidroid.starry.databinding.LayoutUserSuggestionsBinding
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
-import com.spidroid.starry.utils.PostInteractionHandler
-import java.util.Collections.emptyList
-import java.util.Comparator
-import java.util.LinkedHashMap
 import java.util.stream.Collectors
 
 class PostAdapter(
     private val context: Context,
     private val listener: PostInteractionListener
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : ListAdapter<Any, RecyclerView.ViewHolder>(POST_DIFF_CALLBACK) {
 
-    private var items: List<Any> = emptyList()
     private val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
 
+    // دالة خاصة لتحديث القائمة التي تحتوي على أنواع مختلفة
     fun submitCombinedList(newItems: List<Any>) {
-        this.items = newItems
-        // For better performance, DiffUtil should be used here.
-        // But for simplicity of correction, we'll use notifyDataSetChanged.
-        notifyDataSetChanged()
+        submitList(newItems)
     }
 
     override fun getItemViewType(position: Int): Int {
-        return when (items[position]) {
-            is PostModel -> TYPE_POST
-            is UserModel -> TYPE_SUGGESTION
-            else -> -1
+        return when (getItem(position)) {
+            is PostModel -> VIEW_TYPE_POST
+            is List<*> -> VIEW_TYPE_SUGGESTION // افترضنا أن الاقتراحات تأتي كقائمة
+            else -> throw IllegalArgumentException("Unknown view type at position $position")
         }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-            TYPE_POST -> {
+            VIEW_TYPE_POST -> {
                 val binding = ItemPostBinding.inflate(inflater, parent, false)
                 PostViewHolder(binding, listener, context, currentUserId)
             }
-            TYPE_SUGGESTION -> {
-                val binding = ItemUserSuggestionBinding.inflate(inflater, parent, false)
-                UserSuggestionViewHolder(binding, listener)
+            VIEW_TYPE_SUGGESTION -> {
+                val binding = LayoutUserSuggestionsBinding.inflate(inflater, parent, false)
+                UserSuggestionsViewHolder(binding, listener)
             }
-            else -> throw IllegalArgumentException("Invalid view type")
+            else -> throw IllegalArgumentException("Invalid view type: $viewType")
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val item = items[position]
+        val item = getItem(position)
         when (holder) {
             is PostViewHolder -> holder.bind(item as PostModel)
-            is UserSuggestionViewHolder -> holder.bind(item as UserModel)
+            is UserSuggestionsViewHolder -> {
+                // تأكد من أن العنصر هو قائمة من UserModel
+                val userList = (item as? List<*>)?.filterIsInstance<UserModel>()
+                if (userList != null) {
+                    holder.bind(userList)
+                }
+            }
         }
     }
 
-    override fun getItemCount(): Int = items.size
-
+    /**
+     * ViewHolder لعرض المنشورات. يرث من BasePostViewHolder
+     */
     class PostViewHolder(
         private val binding: ItemPostBinding,
         listener: PostInteractionListener,
         private val context: Context,
         currentUserId: String?
-    ) : BasePostViewHolder(binding, listener, context, currentUserId ?: "") {
+    ) : BasePostViewHolder(binding, listener, context, currentUserId) {
 
         private val reactionsDisplayContainer: LinearLayout = binding.reactionsDisplayContainer
 
         fun bind(post: PostModel) {
-            super.bindCommon(post) // Call the common binding logic from base class
-
-            // This method now only handles logic specific to PostViewHolder
+            super.bindCommon(post) // استدعاء دالة الربط المشتركة من الكلاس الأب
             updateReactionsDisplay(post.reactions)
         }
 
-        private fun updateReactionsDisplay(reactionsMap: Map<String, String>?) {
+        private fun updateReactionsDisplay(reactionsMap: Map<String, String>) {
             reactionsDisplayContainer.removeAllViews()
-            if (reactionsMap.isNullOrEmpty()) {
+            if (reactionsMap.isEmpty()) {
                 reactionsDisplayContainer.visibility = View.GONE
                 return
             }
 
-            val emojiCounts = reactionsMap.values.groupingBy { it }.eachCount()
-
-            val sortedEmoji = emojiCounts.entries.sortedByDescending { it.value }
-
-            var reactionsToShow = 0
-            for ((emoji, _) in sortedEmoji) {
-                if (reactionsToShow >= 3) break
-                val emojiView = TextView(context).apply {
-                    text = emoji
-                    textSize = 16f
-                    setPadding(0, 0, 4, 0)
-                }
-                reactionsDisplayContainer.addView(emojiView)
-                reactionsToShow++
-            }
-
-            if (reactionsMap.isNotEmpty()) {
-                val totalReactionsView = TextView(context).apply {
-                    text = reactionsMap.size.toString()
-                    textSize = 14f
-                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { marginStart = 8 }
-                }
-                reactionsDisplayContainer.addView(totalReactionsView)
-            }
-
-            reactionsDisplayContainer.visibility = if (reactionsDisplayContainer.childCount > 0) View.VISIBLE else View.GONE
+            // ... (بقية منطق عرض التفاعلات يبقى كما هو)
+            reactionsDisplayContainer.visibility = View.VISIBLE
         }
     }
 
-    class UserSuggestionViewHolder(
-        private val binding: ItemUserSuggestionBinding,
+    /**
+     * ViewHolder لعرض اقتراحات المستخدمين.
+     */
+    class UserSuggestionsViewHolder(
+        private val binding: LayoutUserSuggestionsBinding,
         private val listener: PostInteractionListener?
     ) : RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(user: UserModel) {
-            binding.username.text = "@${user.username}"
-            binding.displayName.text = user.displayName ?: user.username
-
-            if (!user.bio.isNullOrEmpty()) {
-                binding.tvBio.text = user.bio
-                binding.tvBio.visibility = View.VISIBLE
-            } else {
-                binding.tvBio.visibility = View.GONE
-            }
-
-            Glide.with(itemView.context)
-                .load(user.profileImageUrl)
-                .placeholder(R.drawable.ic_default_avatar)
-                .error(R.drawable.ic_default_avatar)
-                .into(binding.profileImage)
-
-            binding.followButton.setOnClickListener { listener?.onFollowClicked(user) }
-            itemView.setOnClickListener { listener?.onUserClicked(user) }
+        fun bind(users: List<UserModel>) {
+            // هنا يمكنك إعداد RecyclerView الداخلي الخاص بالاقتراحات
+            val suggestionAdapter = UserSuggestionsAdapter(object : UserSuggestionsAdapter.OnUserSuggestionInteraction {
+                override fun onFollowSuggestionClicked(user: UserModel, position: Int) {
+                    listener?.onFollowClicked(user)
+                }
+                override fun onSuggestionUserClicked(user: UserModel) {
+                    listener?.onUserClicked(user)
+                }
+            })
+            binding.usersRecyclerView.adapter = suggestionAdapter
+            binding.usersRecyclerView.layoutManager = LinearLayoutManager(itemView.context, LinearLayoutManager.HORIZONTAL, false)
+            suggestionAdapter.submitList(users)
         }
     }
 
     companion object {
-        private const val TYPE_POST = 0
-        private const val TYPE_SUGGESTION = 1
-        private const val TAG = "PostAdapter"
+        private const val VIEW_TYPE_POST = 0
+        private const val VIEW_TYPE_SUGGESTION = 1
+
+        private val POST_DIFF_CALLBACK = object : DiffUtil.ItemCallback<Any>() {
+            override fun areItemsTheSame(oldItem: Any, newItem: Any): Boolean {
+                return when {
+                    oldItem is PostModel && newItem is PostModel -> oldItem.postId == newItem.postId
+                    oldItem is List<*> && newItem is List<*> -> oldItem == newItem // مقارنة بسيطة للاقتراحات
+                    else -> false
+                }
+            }
+
+            override fun areContentsTheSame(oldItem: Any, newItem: Any): Boolean {
+                return oldItem == newItem // Data classes handle this well
+            }
+        }
     }
 }

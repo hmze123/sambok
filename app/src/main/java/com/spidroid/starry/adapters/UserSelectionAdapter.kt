@@ -16,7 +16,7 @@ import java.util.Locale
 
 class UserSelectionAdapter(
     private val context: Context,
-    private val listener: MutableList<T>
+    private val listener: OnUserSelectionChangedListener // ✨ تم تعديل هذا السطر
 ) : ListAdapter<UserModel, UserSelectionAdapter.UserSelectionViewHolder>(DIFF_CALLBACK), Filterable {
 
     private var fullList: List<UserModel> = listOf()
@@ -52,18 +52,13 @@ class UserSelectionAdapter(
                 .error(R.drawable.ic_default_avatar)
                 .into(binding.ivAvatarSelectable)
 
-            // Remove previous listener to prevent unwanted calls during recycling
             binding.cbSelectUser.setOnCheckedChangeListener(null)
-
-            // Set current state
             binding.cbSelectUser.isChecked = selectedUserIds.contains(user.userId)
 
-            // Set new listener
             binding.cbSelectUser.setOnCheckedChangeListener { _, isChecked ->
                 toggleSelection(user.userId)
             }
 
-            // Allow clicking on the whole item to toggle the checkbox
             itemView.setOnClickListener {
                 binding.cbSelectUser.isChecked = !binding.cbSelectUser.isChecked
             }
@@ -75,7 +70,8 @@ class UserSelectionAdapter(
             } else {
                 selectedUserIds.add(userId)
             }
-            listener?.onSelectionChanged(selectedUserIds.size)
+            // الآن استدعاء المستمع صحيح
+            listener.onSelectionChanged(selectedUserIds.size)
         }
     }
 
@@ -108,7 +104,6 @@ class UserSelectionAdapter(
             }
 
             override fun areContentsTheSame(oldItem: UserModel, newItem: UserModel): Boolean {
-                // Only compare fields that are displayed in this adapter
                 return oldItem.displayName == newItem.displayName &&
                         oldItem.username == newItem.username &&
                         oldItem.profileImageUrl == newItem.profileImageUrl
