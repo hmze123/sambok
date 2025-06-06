@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/models/CommentModel.kt
 package com.spidroid.starry.models
 
 import android.os.Parcelable
@@ -61,12 +62,9 @@ data class CommentModel(
 
 ) : Parcelable {
 
-    // Secondary constructor for creating a new comment.
-    constructor(content: String, parentPostId: String, parentCommentId: String?) : this(
-        content = content,
-        parentPostId = parentPostId,
-        parentCommentId = parentCommentId
-    )
+    // ✨ تم إزالة المُنشئ الثانوي لتجنب مشكلة "cycle in delegation"
+    // يجب أن يتم بناء كائن CommentModel باستخدام المُنشئ الأساسي مباشرة
+    // (مثال: CommentModel(content = "...", parentPostId = "...", parentCommentId = "..."))
 
     // --- Computed Properties ---
     @get:Exclude

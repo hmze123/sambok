@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/StoryViewerActivity.kt
 package com.spidroid.starry.activities
 
 import android.animation.Animator
@@ -214,7 +215,7 @@ class StoryViewerActivity : AppCompatActivity() {
 
     private fun initializePlayer(story: StoryModel) {
         player = ExoPlayer.Builder(this).build().also {
-            binding.playerView.player = it
+            binding.pvStoryVideo.player = it // ✨ تم تغيير playerView إلى pvStoryVideo
             it.setMediaItem(MediaItem.fromUri(story.mediaUrl!!))
             it.playWhenReady = true
             it.addListener(object : Player.Listener {
@@ -258,6 +259,7 @@ class StoryViewerActivity : AppCompatActivity() {
     }
 
     private fun releasePlayer() {
+        player?.stop()
         player?.release()
         player = null
     }
@@ -268,8 +270,8 @@ class StoryViewerActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        releasePlayer()
         currentProgressAnimator?.pause()
+        releasePlayer()
     }
 
     override fun onResume() {
@@ -286,8 +288,8 @@ class StoryViewerActivity : AppCompatActivity() {
         super.onDestroy()
         storyListener?.remove()
         authorInfoListener?.remove()
-        releasePlayer()
         currentProgressAnimator?.cancel()
+        releasePlayer()
     }
 
     companion object {

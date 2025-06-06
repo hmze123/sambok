@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/home/ForYouFragment.kt
 package com.spidroid.starry.ui.home
 
 import android.content.ClipData
@@ -30,6 +31,12 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.ui.common.ReactionPickerFragment
 import com.spidroid.starry.viewmodels.PostViewModel
+import com.spidroid.starry.viewmodels.ProfilePostState // ✨ تم التأكد من هذا الاستيراد
+import com.spidroid.starry.viewmodels.ProfileViewModel // ✨ تم التأكد من هذا الاستيراد
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import androidx.fragment.app.activityViewModels // ✨ تم التأكد من هذا الاستيراد
+
 
 class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragment.ReactionListener {
 
@@ -41,6 +48,8 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
 
     private var currentAuthUserId: String? = null
     private var currentPostForReaction: PostModel? = null
+    private val profileViewModel: ProfileViewModel by activityViewModels() // ✨ تم التأكد من هذا السطر
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,12 +79,10 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
     }
 
     private fun setupRecyclerView() {
-        // Ensure context is available before initializing adapter
-        context?.let {
-            postAdapter = PostAdapter(it, this)
-            binding.recyclerView.layoutManager = LinearLayoutManager(it)
-            binding.recyclerView.adapter = postAdapter
-        }
+        // ✨ تهيئة postAdapter مباشرة باستخدام requireContext()
+        postAdapter = PostAdapter(requireContext(), this)
+        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerView.adapter = postAdapter
     }
 
     private fun setupSwipeRefresh() {
@@ -86,7 +93,7 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
     }
 
     private fun setupObservers() {
-        postViewModel.getCombinedFeed().observe(viewLifecycleOwner) { items ->
+        postViewModel.combinedFeed.observe(viewLifecycleOwner) { items ->
             binding.progressContainer.visibility = View.GONE
             binding.swipeRefresh.isRefreshing = false
 
@@ -133,21 +140,19 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
     }
 
     override fun onBookmarkClicked(post: PostModel?) {
-        val postId = post?.postId ?: return
-        postViewModel.toggleBookmark(postId, post.isBookmarked)
+        post?.postId?.let { postViewModel.toggleBookmark(it, post.isBookmarked) }
     }
 
     override fun onRepostClicked(post: PostModel?) {
-        val postId = post?.postId ?: return
-        postViewModel.toggleRepost(postId, post.isReposted)
+        post?.postId?.let { postViewModel.toggleRepost(it, post.isReposted) }
     }
 
     override fun onCommentClicked(post: PostModel?) {
-        val safePost = post ?: return
-        val intent = Intent(activity, PostDetailActivity::class.java).apply {
-            putExtra(PostDetailActivity.EXTRA_POST, safePost)
+        post?.let {
+            val intent = Intent(activity, PostDetailActivity::class.java)
+            intent.putExtra(PostDetailActivity.EXTRA_POST, it)
+            startActivity(intent)
         }
-        startActivity(intent)
     }
 
     override fun onMenuClicked(post: PostModel?, anchorView: View?) {
@@ -157,6 +162,7 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
 
         PopupMenu(safeContext, safeAnchor).apply {
             menuInflater.inflate(R.menu.post_options_menu, menu)
+            val currentAuthUserId = FirebaseAuth.getInstance().currentUser?.uid
             val isAuthor = currentAuthUserId == safePost.authorId
 
             menu.findItem(R.id.action_pin_post)?.isVisible = isAuthor
@@ -278,13 +284,13 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
     // Other listener methods...
     override fun onFollowClicked(user: UserModel?) { /* Not implemented in this fragment */ }
     override fun onHashtagClicked(hashtag: String?) { /* Not implemented */ }
-    override fun onPostLongClicked(post: PostModel) { /* Not implemented */ }
+    override fun onPostLongClicked(post: PostModel?) { /* Not implemented */ }
     override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) { /* Not implemented */ }
     override fun onVideoPlayClicked(videoUrl: String?) { /* Not implemented */ }
     override fun onLayoutClicked(post: PostModel?) { onCommentClicked(post) }
-    override fun onSeeMoreClicked(post: PostModel) { /* Not implemented */ }
-    override fun onTranslateClicked(post: PostModel) { /* Not implemented */ }
-    override fun onShowOriginalClicked(post: PostModel) { /* Not implemented */ }
+    override fun onSeeMoreClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onTranslateClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onShowOriginalClicked(post: PostModel?) { /* Not implemented */ }
     override fun onModeratePost(post: PostModel?) { /* Not implemented */ }
     // endregion
 
@@ -293,4 +299,7 @@ class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragme
         _binding = null // Clear binding reference
     }
 
+    companion object {
+        private const val TAG = "ForYouFragment"
+    }
 }

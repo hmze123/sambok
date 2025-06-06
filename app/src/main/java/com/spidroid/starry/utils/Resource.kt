@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/utils/Resource.kt
 package com.spidroid.starry.utils
 
 class Resource<T> private constructor(val status: Status?, val data: T?, val message: String?) {

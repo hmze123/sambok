@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/EditProfileActivity.kt
 package com.spidroid.starry.activities
 
 import android.app.Activity
@@ -5,8 +6,8 @@ import android.content.DialogInterface
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
+import android.text.Editable // ✨ تم إضافة هذا الاستيراد
+import android.text.TextWatcher // ✨ تم إضافة هذا الاستيراد
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -20,7 +21,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.dialog.MaterialAlertDialogBuilder // ✨ تم إضافة هذا الاستيراد
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -29,7 +30,6 @@ import com.google.firebase.storage.StorageReference
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityEditProfileBinding
 import com.spidroid.starry.models.UserModel
-import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
 import java.util.Locale
 
 class EditProfileActivity : AppCompatActivity() {
@@ -46,6 +46,10 @@ class EditProfileActivity : AppCompatActivity() {
 
     private lateinit var pickProfileImageLauncher: ActivityResultLauncher<String>
     private lateinit var pickCoverImageLauncher: ActivityResultLauncher<String>
+
+    private companion object {
+        private const val TAG = "EditProfileActivity" // ✨ تم تعريف TAG
+    }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +92,10 @@ class EditProfileActivity : AppCompatActivity() {
         binding.btnAddSocial.setOnClickListener { showAddSocialDialog() }
         binding.btnChangePhoto.setOnClickListener { pickProfileImageLauncher.launch("image/*") }
         binding.btnChangeCover.setOnClickListener { pickCoverImageLauncher.launch("image/*") }
+
+        // ✨ إضافة مستمعين لـ SwitchPreference
+        binding.switchPrivate.setOnCheckedChangeListener { _, _ -> hasChanges = true }
+        binding.switchActivity.setOnCheckedChangeListener { _, _ -> hasChanges = true }
     }
 
     private fun loadUserData() {
@@ -155,8 +163,10 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun getPlatformIcon(platform: String): Int {
         return when (platform.lowercase(Locale.getDefault())) {
-            UserModel.SOCIAL_TWITTER -> R.drawable.ic_share // Replace with a proper Twitter icon
-            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_add_photo // Replace with a proper Instagram icon
+            UserModel.SOCIAL_TWITTER -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة تويتر الفعلية
+            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة انستجرام الفعلية
+            UserModel.SOCIAL_FACEBOOK -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة فيسبوك الفعلية
+            UserModel.SOCIAL_LINKEDIN -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة لينكدإن الفعلية
             else -> R.drawable.ic_link
         }
     }
@@ -176,7 +186,11 @@ class EditProfileActivity : AppCompatActivity() {
     }
 
     private fun showAddSocialDialog() {
-        val platforms = arrayOf("Twitter", "Instagram", "Facebook", "LinkedIn")
+        val platforms = arrayOf(UserModel.SOCIAL_TWITTER.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+            UserModel.SOCIAL_INSTAGRAM.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+            UserModel.SOCIAL_FACEBOOK.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+            UserModel.SOCIAL_LINKEDIN.replaceFirstChar { it.titlecase(Locale.getDefault()) }) // ✨ استخدام ثوابت UserModel
+
         MaterialAlertDialogBuilder(this)
             .setTitle("Add Social Link")
             .setItems(platforms) { _, which ->
@@ -216,8 +230,10 @@ class EditProfileActivity : AppCompatActivity() {
         val allTasks = listOfNotNull(profileImageTask, coverImageTask)
 
         Tasks.whenAllSuccess<Uri>(allTasks).addOnSuccessListener { uris ->
-            val profileUrl = if (profileImageTask != null) uris.firstOrNull()?.toString() else null
-            val coverUrl = if (coverImageTask != null) uris.getOrNull(if(profileImageTask != null) 1 else 0)?.toString() else null
+            // الحصول على URLs بترتيب صحيح بناءً على المهام
+            var currentUriIndex = 0
+            val profileUrl = if (profileImageTask != null) uris[currentUriIndex++].toString() else null
+            val coverUrl = if (coverImageTask != null) uris[currentUriIndex].toString() else null
 
             updateFirestore(profileUrl, coverUrl)
         }.addOnFailureListener { e ->
@@ -247,6 +263,7 @@ class EditProfileActivity : AppCompatActivity() {
         val user = originalUser ?: return
         val userId = user.userId ?: return
 
+        // تحديث البيانات من حقول الإدخال
         user.displayName = binding.etDisplayName.text.toString().trim()
         user.username = binding.etUsername.text.toString().trim()
         user.bio = binding.etBio.text.toString().trim()
@@ -254,6 +271,7 @@ class EditProfileActivity : AppCompatActivity() {
         user.privacySettings.privateAccount = binding.switchPrivate.isChecked
         user.privacySettings.showActivityStatus = binding.switchActivity.isChecked
 
+        // تحديث عناوين URL للصور إذا كانت موجودة
         if (newProfileUrl != null) user.profileImageUrl = newProfileUrl
         if (newCoverUrl != null) user.coverImageUrl = newCoverUrl
 
@@ -264,7 +282,15 @@ class EditProfileActivity : AppCompatActivity() {
             val platform = view.tag as? String
             val url = etUrl.text.toString().trim()
             if (platform != null && url.isNotEmpty()) {
-                socialLinks[platform] = url
+                // ✨ التحقق من صحة URL قبل الإضافة
+                if (android.util.Patterns.WEB_URL.matcher(url).matches()) {
+                    socialLinks[platform] = url
+                } else {
+                    Toast.makeText(this, "Invalid URL for $platform: $url", Toast.LENGTH_SHORT).show()
+                    binding.progressBar.visibility = View.GONE
+                    binding.btnSave.isEnabled = true
+                    return // إيقاف عملية الحفظ إذا كان هناك رابط غير صالح
+                }
             }
         }
         user.socialLinks = socialLinks
@@ -290,6 +316,7 @@ class EditProfileActivity : AppCompatActivity() {
             binding.etUsername.error = "Username must be at least 4 characters"
             return false
         }
+        // لا يوجد تحقق هنا على الروابط الاجتماعية، يتم التحقق منها في updateFirestore
         return true
     }
 

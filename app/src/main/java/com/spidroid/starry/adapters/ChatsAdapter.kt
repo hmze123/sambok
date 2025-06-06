@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/adapters/ChatsAdapter.kt
 package com.spidroid.starry.adapters
 
 import android.content.Context
@@ -18,6 +19,7 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemChatBinding
 import com.spidroid.starry.models.Chat
 import com.spidroid.starry.models.ChatMessage
+import com.spidroid.starry.models.UserModel // Added import for UserModel
 import de.hdodenhof.circleimageview.CircleImageView
 
 interface ChatClickListener {
@@ -30,6 +32,17 @@ class ChatsAdapter(
 ) : ListAdapter<Chat, ChatsAdapter.ChatViewHolder>(DIFF_CALLBACK) {
 
     private val currentUserId: String? = Firebase.auth.currentUser?.uid
+    // This map should be populated by the Fragment/ViewModel with other users' data
+    private var otherUsersMap: Map<String, UserModel> = emptyMap()
+
+    // Function to update the map of other users
+    fun setOtherUsers(users: Map<String, UserModel>) {
+        otherUsersMap = users
+        // It might be necessary to re-submit the list or notify adapter if new user data comes in
+        // and affects currently displayed chats. For simplicity, we assume this is handled
+        // when chats themselves are re-submitted.
+    }
+
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
         val binding = ItemChatBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -71,8 +84,6 @@ class ChatsAdapter(
             if (chat.isGroup) {
                 bindGroupInfo(chat)
             } else {
-                // This assumes the Chat object is now enriched with the other user's details
-                // This logic should be handled in the Fragment/ViewModel before submitting to the adapter
                 bindDirectChatInfo(chat)
             }
         }
@@ -88,14 +99,13 @@ class ChatsAdapter(
         }
 
         private fun bindDirectChatInfo(chat: Chat) {
-            // The Fragment/ViewModel should've figured out the other user and populated the Chat object
-            // For now, let's assume the chat object has a transient field for the other user's info
-            // If not, this logic needs to move out of the adapter.
-            // This is a placeholder logic.
-            binding.tvUserName.text = "Direct Chat" // Replace with other user's name
-            binding.ivVerified.visibility = View.GONE // Replace with other user's verification status
+            val otherUserId = chat.participants.firstOrNull { it != currentUserId }
+            val otherUser = otherUserId?.let { otherUsersMap[it] } // Get user from the map
+
+            binding.tvUserName.text = otherUser?.displayName ?: otherUser?.username ?: "Direct Chat"
+            binding.ivVerified.visibility = if (otherUser?.isVerified == true) View.VISIBLE else View.GONE
             Glide.with(itemView.context)
-                .load(null as String?) // Replace with other user's avatar
+                .load(otherUser?.profileImageUrl)
                 .placeholder(R.drawable.ic_default_avatar)
                 .error(R.drawable.ic_default_avatar)
                 .into(binding.ivAvatar)
@@ -114,7 +124,8 @@ class ChatsAdapter(
                         oldItem.lastMessageTime == newItem.lastMessageTime &&
                         oldItem.unreadCounts == newItem.unreadCounts &&
                         oldItem.groupName == newItem.groupName && // for groups
-                        oldItem.groupImage == newItem.groupImage // for groups
+                        oldItem.groupImage == newItem.groupImage && // for groups
+                        oldItem.participants == newItem.participants // For direct chats, participant list might change if user data is enriched
             }
         }
     }

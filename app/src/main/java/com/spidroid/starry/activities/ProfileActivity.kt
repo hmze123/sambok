@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/ProfileActivity.kt
 package com.spidroid.starry.activities
 
 import android.content.Intent
@@ -27,6 +28,7 @@ import com.spidroid.starry.fragments.ProfilePostsFragment
 import com.spidroid.starry.fragments.ProfileRepliesFragment
 import com.spidroid.starry.models.UserModel
 import java.util.Locale
+import com.spidroid.starry.activities.FollowersListActivity // ✨ تم إضافة هذا الاستيراد
 
 class ProfileActivity : AppCompatActivity() {
 
@@ -122,17 +124,17 @@ class ProfileActivity : AppCompatActivity() {
 
     private fun setupFollowClickListeners() {
         binding.layoutFollowingInfo.setOnClickListener {
-            val intent = Intent(this, UserListActivity::class.java).apply {
-                putExtra(UserListActivity.EXTRA_USER_ID, targetUserId)
-                putExtra(UserListActivity.EXTRA_LIST_TYPE, "following")
+            val intent = Intent(this, FollowersListActivity::class.java).apply { // ✨ تم تغيير UserListActivity إلى FollowersListActivity
+                putExtra(FollowersListActivity.EXTRA_USER_ID, targetUserId) // ✨ تم تغيير UserListActivity إلى FollowersListActivity
+                putExtra(FollowersListActivity.EXTRA_LIST_TYPE, "following") // ✨ تم تغيير UserListActivity إلى FollowersListActivity
             }
             startActivity(intent)
         }
 
         binding.layoutFollowersInfo.setOnClickListener {
-            val intent = Intent(this, UserListActivity::class.java).apply {
-                putExtra(UserListActivity.EXTRA_USER_ID, targetUserId)
-                putExtra(UserListActivity.EXTRA_LIST_TYPE, "followers")
+            val intent = Intent(this, FollowersListActivity::class.java).apply { // ✨ تم تغيير UserListActivity إلى FollowersListActivity
+                putExtra(FollowersListActivity.EXTRA_USER_ID, targetUserId) // ✨ تم تغيير UserListActivity إلى FollowersListActivity
+                putExtra(FollowersListActivity.EXTRA_LIST_TYPE, "followers") // ✨ تم تغيير UserListActivity إلى FollowersListActivity
             }
             startActivity(intent)
         }
@@ -202,7 +204,7 @@ class ProfileActivity : AppCompatActivity() {
 
         db.runTransaction { transaction ->
             val snapshot = transaction.get(targetUserRef)
-            val followers = snapshot.get("followers") as? Map<String, Boolean> ?: emptyMap()
+            val followers = (snapshot.get("followers") as? Map<String, Boolean>) ?: emptyMap()
             val isCurrentlyFollowing = followers.containsKey(authId)
 
             if (isCurrentlyFollowing) {
@@ -246,9 +248,13 @@ class ProfileActivity : AppCompatActivity() {
     }
 
     private fun getPlatformIcon(platform: String): Int {
+        // ملاحظة: يفضل استخدام أيقونات مخصصة لكل منصة بدلاً من الأيقونات العامة
+        // تأكد من إضافة هذه الأيقونات إلى مجلد res/drawable في مشروعك
         return when (platform.lowercase(Locale.getDefault())) {
-            UserModel.SOCIAL_TWITTER -> R.drawable.ic_share // استبدل بالأيقونة الصحيحة
-            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_add_photo // استبدل بالأيقونة الصحيحة
+            UserModel.SOCIAL_TWITTER -> R.drawable.ic_link // استبدل بـ R.drawable.ic_twitter
+            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_link // استبدل بـ R.drawable.ic_instagram
+            UserModel.SOCIAL_FACEBOOK -> R.drawable.ic_link // استبدل بـ R.drawable.ic_facebook
+            UserModel.SOCIAL_LINKEDIN -> R.drawable.ic_link // استبدل بـ R.drawable.ic_linkedin
             else -> R.drawable.ic_link
         }
     }

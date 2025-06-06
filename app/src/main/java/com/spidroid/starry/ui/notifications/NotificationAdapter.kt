@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/notifications/NotificationAdapter.kt
 package com.spidroid.starry.ui.notifications
 
 import android.content.Context
@@ -17,21 +18,18 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.spidroid.starry.R
 import com.spidroid.starry.models.NotificationModel
-import com.spidroid.starry.ui.notifications.NotificationAdapter.NotificationViewHolder
 import de.hdodenhof.circleimageview.CircleImageView
-
-// أو الحزمة الصحيحة إذا كانت مختلفة
 
 class NotificationAdapter(
     private val context: Context,
     private val listener: OnNotificationClickListener?
-) : ListAdapter<NotificationModel?, NotificationViewHolder?>(NotificationAdapter.Companion.DIFF_CALLBACK) {
+) : ListAdapter<NotificationModel, NotificationAdapter.NotificationViewHolder>(DIFF_CALLBACK) { // ✨ تم تغيير ListAdapter<NotificationModel?> إلى ListAdapter<NotificationModel>
     interface OnNotificationClickListener {
         fun onNotificationClick(notification: NotificationModel?)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NotificationViewHolder {
-        val view = LayoutInflater.from(parent.getContext())
+        val view = LayoutInflater.from(parent.context) // ✨ تم تغيير parent.getContext() إلى parent.context
             .inflate(R.layout.item_notification, parent, false)
         return NotificationViewHolder(view)
     }
@@ -43,7 +41,7 @@ class NotificationAdapter(
         }
     }
 
-    internal inner class NotificationViewHolder(itemView: View) :
+    inner class NotificationViewHolder(itemView: View) :
         RecyclerView.ViewHolder(itemView) {
         private val ivAvatar: CircleImageView
         private val tvNotificationText: TextView
@@ -51,20 +49,17 @@ class NotificationAdapter(
         private val ivUnreadIndicator: ImageView
 
         init {
-            ivAvatar = itemView.findViewById<CircleImageView>(R.id.iv_notification_avatar)
-            tvNotificationText = itemView.findViewById<TextView>(R.id.tv_notification_text)
-            tvTimestamp = itemView.findViewById<TextView>(R.id.tv_notification_timestamp)
-            ivUnreadIndicator =
-                itemView.findViewById<ImageView>(R.id.iv_notification_unread_indicator)
+            ivAvatar = itemView.findViewById(R.id.iv_notification_avatar)
+            tvNotificationText = itemView.findViewById(R.id.tv_notification_text)
+            tvTimestamp = itemView.findViewById(R.id.tv_notification_timestamp)
+            ivUnreadIndicator = itemView.findViewById(R.id.iv_notification_unread_indicator)
         }
 
         fun bind(notification: NotificationModel, listener: OnNotificationClickListener?) {
             // تحميل صورة المستخدم الذي قام بالإجراء
-            if (notification.getFromUserAvatarUrl() != null && !notification.getFromUserAvatarUrl()
-                    .isEmpty()
-            ) {
+            if (!notification.fromUserAvatarUrl.isNullOrEmpty()) { // ✨ تم تغيير .getFromUserAvatarUrl().isEmpty() إلى .isNullOrEmpty()
                 Glide.with(context)
-                    .load(notification.getFromUserAvatarUrl())
+                    .load(notification.fromUserAvatarUrl) // ✨ تم تغيير .getFromUserAvatarUrl()
                     .placeholder(R.drawable.ic_default_avatar)
                     .error(R.drawable.ic_default_avatar)
                     .into(ivAvatar)
@@ -74,8 +69,7 @@ class NotificationAdapter(
 
             // بناء نص الإشعار
             val notificationTextBuilder = SpannableStringBuilder()
-            val fromUsername =
-                if (notification.getFromUsername() != null) notification.getFromUsername() else "Someone"
+            val fromUsername = notification.fromUsername ?: "Someone" // ✨ تم تغيير .getFromUsername()
 
             // اسم المستخدم بخط عريض
             notificationTextBuilder.append(fromUsername)
@@ -87,66 +81,62 @@ class NotificationAdapter(
             )
 
             // نص الإشعار بناءً على النوع
-            if (NotificationModel.Companion.TYPE_LIKE == notification.getType()) {
+            if (NotificationModel.TYPE_LIKE == notification.type) { // ✨ تم تغيير .getType()
                 notificationTextBuilder.append(" liked your post.")
                 // يمكنك إضافة: " " + notification.getPostContentPreview() إذا كان متاحًا
-            } else if (NotificationModel.Companion.TYPE_COMMENT == notification.getType()) {
+            } else if (NotificationModel.TYPE_COMMENT == notification.type) { // ✨ تم تغيير .getType()
                 notificationTextBuilder.append(" commented on your post: ")
                 // يمكنك إضافة: notification.getCommentContentPreview() إذا كان متاحًا
-            } else if (NotificationModel.Companion.TYPE_FOLLOW == notification.getType()) {
+            } else if (NotificationModel.TYPE_FOLLOW == notification.type) { // ✨ تم تغيير .getType()
                 notificationTextBuilder.append(" started following you.")
             } else {
                 notificationTextBuilder.append(" sent you a notification.")
             }
-            tvNotificationText.setText(notificationTextBuilder)
+            tvNotificationText.text = notificationTextBuilder // ✨ تم تغيير .setText() إلى .text
 
             // عرض الوقت النسبي
-            if (notification.getTimestamp() != null) {
-                tvTimestamp.setText(
-                    DateUtils.getRelativeTimeSpanString(
-                        notification.getTimestamp().getTime(),
-                        System.currentTimeMillis(),
-                        DateUtils.MINUTE_IN_MILLIS,
-                        DateUtils.FORMAT_ABBREV_RELATIVE
-                    )
+            if (notification.timestamp != null) { // ✨ تم تغيير .getTimestamp()
+                tvTimestamp.text = DateUtils.getRelativeTimeSpanString( // ✨ تم تغيير .setText() إلى .text
+                    notification.timestamp!!.time, // ✨ تم تغيير .getTimestamp().getTime()
+                    System.currentTimeMillis(),
+                    DateUtils.MINUTE_IN_MILLIS,
+                    DateUtils.FORMAT_ABBREV_RELATIVE
                 )
             } else {
-                tvTimestamp.setText("Just now")
+                tvTimestamp.text = "Just now" // ✨ تم تغيير .setText() إلى .text
             }
 
             // مؤشر "غير مقروء"
-            ivUnreadIndicator.setVisibility(if (notification.isRead()) View.GONE else View.VISIBLE)
-
+            ivUnreadIndicator.visibility = if (notification.isRead) View.GONE else View.VISIBLE // ✨ تم تغيير .isRead() و .setVisibility()
             // مستمع النقر على عنصر الإشعار
-            itemView.setOnClickListener(View.OnClickListener { v: View? ->
-                if (listener != null) {
-                    listener.onNotificationClick(notification)
-                }
-            })
+            itemView.setOnClickListener { v: View? ->
+                listener?.onNotificationClick(notification)
+            }
         }
     }
 
     companion object {
-        private val DIFF_CALLBACK: DiffUtil.ItemCallback<NotificationModel?> =
-            object : DiffUtil.ItemCallback<NotificationModel?>() {
+        private val DIFF_CALLBACK: DiffUtil.ItemCallback<NotificationModel> = // ✨ تم تغيير <NotificationModel?> إلى <NotificationModel>
+            object : DiffUtil.ItemCallback<NotificationModel>() { // ✨ تم تغيير <NotificationModel?> إلى <NotificationModel>
                 override fun areItemsTheSame(
                     oldItem: NotificationModel,
                     newItem: NotificationModel
                 ): Boolean {
                     // إذا كان لديك ID فريد لكل إشعار، استخدمه هنا
                     // حاليًا، نفترض أننا سنعتمد على محتوى الإشعار والوقت
-                    return oldItem.getNotificationId() == newItem.getNotificationId()
+                    return oldItem.notificationId == newItem.notificationId // ✨ تم تغيير .getNotificationId()
                 }
 
                 override fun areContentsTheSame(
                     oldItem: NotificationModel,
                     newItem: NotificationModel
                 ): Boolean {
-                    return oldItem.getType() == newItem.getType() &&
-                            oldItem.getFromUserId() == newItem.getFromUserId() &&
-                            oldItem.getPostId() == newItem.getPostId() &&
-                            oldItem.getCommentId() == newItem.getCommentId() && oldItem.isRead() == newItem.isRead() &&
-                            oldItem.getTimestamp() == newItem.getTimestamp()
+                    return oldItem.type == newItem.type && // ✨ تم تغيير .getType()
+                            oldItem.fromUserId == newItem.fromUserId && // ✨ تم تغيير .getFromUserId()
+                            oldItem.postId == newItem.postId && // ✨ تم تغيير .getPostId()
+                            oldItem.commentId == newItem.commentId &&
+                            oldItem.isRead == newItem.isRead && // ✨ تم تغيير .isRead()
+                            oldItem.timestamp == newItem.timestamp // ✨ تم تغيير .getTimestamp()
                 }
             }
     }

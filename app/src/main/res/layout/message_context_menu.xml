@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp"
+    android:background="?attr/colorSurface"
+    tools:ignore="UseCompoundDrawables">
+
+    <TextView
+        android:id="@+id/menu_copy"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Copy"
+        android:drawableStart="@drawable/ic_copy"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/menu_delete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Delete"
+        android:drawableStart="@drawable/ic_delete"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorError"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/menu_edit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Edit"
+        android:drawableStart="@drawable/ic_edit"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/menu_reply"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Reply"
+        android:drawableStart="@drawable/ic_reply"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/menu_translate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Translate"
+        android:drawableStart="@drawable/ic_translate"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorOnSurface"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+    <TextView
+        android:id="@+id/menu_report"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        android:text="Report"
+        android:drawableStart="@drawable/ic_report"
+        android:drawablePadding="16dp"
+        android:textAppearance="?attr/textAppearanceBodyMedium"
+        android:textColor="?attr/colorError"
+        android:background="?attr/selectableItemBackground"
+        tools:ignore="RtlHardcoded" />
+
+</LinearLayout>

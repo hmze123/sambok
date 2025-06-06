@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/ChatActivity.kt
 package com.spidroid.starry.activities
 
 import android.annotation.SuppressLint
@@ -10,6 +11,7 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import android.widget.ImageView
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -35,6 +37,7 @@ import com.spidroid.starry.ui.messages.MessageAdapter
 import com.spidroid.starry.ui.messages.MessageClickListener
 import java.util.Date
 import java.util.UUID
+import com.spidroid.starry.databinding.ItemMediaPreviewBinding // ✨ تم إضافة هذا الاستيراد
 
 class ChatActivity : AppCompatActivity(), MessageClickListener {
 
@@ -104,12 +107,14 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
         currentUserId?.let { userId ->
             db.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
-                    if (isActivityInvalid()) return@addOnSuccessListener
+                    // Corrected access: check if activity is valid before posting value
+                    if (isFinishing || isDestroyed) return@addOnSuccessListener
                     currentUserModel = document.toObject(UserModel::class.java)
                     updateSendButtonState() // تحديث حالة زر الإرسال بعد تحميل بيانات المستخدم
                 }
                 .addOnFailureListener {
-                    if (isActivityInvalid()) return@addOnFailureListener
+                    // Corrected access: check if activity is valid before posting value
+                    if (isFinishing || isDestroyed) return@addOnFailureListener
                     Toast.makeText(this, "Failed to load user data.", Toast.LENGTH_SHORT).show()
                 }
         }
@@ -132,7 +137,8 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
         messagesListener = db.collection("chats").document(chatId!!).collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshots, error ->
-                if (isActivityInvalid() || error != null) {
+                // Corrected access: check if activity is valid before processing snapshot
+                if (isFinishing || isDestroyed || error != null) {
                     Log.w(TAG, "Listen failed.", error)
                     return@addSnapshotListener
                 }
@@ -210,6 +216,8 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
                 if (!task.isSuccessful) task.exception?.let { throw it }
                 storageRef.downloadUrl
             }.addOnCompleteListener { task ->
+                // Corrected access: check if activity is valid before proceeding
+                if (isFinishing || isDestroyed) return@addOnCompleteListener
                 if (task.isSuccessful) {
                     val mediaType = if (contentResolver.getType(uri)?.startsWith("video/") == true) ChatMessage.TYPE_VIDEO else ChatMessage.TYPE_IMAGE
                     val message = createMessageObject(content = text, type = mediaType, mediaUrl = task.result.toString(), thumbnailUrl = task.result.toString())
@@ -223,17 +231,27 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     private fun saveMessageToFirestore(message: ChatMessage) {
         db.collection("chats").document(chatId!!).collection("messages").add(message)
             .addOnSuccessListener { docRef ->
+                // Corrected access: check if activity is valid before posting value
+                if (isFinishing || isDestroyed) return@addOnSuccessListener
                 docRef.update("messageId", docRef.id) // Save the auto-generated ID
                 clearInput()
                 updateChatLastMessage(message)
             }
-            .addOnFailureListener { e -> Log.e(TAG, "Failed to send message", e) }
-            .addOnCompleteListener { showProgress(false) }
+            .addOnFailureListener { e ->
+                // Corrected access: check if activity is valid before logging
+                if (isFinishing || isDestroyed) return@addOnFailureListener
+                Log.e(TAG, "Failed to send message", e)
+            }
+            .addOnCompleteListener {
+                // Corrected access: check if activity is valid before proceeding
+                if (isFinishing || isDestroyed) return@addOnCompleteListener
+                showProgress(false)
+            }
     }
 
     private fun updateChatLastMessage(message: ChatMessage) {
         val lastMessageData = mapOf(
-            "lastMessage" to (message.content ?: message.type.capitalize()),
+            "lastMessage" to (message.content ?: message.type.replaceFirstChar { it.titlecase() }),
             "lastMessageType" to message.type,
             "lastMessageTime" to FieldValue.serverTimestamp(),
             "lastMessageSender" to message.senderId
@@ -248,7 +266,8 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     private fun listenForChatDetails() {
         chatDetailsListener = db.collection("chats").document(chatId!!)
             .addSnapshotListener { snapshot, error ->
-                if (isActivityInvalid() || error != null || snapshot == null || !snapshot.exists()) {
+                // Corrected access: check if activity is valid before processing snapshot
+                if (isFinishing || isDestroyed || error != null || snapshot == null || !snapshot.exists()) {
                     return@addSnapshotListener
                 }
                 val chat = snapshot.toObject(Chat::class.java) ?: return@addSnapshotListener
@@ -269,7 +288,8 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
 
     private fun bindUserHeader(userId: String) {
         db.collection("users").document(userId).get().addOnSuccessListener { doc ->
-            if (isActivityInvalid() || !doc.exists()) return@addOnSuccessListener
+            // Corrected access: check if activity is valid before processing
+            if (isFinishing || isDestroyed || !doc.exists()) return@addOnSuccessListener
             val user = doc.toObject(UserModel::class.java)
             binding.tvAppName.text = user?.displayName ?: user?.username
             Glide.with(this).load(user?.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
@@ -283,18 +303,22 @@ class ChatActivity : AppCompatActivity(), MessageClickListener {
     }
 
     private fun showMediaPreview(uri: Uri) {
-        val mediaPreviewLayout = binding.inputSection.mediaPreview
-        mediaPreviewLayout.visibility = View.VISIBLE
-        val ivMedia = mediaPreviewLayout.findViewById<ImageView>(R.id.ivMedia)
-        Glide.with(this).load(uri).into(ivMedia)
-        mediaPreviewLayout.findViewById<View>(R.id.btnRemove).setOnClickListener {
+        // ✨ تم الحصول على كائن الربط لـ item_media_preview
+        val mediaPreviewBinding = binding.inputSection.mediaPreview
+        mediaPreviewBinding.root.visibility = View.VISIBLE // ✨ استخدام root للوصول إلى visibility
+        // ✨ الوصول إلى ImageView من خلال كائن الربط
+        Glide.with(this).load(uri).into(mediaPreviewBinding.ivMedia)
+        // ✨ الوصول إلى ImageButton من خلال كائن الربط
+        mediaPreviewBinding.btnRemove.setOnClickListener {
             clearMediaPreview()
         }
         updateSendButtonState()
     }
 
     private fun clearMediaPreview() {
-        binding.inputSection.mediaPreview.visibility = View.GONE
+        // ✨ تم الحصول على كائن الربط لـ item_media_preview
+        val mediaPreviewBinding = binding.inputSection.mediaPreview
+        mediaPreviewBinding.root.visibility = View.GONE // ✨ استخدام root للوصول إلى visibility
         currentMediaUri = null
         updateSendButtonState()
     }

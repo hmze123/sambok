@@ -1,11 +1,12 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/InAppBrowserActivity.kt
 package com.spidroid.starry.activities
 
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
-import android.webkit.WebChromeClient
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.WebChromeClient // ✨ تم إضافة هذا الاستيراد
+import android.webkit.WebView // ✨ تم التأكد من هذا الاستيراد
+import android.webkit.WebViewClient // ✨ تم إضافة هذا الاستيراد
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -30,22 +31,22 @@ class InAppBrowserActivity : AppCompatActivity() {
         // Set up toolbar
         val toolbar = findViewById<Toolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
-        if (getSupportActionBar() != null) {
-            getSupportActionBar()!!.setDisplayShowTitleEnabled(false)
+        if (supportActionBar != null) { // ✨ استخدام supportActionBar
+            supportActionBar!!.setDisplayShowTitleEnabled(false) // ✨ استخدام supportActionBar
         }
         toolbar.setNavigationOnClickListener(View.OnClickListener { v: View? -> onBackPressed() })
 
         // Configure WebView
-        webView!!.getSettings().setJavaScriptEnabled(true)
-        webView!!.getSettings().setDomStorageEnabled(true)
-        webView!!.getSettings().setSupportZoom(true)
+        webView!!.settings.javaScriptEnabled = true // ✨ استخدام .settings
+        webView!!.settings.domStorageEnabled = true // ✨ استخدام .settings
+        webView!!.settings.setSupportZoom(true) // ✨ استخدام .settings
 
         // Handle page loading
-        webView!!.setWebViewClient(
+        webView!!.webViewClient =
             object : WebViewClient() {
                 override fun onPageFinished(view: WebView, url: String?) {
                     super.onPageFinished(view, url)
-                    toolbarTitle!!.setText(view.getTitle())
+                    toolbarTitle!!.text = view.title // ✨ استخدام .text
                 }
 
                 override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
@@ -53,21 +54,21 @@ class InAppBrowserActivity : AppCompatActivity() {
                     view.loadUrl(url)
                     return false
                 }
-            })
+            }
 
         // Handle loading progress
-        webView!!.setWebChromeClient(
+        webView!!.webChromeClient =
             object : WebChromeClient() {
                 override fun onProgressChanged(view: WebView?, newProgress: Int) {
-                    progressBar!!.setProgress(newProgress)
-                    progressBar!!.setVisibility(if (newProgress == 100) ProgressBar.GONE else ProgressBar.VISIBLE)
+                    progressBar!!.progress = newProgress // ✨ استخدام .progress
+                    progressBar!!.visibility = if (newProgress == 100) ProgressBar.GONE else ProgressBar.VISIBLE
                 }
-            })
+            }
 
         // Load initial URL from intent
         val initialUrl =
-            if (getIntent().hasExtra(EXTRA_URL))
-                getIntent().getStringExtra(EXTRA_URL)
+            if (intent.hasExtra(EXTRA_URL)) // ✨ استخدام intent
+                intent.getStringExtra(EXTRA_URL) // ✨ استخدام intent
             else
                 "https://google.com"
         webView!!.loadUrl(initialUrl!!)

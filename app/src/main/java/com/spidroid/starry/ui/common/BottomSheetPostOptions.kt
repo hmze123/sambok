@@ -1,13 +1,17 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/common/BottomSheetPostOptions.kt
 package com.spidroid.starry.ui.common
 
-// أو الحزمة الصحيحة لمشروعك
-
-// كمثال، قد تكون تستخدم MaterialButton
-// ستحتاجه للتحقق من المستخدم الحالي
-// تأكد من استيراد R
+import android.os.Bundle // ✨ تم إضافة هذا الاستيراد
+import android.view.LayoutInflater // ✨ تم إضافة هذا الاستيراد
 import android.view.View
+import android.view.ViewGroup // ✨ تم إضافة هذا الاستيراد
 import android.widget.Button
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment // ✨ تم إضافة هذا الاستيراد
 import com.google.firebase.auth.FirebaseAuth
+import com.spidroid.starry.R // ✨ تم إضافة هذا الاستيراد
+import com.spidroid.starry.adapters.PostInteractionListener // ✨ تم إضافة هذا الاستيراد
+import com.spidroid.starry.models.PostModel // ✨ تم إضافة هذا الاستيراد
+
 
 class BottomSheetPostOptions : BottomSheetDialogFragment() {
     private var post: PostModel? = null
@@ -19,116 +23,92 @@ class BottomSheetPostOptions : BottomSheetDialogFragment() {
         this.interactionListener = listener
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        if (getArguments() != null) {
-            post =
-                getArguments().getParcelable<PostModel?>(BottomSheetPostOptions.Companion.ARG_POST)
+    override fun onCreate(savedInstanceState: Bundle?) { // ✨ تم تصحيح Override
+        super.onCreate(savedInstanceState) // ✨ تم تصحيح استدعاء Super
+        arguments?.let { // ✨ استخدام خاصية arguments
+            post = it.getParcelable(ARG_POST) // ✨ استخدام it.getParcelable
         }
-        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-            currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid()
-        }
+        currentUserId = FirebaseAuth.getInstance().currentUser?.uid // ✨ معالجة Null safety
     }
 
-    override fun onCreateView(
+    override fun onCreateView( // ✨ تم تصحيح Override
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
         // استخدام ملف التخطيط bottom_sheet_post_options.xml
-        val view: View? = inflater.inflate(R.layout.bottom_sheet_post_options, container, false)
+        val view: View? = inflater.inflate(R.layout.bottom_sheet_post_options, container, false) // ✨ استخدام R
         // يمكنك إضافة المزيد من تخصيصات التصميم هنا
         return view
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) { // ✨ تم تصحيح Override
+        super.onViewCreated(view, savedInstanceState) // ✨ تم تصحيح استدعاء Super
 
         if (post == null || interactionListener == null) {
             dismiss() // أغلق الـ BottomSheet إذا لم تكن البيانات أو الـ listener متاحة
             return
         }
 
-        val isAuthor = currentUserId != null && currentUserId == post.getAuthorId()
+        val isAuthor = currentUserId != null && currentUserId == post?.authorId // ✨ معالجة Null safety
 
         // الحصول على مراجع للأزرار من ملف التخطيط
         // افترض أن لديك هذه المعرفات في bottom_sheet_post_options.xml
-        val optionPin =
-            view.findViewById<View?>(R.id.option_pin_post_bs) // ستحتاج لإضافة هذا ID في XML
-        val optionEdit = view.findViewById<View?>(R.id.option_edit_post_bs)
-        val optionDelete = view.findViewById<View?>(R.id.option_delete_post_bs)
-        val optionCopyLink = view.findViewById<View?>(R.id.option_copy_link_bs)
-        val optionShare = view.findViewById<View?>(R.id.option_share_post_bs)
-        val optionSave = view.findViewById<View?>(R.id.option_save_post_bs)
-        val optionEditPrivacy = view.findViewById<View?>(R.id.option_edit_privacy_bs)
-        val optionReport = view.findViewById<View?>(R.id.option_report_post_bs)
+        val optionPin = view.findViewById<Button>(R.id.option_pin_post_bs) // ✨ استخدام R
+        val optionEdit = view.findViewById<Button>(R.id.option_edit_post_bs) // ✨ استخدام R
+        val optionDelete = view.findViewById<Button>(R.id.option_delete_post_bs) // ✨ استخدام R
+        val optionCopyLink = view.findViewById<Button>(R.id.option_copy_link_bs) // ✨ استخدام R
+        val optionShare = view.findViewById<Button>(R.id.option_share_post_bs) // ✨ استخدام R
+        val optionSave = view.findViewById<Button>(R.id.option_save_post_bs) // ✨ استخدام R
+        val optionEditPrivacy = view.findViewById<Button>(R.id.option_edit_privacy_bs) // ✨ استخدام R
+        val optionReport = view.findViewById<Button>(R.id.option_report_post_bs) // ✨ استخدام R
+
         // يمكنك استخدام MaterialButton إذا كانت لديك أيقونات ونصوص
         // مثال لزر الحفظ:
-        val saveButton =
-            view.findViewById<Button?>(R.id.option_save_post_bs) // افترض أن هذا هو ID زر الحفظ
+        val saveButton = view.findViewById<Button>(R.id.option_save_post_bs) // افترض أن هذا هو ID زر الحفظ
 
         // التحكم في ظهور الخيارات
-        if (optionPin != null) optionPin.setVisibility(if (isAuthor) View.VISIBLE else View.GONE)
-        if (optionEdit != null) optionEdit.setVisibility(if (isAuthor) View.VISIBLE else View.GONE)
-        if (optionDelete != null) optionDelete.setVisibility(if (isAuthor) View.VISIBLE else View.GONE)
-        if (optionEditPrivacy != null) optionEditPrivacy.setVisibility(if (isAuthor) View.VISIBLE else View.GONE)
-        if (optionReport != null) optionReport.setVisibility(if (isAuthor) View.GONE else View.VISIBLE)
+        optionPin?.visibility = if (isAuthor) View.VISIBLE else View.GONE
+        optionEdit?.visibility = if (isAuthor) View.VISIBLE else View.GONE
+        optionDelete?.visibility = if (isAuthor) View.VISIBLE else View.GONE
+        optionEditPrivacy?.visibility = if (isAuthor) View.VISIBLE else View.GONE
+        optionReport?.visibility = if (isAuthor) View.GONE else View.VISIBLE
 
         // تحديث نص زر الحفظ
-        if (saveButton != null) {
-            saveButton.setText(if (post.isBookmarked()) "إلغاء حفظ المنشور" else "حفظ المنشور")
-        }
-
+        saveButton?.text = if (post?.isBookmarked == true) "إلغاء حفظ المنشور" else "حفظ المنشور" // ✨ استخدام post?.isBookmarked
 
         // تعيين مستمعي النقر
-        if (optionPin != null) {
-            optionPin.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onTogglePinPostClicked(post)
-                dismiss()
-            })
+        optionPin?.setOnClickListener {
+            interactionListener?.onTogglePinPostClicked(post) // ✨ استخدام interactionListener?.onTogglePinPostClicked
+            dismiss()
         }
-        if (optionEdit != null) {
-            optionEdit.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onEditPost(post)
-                dismiss()
-            })
+        optionEdit?.setOnClickListener {
+            interactionListener?.onEditPost(post) // ✨ استخدام interactionListener?.onEditPost
+            dismiss()
         }
-        if (optionDelete != null) {
-            optionDelete.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onDeletePost(post)
-                dismiss()
-            })
+        optionDelete?.setOnClickListener {
+            interactionListener?.onDeletePost(post) // ✨ استخدام interactionListener?.onDeletePost
+            dismiss()
         }
-        if (optionCopyLink != null) {
-            optionCopyLink.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onCopyLink(post)
-                dismiss()
-            })
+        optionCopyLink?.setOnClickListener {
+            interactionListener?.onCopyLink(post) // ✨ استخدام interactionListener?.onCopyLink
+            dismiss()
         }
-        if (optionShare != null) {
-            optionShare.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onSharePost(post)
-                dismiss()
-            })
+        optionShare?.setOnClickListener {
+            interactionListener?.onSharePost(post) // ✨ استخدام interactionListener?.onSharePost
+            dismiss()
         }
-        if (optionSave != null) {
-            optionSave.setOnClickListener(View.OnClickListener { v: View? ->
-                // ★★★ هذا هو السطر الذي يسبب الخطأ، تم تعديله ★★★
-                interactionListener.onBookmarkClicked(post)
-                dismiss()
-            })
+        optionSave?.setOnClickListener {
+            interactionListener?.onBookmarkClicked(post) // ✨ استخدام interactionListener?.onBookmarkClicked
+            dismiss()
         }
-        if (optionEditPrivacy != null) {
-            optionEditPrivacy.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onEditPostPrivacy(post)
-                dismiss()
-            })
+        optionEditPrivacy?.setOnClickListener {
+            interactionListener?.onEditPostPrivacy(post) // ✨ استخدام interactionListener?.onEditPostPrivacy
+            dismiss()
         }
-        if (optionReport != null) {
-            optionReport.setOnClickListener(View.OnClickListener { v: View? ->
-                interactionListener.onReportPost(post)
-                dismiss()
-            })
+        optionReport?.setOnClickListener {
+            interactionListener?.onReportPost(post) // ✨ استخدام interactionListener?.onReportPost
+            dismiss()
         }
     }
 
@@ -140,8 +120,8 @@ class BottomSheetPostOptions : BottomSheetDialogFragment() {
         fun newInstance(post: PostModel?): BottomSheetPostOptions {
             val fragment = BottomSheetPostOptions()
             val args: Bundle = Bundle()
-            args.putParcelable(BottomSheetPostOptions.Companion.ARG_POST, post)
-            fragment.setArguments(args)
+            args.putParcelable(ARG_POST, post)
+            fragment.arguments = args // ✨ استخدام خاصية arguments
             return fragment
         }
     }

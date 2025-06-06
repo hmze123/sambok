@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/adapters/LinkPreviewAdapter.kt
 package com.spidroid.starry.adapters
 
 import android.net.Uri
@@ -38,7 +39,7 @@ class LinkPreviewAdapter(
         fun bind(preview: LinkPreview) {
             binding.tvLinkTitle.text = preview.title ?: "No Title Available"
             binding.tvLinkDescription.text = preview.description ?: ""
-            binding.tvDomain.text = try {
+            binding.tvLinkDomain.text = try { // ✨ تم تغيير tvDomain إلى binding.tvLinkDomain
                 preview.url?.let { Uri.parse(it).host } ?: "unknown.com"
             } catch (e: Exception) {
                 "invalid.url"

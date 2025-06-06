@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/models/ChatMessage.kt
 package com.spidroid.starry.models
 
 import android.os.Parcelable
@@ -5,7 +6,6 @@ import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.ServerTimestamp
 import kotlinx.parcelize.Parcelize
 import java.util.Date
-import java.util.UUID
 
 /**
  * Represents a single message within a chat.
@@ -16,7 +16,7 @@ import java.util.UUID
 @Parcelize
 data class ChatMessage(
     // Core Message Data
-    var messageId: String = UUID.randomUUID().toString(),
+    var messageId: String? = null,
     var senderId: String = "",
     var senderName: String? = null,
     var senderAvatar: String? = null,
@@ -58,25 +58,8 @@ data class ChatMessage(
 
 ) : Parcelable {
 
-    // Secondary constructors to match the Java version for convenience.
-    constructor(senderId: String, content: String) : this(
-        senderId = senderId,
-        content = content,
-        type = TYPE_TEXT
-    )
-
-    constructor(senderId: String, mediaUrl: String, type: String, thumbnailUrl: String?) : this(
-        senderId = senderId,
-        mediaUrl = mediaUrl,
-        type = type,
-        thumbnailUrl = thumbnailUrl
-    )
-
-    constructor(senderId: String, poll: Poll) : this(
-        senderId = senderId,
-        poll = poll,
-        type = TYPE_POLL
-    )
+    // ✨ تم إزالة المُنشئات الثانوية لتجنب مشكلة "cycle in delegation"
+    // يجب أن يتم بناء كائن ChatMessage باستخدام المُنشئ الأساسي مباشرة
 
     /**
      * Nested data class for Polls. Also Parcelable.

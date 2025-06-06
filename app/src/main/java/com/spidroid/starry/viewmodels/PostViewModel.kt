@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/viewmodels/PostViewModel.kt
 package com.spidroid.starry.viewmodels
 
 import android.util.Log
@@ -6,13 +7,14 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.map
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.PostRepository
 import com.spidroid.starry.repositories.UserRepository
-import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
+import kotlinx.coroutines.launch
 
 class PostViewModel : ViewModel() {
 
@@ -25,14 +27,12 @@ class PostViewModel : ViewModel() {
     private val _error = MutableLiveData<String?>()
     private val _currentUserData = MutableLiveData<UserModel?>()
 
-    // LiveData for events, making them non-nullable and using a helper class for single-fire events might be better.
     private val _postUpdatedEvent = MutableLiveData<String?>()
     val postUpdatedEvent: LiveData<String?> get() = _postUpdatedEvent
 
     private val _postInteractionErrorEvent = MutableLiveData<String?>()
     val postInteractionErrorEvent: LiveData<String?> get() = _postInteractionErrorEvent
 
-    // Public LiveData
     val errorLiveData: LiveData<String?> get() = _error
     val currentUserLiveData: LiveData<UserModel?> get() = _currentUserData
 
@@ -45,6 +45,10 @@ class PostViewModel : ViewModel() {
         }
     }
 
+    private companion object {
+        private const val TAG = "PostViewModel"
+    }
+
     init {
         fetchCurrentUser()
     }
@@ -52,15 +56,12 @@ class PostViewModel : ViewModel() {
     private fun combineFeeds(posts: List<PostModel>?, suggestions: List<UserModel>?): List<Any> {
         val combinedList = mutableListOf<Any>()
         posts?.let { combinedList.addAll(it) }
-        // Logic to interleave suggestions can be added here if needed
         suggestions?.let { combinedList.addAll(it) }
         return combinedList
     }
 
     private fun fetchCurrentUser() {
         auth.currentUser?.uid?.let { userId ->
-            // Assuming userRepository.getUserById returns LiveData or can be adapted
-            // For simplicity, let's use a direct fetch here. A repository with LiveData is better.
             userRepository.getUserById(userId).observeForever { userModel ->
                 if (userModel != null) {
                     _currentUserData.postValue(userModel)
@@ -168,6 +169,24 @@ class PostViewModel : ViewModel() {
             .addOnFailureListener { e -> handleInteractionError("deletePost", e.message) }
     }
 
+    // ✨ تم التأكد من هذه الدالة التي تستدعي suspend fun من PostRepository
+    fun togglePostPinStatus(postToToggle: PostModel) {
+        val authorId = postToToggle.authorId ?: return
+        val postId = postToToggle.postId ?: return
+        val newPinnedState = !postToToggle.isPinned
+
+        // يجب تشغيل suspend fun داخل coroutine scope
+        viewModelScope.launch {
+            try {
+                // Call the suspend function from the repository
+                postRepository.setPostPinnedStatus(postId, authorId, newPinnedState)
+                _postUpdatedEvent.postValue(postId)
+            } catch (e: Exception) {
+                handleInteractionError("togglePostPinStatus", e.message)
+            }
+        }
+    }
+
     fun handleEmojiSelection(post: PostModel, emoji: String) {
         val reactor = _currentUserData.value ?: run {
             handleInteractionError("handleEmojiSelection", "User data not loaded.")
@@ -179,23 +198,6 @@ class PostViewModel : ViewModel() {
         postRepository.addOrUpdateReaction(postId, reactor.userId, emoji, authorId, reactor)
             .addOnSuccessListener { _postUpdatedEvent.postValue(postId) }
             .addOnFailureListener { e -> handleInteractionError("handleEmojiSelection", e.message) }
-    }
-
-    fun togglePostPinStatus(postToToggle: PostModel) {
-        val authorId = postToToggle.authorId ?: return
-        if(auth.currentUser?.uid != authorId) {
-            handleInteractionError("togglePostPinStatus", "User not authorized to pin this post.")
-            return
-        }
-        val postId = postToToggle.postId ?: return
-        val newPinnedState = !postToToggle.isPinned
-
-        postRepository.setPostPinnedStatus(postId, authorId, newPinnedState)
-            .addOnSuccessListener {
-                // Reloading might be the easiest way to reflect pinned order change
-                _postUpdatedEvent.postValue(postId)
-            }
-            .addOnFailureListener { e -> handleInteractionError("togglePostPinStatus", e.message) }
     }
 
     private fun updateLocalPostInteraction(postId: String, interactionType: String, newState: Boolean, countChange: Long) {
@@ -220,5 +222,4 @@ class PostViewModel : ViewModel() {
         _postInteractionErrorEvent.postValue(fullError)
         Log.e(TAG, fullError)
     }
-
 }

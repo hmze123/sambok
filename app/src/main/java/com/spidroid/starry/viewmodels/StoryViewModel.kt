@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/viewmodels/StoryViewModel.kt
 package com.spidroid.starry.viewmodels
 
 import android.util.Log
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
+import kotlin.math.min
 
 // Sealed class to represent the different states of the Story Feed UI
 sealed class StoryFeedState {
@@ -80,33 +82,36 @@ class StoryViewModel : ViewModel() {
 
                 // 2. Fetch active stories for the followed users
                 // Note: Firestore 'in' query is limited. For more than 10 users, you need to chunk the list.
-                val storyPreviews = if (followingIds.isNotEmpty()) {
-                    val storiesSnapshot = db.collection("stories")
-                        .whereIn("userId", followingIds)
-                        .whereGreaterThan("expiresAt", Date())
-                        .get()
-                        .await()
+                val storyPreviews = mutableListOf<StoryPreview>()
+                if (followingIds.isNotEmpty()) {
+                    val chunks = followingIds.chunked(10) // ✨ تقسيم followingIds إلى أجزاء (chunks)
 
-                    // Group stories by userId
-                    val storiesByUserId = storiesSnapshot.documents.mapNotNull { it.toObject<StoryModel>() }
-                        .groupBy { it.userId }
+                    for (chunk in chunks) { // ✨ المرور على كل جزء
+                        val storiesSnapshot = db.collection("stories")
+                            .whereIn("userId", chunk) // ✨ استخدام الجزء الحالي
+                            .whereGreaterThan("expiresAt", Date())
+                            .get()
+                            .await()
 
-                    // Fetch user details for each user who has stories
-                    storiesByUserId.keys.mapNotNull { userId ->
-                        val userDoc = db.collection("users").document(userId!!).get().await()
-                        val user = userDoc.toObject<UserModel>()
-                        user?.let {
-                            // Check if at least one story is unseen
-                            val viewedStoriesSnapshot = db.collection("users").document(currentUserId)
-                                .collection("viewed_stories").get().await()
-                            val viewedStoryIds = viewedStoriesSnapshot.documents.map { it.id }.toSet()
+                        // Group stories by userId
+                        val storiesByUserId = storiesSnapshot.documents.mapNotNull { it.toObject<StoryModel>() }
+                            .groupBy { it.userId }
 
-                            val hasUnseen = storiesByUserId[userId]?.any { !viewedStoryIds.contains(it.storyId) } == true
-                            StoryPreview(user = it, hasUnseenStories = hasUnseen)
+                        // Fetch user details for each user who has stories in this chunk
+                        for (userIdWithStory in storiesByUserId.keys) {
+                            val userDoc = db.collection("users").document(userIdWithStory!!).get().await()
+                            val user = userDoc.toObject<UserModel>()
+                            user?.let {
+                                // Check if at least one story is unseen
+                                val viewedStoriesSnapshot = db.collection("users").document(currentUserId)
+                                    .collection("viewed_stories").get().await()
+                                val viewedStoryIds = viewedStoriesSnapshot.documents.map { it.id }.toSet()
+
+                                val hasUnseen = storiesByUserId[userIdWithStory]?.any { !viewedStoryIds.contains(it.storyId) } == true
+                                storyPreviews.add(StoryPreview(user = it, hasUnseenStories = hasUnseen))
+                            }
                         }
                     }
-                } else {
-                    emptyList()
                 }
 
                 // 3. Check if the current user has an active story

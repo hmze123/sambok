@@ -1,12 +1,32 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/common/ReactionsListDialogFragment.kt
 package com.spidroid.starry.ui.common
 
 // ⭐ استيراد للوصول إلى getDrawableIdForEmoji ⭐
 import android.app.Dialog
 import android.content.Context
-import android.util.Log
+import android.content.Intent // Added import
+import android.os.Bundle
+import android.text.TextUtils
+import android.util.Log // Added import
+import android.view.LayoutInflater // Added import
 import android.view.View
+import android.view.ViewGroup // Added import
 import android.widget.ImageView
+import android.widget.ProgressBar // Added import
+import android.widget.TextView // Added import
+import android.widget.Toast
+import androidx.recyclerview.widget.LinearLayoutManager // Added import
+import androidx.recyclerview.widget.RecyclerView // Added import
+import com.bumptech.glide.Glide
+import com.google.android.material.bottomsheet.BottomSheetDialogFragment // Added import
+import com.google.firebase.firestore.FirebaseFirestore
+import com.spidroid.starry.R
+import com.spidroid.starry.activities.ProfileActivity
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.utils.PostInteractionHandler // Added import
 import de.hdodenhof.circleimageview.CircleImageView
+import java.util.ArrayList
+import java.util.HashMap
 import kotlin.math.min
 
 class ReactionsListDialogFragment : BottomSheetDialogFragment() {
@@ -22,11 +42,11 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = FirebaseFirestore.getInstance()
-        if (getArguments() != null) {
+        if (arguments != null) {
             userIds =
-                getArguments().getStringArrayList(ReactionsListDialogFragment.Companion.ARG_USER_IDS)
+                arguments?.getStringArrayList(ARG_USER_IDS)
             reactionsMap =
-                getArguments().getSerializable(ReactionsListDialogFragment.Companion.ARG_REACTIONS_MAP) as HashMap<String?, String?>?
+                arguments?.getSerializable(ARG_REACTIONS_MAP) as HashMap<String?, String?>?
         }
         if (userIds == null) userIds = ArrayList<String?>()
         if (reactionsMap == null) reactionsMap = HashMap<String?, String?>()
@@ -53,17 +73,19 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
         adapter = ReactionUserAdapter(
             ArrayList<UserModel?>(),
             reactionsMap,
-            getContext(),
-            ReactionUserAdapter.OnUserClickListener { userId: String? ->
-                if (userId != null && !userId.isEmpty() && getActivity() != null) {
-                    val intent: Intent = Intent(getActivity(), ProfileActivity::class.java)
-                    intent.putExtra("userId", userId)
-                    startActivity(intent)
-                    dismiss()
+            context,
+            object : ReactionUserAdapter.OnUserClickListener { // Corrected anonymous object syntax
+                override fun onUserItemClicked(userId: String?) {
+                    if (userId != null && userId.isNotEmpty() && activity != null) {
+                        val intent: Intent = Intent(activity, ProfileActivity::class.java)
+                        intent.putExtra("userId", userId)
+                        startActivity(intent)
+                        dismiss()
+                    }
                 }
             })
-        recyclerView.setLayoutManager(LinearLayoutManager(getContext()))
-        recyclerView.setAdapter(adapter)
+        recyclerView?.layoutManager = LinearLayoutManager(context) // Used safe call and assigned to layoutManager
+        recyclerView?.adapter = adapter
 
         if (userIds!!.isEmpty()) {
             showEmptyState()
@@ -73,24 +95,24 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
     }
 
     private fun showLoading() {
-        if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.VISIBLE)
-        if (recyclerView != null) recyclerView.setVisibility(View.GONE)
-        if (emptyReactionsText != null) emptyReactionsText.setVisibility(View.GONE)
+        if (loadingProgressBar != null) loadingProgressBar!!.visibility = View.VISIBLE
+        if (recyclerView != null) recyclerView!!.visibility = View.GONE
+        if (emptyReactionsText != null) emptyReactionsText!!.visibility = View.GONE
     }
 
     private fun showContent() {
-        if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.GONE)
-        if (recyclerView != null) recyclerView.setVisibility(View.VISIBLE)
-        if (emptyReactionsText != null) emptyReactionsText.setVisibility(View.GONE)
+        if (loadingProgressBar != null) loadingProgressBar!!.visibility = View.GONE
+        if (recyclerView != null) recyclerView!!.visibility = View.VISIBLE
+        if (emptyReactionsText != null) emptyReactionsText!!.visibility = View.GONE
     }
 
     private fun showEmptyState() {
-        if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.GONE)
-        if (recyclerView != null) recyclerView.setVisibility(View.GONE)
+        if (loadingProgressBar != null) loadingProgressBar!!.visibility = View.GONE
+        if (recyclerView != null) recyclerView!!.visibility = View.GONE
         if (emptyReactionsText != null) {
-            emptyReactionsText.setVisibility(View.VISIBLE)
+            emptyReactionsText!!.visibility = View.VISIBLE
             // تأكد من إضافة هذا المورد إلى strings.xml: <string name="no_reactions_yet">No reactions yet.</string>
-            emptyReactionsText.setText(R.string.no_reactions_yet)
+            emptyReactionsText!!.setText(R.string.no_reactions_yet)
         }
     }
 
@@ -103,7 +125,7 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
             return
         }
 
-        val chunks = chunkList<String?>(userIds, 10)
+        val chunks = chunkList(userIds, 10)
         val chunksProcessed = intArrayOf(0)
 
         if (chunks.isEmpty()) {
@@ -115,41 +137,41 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
             if (chunk.isEmpty()) {
                 chunksProcessed[0]++
                 if (chunksProcessed[0] == chunks.size) {
-                    adapter!!.updateUsers(fetchedUsers)
+                    adapter?.updateUsers(fetchedUsers)
                     if (fetchedUsers.isEmpty()) showEmptyState() else showContent()
                 }
                 continue
             }
-            db.collection("users").whereIn("userId", chunk).get()
-                .addOnSuccessListener({ queryDocumentSnapshots ->
+            db?.collection("users")?.whereIn("userId", chunk)?.get()
+                ?.addOnSuccessListener({ queryDocumentSnapshots ->
                     if (queryDocumentSnapshots != null) {
                         for (doc in queryDocumentSnapshots) {
                             val user: UserModel? = doc.toObject(UserModel::class.java)
+                            user?.userId = doc.id // Correct way to set ID
                             if (user != null) {
-                                user.setUserId(doc.getId())
                                 fetchedUsers.add(user)
                             }
                         }
                     }
                     chunksProcessed[0]++
                     if (chunksProcessed[0] == chunks.size) {
-                        adapter!!.updateUsers(fetchedUsers)
+                        adapter?.updateUsers(fetchedUsers)
                         if (fetchedUsers.isEmpty()) showEmptyState() else showContent()
                     }
                 })
-                .addOnFailureListener({ e ->
+                ?.addOnFailureListener({ e ->
                     Log.e(
-                        ReactionsListDialogFragment.Companion.TAG,
+                        TAG,
                         "Error fetching user details chunk",
                         e
                     )
                     chunksProcessed[0]++
                     if (chunksProcessed[0] == chunks.size) {
-                        adapter!!.updateUsers(fetchedUsers)
+                        adapter?.updateUsers(fetchedUsers)
                         if (fetchedUsers.isEmpty()) showEmptyState() else showContent()
-                        if (getContext() != null) {
+                        if (context != null) {
                             Toast.makeText(
-                                getContext(),
+                                context,
                                 R.string.failed_to_load_some_user_details,
                                 Toast.LENGTH_SHORT
                             ).show()
@@ -160,18 +182,18 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
     }
 
     private fun <T> chunkList(
-        list: MutableList<T?>?,
+        list: MutableList<T>?,
         chunkSize: Int
-    ): MutableList<MutableList<T?>> {
-        val chunks: MutableList<MutableList<T?>> = ArrayList<MutableList<T?>>()
+    ): MutableList<MutableList<T>> {
+        val chunks: MutableList<MutableList<T>> = ArrayList()
         if (list == null || list.isEmpty() || chunkSize <= 0) return chunks
         var i = 0
         while (i < list.size) {
             chunks.add(
-                ArrayList<T?>(
+                ArrayList(
                     list.subList(
                         i,
-                        min(list.size.toDouble(), (i + chunkSize).toDouble()).toInt()
+                        min(list.size, (i + chunkSize))
                     )
                 )
             )
@@ -185,7 +207,7 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
         reactionsMap: MutableMap<String?, String?>?,
         context: Context?,
         clickListener: OnUserClickListener?
-    ) : RecyclerView.Adapter<ReactionUserAdapter.ViewHolder?>() {
+    ) : RecyclerView.Adapter<ReactionUserAdapter.ViewHolder>() { // Removed nullable ViewHolder
         private val users: MutableList<UserModel?>?
         private val userReactionsMap: MutableMap<String?, String?>
 
@@ -215,62 +237,63 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-            val view: View = LayoutInflater.from(parent.getContext())
+            val view: View = LayoutInflater.from(parent.context)
                 .inflate(R.layout.item_user_reaction, parent, false)
-            return ReactionUserAdapter.ViewHolder(view)
+            return ViewHolder(view)
         }
 
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-            val user: UserModel? = users!!.get(position)
+            val user: UserModel? = users?.get(position)
             if (user == null) return
 
-            var displayName: String? = user.getDisplayName()
+            var displayName: String? = user.displayName
             if (TextUtils.isEmpty(displayName)) {
-                displayName = user.getUsername()
+                displayName = user.username
             }
             if (TextUtils.isEmpty(displayName) && adapterContext != null) { // ⭐ استخدام adapterContext ⭐
                 displayName = adapterContext.getString(R.string.unknown_user_display_name)
             } else if (TextUtils.isEmpty(displayName)) {
                 displayName = "User"
             }
-            holder.tvUserName.setText(displayName)
+            holder.tvUserName.text = displayName
 
             if (adapterContext != null) { // ⭐ استخدام adapterContext ⭐
                 Glide.with(adapterContext)
-                    .load(user.getProfileImageUrl())
+                    .load(user.profileImageUrl)
                     .placeholder(R.drawable.ic_default_avatar)
                     .error(R.drawable.ic_default_avatar)
                     .into(holder.ivUserAvatar)
             }
 
 
-            val reactionEmoji = userReactionsMap.get(user.getUserId())
-            if (reactionEmoji != null && !reactionEmoji.isEmpty()) {
+            val reactionEmoji = userReactionsMap[user.userId] // Used safe access for userId
+            if (reactionEmoji != null && reactionEmoji.isNotEmpty()) {
                 // ⭐ استدعاء الدالة بشكل ثابت ⭐
-                val drawableId: Int = PostInteractionHandler.Companion.getDrawableIdForEmoji(
+                val drawableId: Int = PostInteractionHandler.getDrawableIdForEmoji(
                     reactionEmoji,
                     true
                 ) // true للأيقونة الصغيرة
                 if (drawableId != 0) {
                     holder.ivReactionEmoji.setImageResource(drawableId)
                     holder.ivReactionEmoji.clearColorFilter()
-                    holder.ivReactionEmoji.setVisibility(View.VISIBLE)
+                    holder.ivReactionEmoji.visibility = View.VISIBLE
                 } else {
-                    holder.ivReactionEmoji.setVisibility(View.GONE)
+                    holder.ivReactionEmoji.visibility = View.GONE
                 }
             } else {
-                holder.ivReactionEmoji.setVisibility(View.GONE)
+                holder.ivReactionEmoji.visibility = View.GONE
             }
 
-            holder.itemView.setOnClickListener(View.OnClickListener { v: View? ->
-                if (userClickListener != null && user.getUserId() != null) {
-                    userClickListener.onUserItemClicked(user.getUserId())
+            holder.itemView.setOnClickListener(View.OnClickListener {
+                if (userClickListener != null && user.userId != null) {
+                    userClickListener.onUserItemClicked(user.userId)
                 }
             })
         }
 
-        val itemCount: Int
-            get() = if (users != null) users.size else 0
+        override fun getItemCount(): Int { // Changed to override
+            return if (users != null) users.size else 0
+        }
 
         internal class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
             var ivUserAvatar: CircleImageView
@@ -278,9 +301,9 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
             var ivReactionEmoji: ImageView
 
             init {
-                ivUserAvatar = itemView.findViewById<CircleImageView>(R.id.iv_user_avatar_reaction)
-                tvUserName = itemView.findViewById<TextView>(R.id.tv_user_name_reaction)
-                ivReactionEmoji = itemView.findViewById<ImageView>(R.id.iv_reaction_emoji_display)
+                ivUserAvatar = itemView.findViewById(R.id.iv_user_avatar_reaction)
+                tvUserName = itemView.findViewById(R.id.tv_user_name_reaction)
+                ivReactionEmoji = itemView.findViewById(R.id.iv_reaction_emoji_display)
             }
         }
     }
@@ -296,12 +319,12 @@ class ReactionsListDialogFragment : BottomSheetDialogFragment() {
         ): ReactionsListDialogFragment {
             val fragment = ReactionsListDialogFragment()
             val args: Bundle = Bundle()
-            args.putStringArrayList(ReactionsListDialogFragment.Companion.ARG_USER_IDS, userIds)
+            args.putStringArrayList(ARG_USER_IDS, userIds)
             args.putSerializable(
-                ReactionsListDialogFragment.Companion.ARG_REACTIONS_MAP,
-                if (reactionsMap != null) HashMap<String?, String?>(reactionsMap) else HashMap<Any?, Any?>()
+                ARG_REACTIONS_MAP,
+                if (reactionsMap != null) HashMap<String?, String?>(reactionsMap) else HashMap<String?, String?>()
             )
-            fragment.setArguments(args)
+            fragment.arguments = args
             return fragment
         }
     }

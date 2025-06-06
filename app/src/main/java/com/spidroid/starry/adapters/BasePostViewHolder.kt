@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/adapters/BasePostViewHolder.kt
 package com.spidroid.starry.adapters
 
 import android.content.Context
@@ -11,6 +12,7 @@ import com.bumptech.glide.Glide
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel // ✨ تم إضافة هذا الاستيراد
 import com.spidroid.starry.utils.PostInteractionHandler
 import java.util.Date
 
@@ -64,16 +66,36 @@ abstract class BasePostViewHolder(
             .error(R.drawable.ic_default_avatar)
             .into(itemBinding.ivAuthorAvatar)
 
-        // ربط محتوى المنشور
-        itemBinding.tvPostContent.text = post.content ?: ""
-        itemBinding.tvPostContent.visibility = if (post.content.isNullOrBlank()) View.GONE else View.VISIBLE
-
         // ربط المنشور مع معالج التفاعلات
         interactionHandler.bind(post)
 
         // تعيين مستمعي النقرات على معلومات المؤلف
-        itemBinding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(post.authorId) }
-        itemBinding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(post.authorId) }
+        itemBinding.ivAuthorAvatar.setOnClickListener {
+            // ✨ تم إنشاء كائن UserModel من بيانات المؤلف وتمريره
+            val userModel = UserModel(
+                userId = post.authorId!!, // تم التحقق من عدم كونه null في بداية الدالة
+                username = post.authorUsername ?: "unknown", // توفير قيمة افتراضية
+                email = "", // توفير قيمة افتراضية (يمكن تعديلها لتناسب نموذجك)
+            ).apply {
+                displayName = post.authorDisplayName
+                profileImageUrl = post.authorAvatarUrl
+                isVerified = post.isAuthorVerified
+            }
+            listener?.onUserClicked(userModel)
+        }
+        itemBinding.authorInfoLayout.setOnClickListener {
+            // ✨ تم إنشاء كائن UserModel من بيانات المؤلف وتمريره
+            val userModel = UserModel(
+                userId = post.authorId!!, // تم التحقق من عدم كونه null في بداية الدالة
+                username = post.authorUsername ?: "unknown", // توفير قيمة افتراضية
+                email = "", // توفير قيمة افتراضية
+            ).apply {
+                displayName = post.authorDisplayName
+                profileImageUrl = post.authorAvatarUrl
+                isVerified = post.isAuthorVerified
+            }
+            listener?.onUserClicked(userModel)
+        }
     }
 
     private fun formatTimestamp(date: Date?): String {

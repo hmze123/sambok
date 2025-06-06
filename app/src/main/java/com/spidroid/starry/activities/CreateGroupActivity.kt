@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/CreateGroupActivity.kt
 package com.spidroid.starry.activities
 
 import android.app.Activity
@@ -17,6 +18,7 @@ import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
@@ -69,7 +71,7 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
         pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.data?.let { uri ->
-                    groupImageUri = uri
+                    groupImageUri = uri // ✨ تم تغيير 'it' إلى 'uri'
                     Glide.with(this).load(uri).into(binding.ivGroupImage)
                 }
             }
@@ -86,7 +88,8 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
     }
 
     private fun setupRecyclerView() {
-        userSelectionAdapter = UserSelectionAdapter(this, mutableListOf(), this)
+        // تهيئة userSelectionAdapter بشكل صحيح
+        userSelectionAdapter = UserSelectionAdapter(this, this)
         binding.rvSelectMembers.layoutManager = LinearLayoutManager(this)
         binding.rvSelectMembers.adapter = userSelectionAdapter
     }
@@ -104,6 +107,7 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
         binding.fabCreateGroup.setOnClickListener { createGroup() }
 
         binding.etGroupName.doOnTextChanged { _, _, _, _ -> validateInputs() }
+        binding.etGroupDescription.doOnTextChanged { _, _, _, _ -> validateInputs() }
     }
 
     override fun onSelectionChanged(count: Int) {
@@ -113,9 +117,12 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
 
     private fun validateInputs() {
         val groupName = binding.etGroupName.text.toString().trim()
+        val groupDescription = binding.etGroupDescription.text.toString().trim()
         val isNameValid = groupName.isNotEmpty() && groupName.length <= MAX_GROUP_NAME_LENGTH
+        val isDescriptionValid = groupDescription.length <= MAX_GROUP_DESC_LENGTH
         val areMembersSelected = userSelectionAdapter.selectedUserIds.isNotEmpty()
-        binding.fabCreateGroup.isEnabled = isNameValid && areMembersSelected
+
+        binding.fabCreateGroup.isEnabled = isNameValid && isDescriptionValid && areMembersSelected
     }
 
     private fun loadUsersForSelection() {
@@ -130,6 +137,8 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
                 if (userIdsToFetch.isEmpty()) {
                     showLoading(false)
                     Toast.makeText(this, "No users to add to group.", Toast.LENGTH_SHORT).show()
+                    // يمكن هنا تحديث RecyclerView بقائمة فارغة لضمان عرض حالة عدم وجود مستخدمين
+                    userSelectionAdapter.setData(emptyList())
                     return@addOnSuccessListener
                 }
 
@@ -144,6 +153,7 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
             .addOnFailureListener { e ->
                 showLoading(false)
                 Log.e(TAG, "Error loading user's connections", e)
+                Toast.makeText(this, "Failed to load users for selection.", Toast.LENGTH_SHORT).show()
             }
     }
 
@@ -169,6 +179,14 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
             binding.etGroupName.error = "Group name is required."
             return
         }
+        if (groupName.length > MAX_GROUP_NAME_LENGTH) {
+            binding.etGroupName.error = "Group name too long (max $MAX_GROUP_NAME_LENGTH characters)."
+            return
+        }
+        if (groupDescription.length > MAX_GROUP_DESC_LENGTH) {
+            binding.etGroupDescription.error = "Group description too long (max $MAX_GROUP_DESC_LENGTH characters)."
+            return
+        }
         if (selectedMemberIds.isEmpty()) {
             Toast.makeText(this, "Please select at least one member.", Toast.LENGTH_SHORT).show()
             return
@@ -177,16 +195,19 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
         showLoading(true)
         binding.fabCreateGroup.isEnabled = false
 
-        val creatorId = currentUser?.uid ?: return
+        val creatorId = currentUser?.uid ?: run {
+            handleFailure("Creator ID is missing. Please log in.")
+            return
+        }
         selectedMemberIds.add(creatorId)
 
         groupImageUri?.let {
             uploadGroupImageAndCreateGroup(groupName, groupDescription, it,
-                selectedMemberIds as MutableList<String>
+                selectedMemberIds
             )
         } ?: run {
             saveGroupToFirestore(groupName, groupDescription, null,
-                selectedMemberIds as MutableList<String>
+                selectedMemberIds
             )
         }
     }
@@ -206,10 +227,9 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
 
     private fun saveGroupToFirestore(name: String, description: String, imageUrl: String?, members: MutableList<String>) {
         val creatorId = currentUser?.uid ?: return
-        val groupDocRef = db.collection("chats").document()
 
         val newGroup = Chat(
-            id = groupDocRef.id,
+            id = null,
             groupName = name,
             groupDescription = description.ifBlank { null },
             groupImage = imageUrl,
@@ -218,18 +238,27 @@ class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSele
             participants = members,
             isGroup = true,
             lastMessage = "Group created",
-            lastMessageTime = Date(),
-            createdAt = Date() // Will be replaced by server timestamp
+            lastMessageTime = null,
+            createdAt = null
         )
 
-        groupDocRef.set(newGroup.apply {
-            // Use FieldValue for server-side timestamps
-            // This requires sending a Map instead of the object directly
-        })
+        val groupDocRef = db.collection("chats").document()
+        newGroup.id = groupDocRef.id
+
+        groupDocRef.set(newGroup)
             .addOnSuccessListener {
-                showLoading(false)
-                Toast.makeText(this, "Group '$name' created successfully!", Toast.LENGTH_SHORT).show()
-                openChatActivity(groupDocRef.id)
+                groupDocRef.update(
+                    "createdAt", FieldValue.serverTimestamp(),
+                    "lastMessageTime", FieldValue.serverTimestamp()
+                ).addOnCompleteListener { updateTask ->
+                    if (updateTask.isSuccessful) {
+                        showLoading(false)
+                        Toast.makeText(this, "Group '$name' created successfully!", Toast.LENGTH_SHORT).show()
+                        openChatActivity(groupDocRef.id)
+                    } else {
+                        handleFailure("Failed to set group timestamps: ${updateTask.exception?.message}")
+                    }
+                }
             }
             .addOnFailureListener { e ->
                 handleFailure("Failed to create group: ${e.message}")

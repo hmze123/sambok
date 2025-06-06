@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/CreateStoryActivity.kt
 package com.spidroid.starry.activities
 
 import android.Manifest
@@ -30,7 +31,11 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.media3.ui.PlayerView
+import androidx.media3.common.MediaItem // ✨ تم إضافة هذا الاستيراد
+import androidx.media3.common.PlaybackException // ✨ تم إضافة هذا الاستيراد
+import androidx.media3.common.Player // ✨ تم إضافة هذا الاستيراد
+import androidx.media3.exoplayer.ExoPlayer // ✨ تم إضافة هذا الاستيراد
+import androidx.media3.ui.PlayerView // ✨ تم التأكد من هذا الاستيراد
 import com.bumptech.glide.Glide
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.firebase.auth.FirebaseAuth
@@ -39,7 +44,6 @@ import com.google.firebase.storage.FirebaseStorage
 import com.spidroid.starry.R
 import com.spidroid.starry.models.StoryModel
 import com.spidroid.starry.models.UserModel
-import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -56,7 +60,7 @@ class CreateStoryActivity : AppCompatActivity() {
 
     private lateinit var cameraPreviewView: PreviewView
     private lateinit var ivStoryImagePreview: ImageView
-    private lateinit var storyVideoPreview: PlayerView
+    private lateinit var storyVideoPreview: PlayerView // ✨ تم استخدام PlayerView مباشرة
     private lateinit var btnCaptureStory: ImageButton
     private lateinit var btnSwitchCamera: ImageButton
     private lateinit var btnGallery: ImageButton
@@ -70,6 +74,8 @@ class CreateStoryActivity : AppCompatActivity() {
     private var imageCapture: ImageCapture? = null
     private lateinit var cameraExecutor: ExecutorService
     private var currentCameraSelector: Int = CameraSelector.LENS_FACING_BACK
+
+    private var exoPlayer: ExoPlayer? = null // ✨ تهيئة ExoPlayer
 
     private val pickMediaActivityResultLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -123,12 +129,15 @@ class CreateStoryActivity : AppCompatActivity() {
                 .addOnSuccessListener { document ->
                     currentUserModel = document.toObject(UserModel::class.java)
                     if (currentUserModel == null) {
-                        Toast.makeText(this, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Failed to load profile data. Story cannot be published.", Toast.LENGTH_SHORT).show() // ✨ رسالة أوضح
                         btnPublishStory.isEnabled = false
+                    } else {
+                        updateUIVisibility(selectedMediaUri != null) // تحديث حالة الزر بناءً على وجود وسائط
                     }
                 }
                 .addOnFailureListener { e ->
                     Log.e(TAG, "Failed to load user data.", e)
+                    Toast.makeText(this, "Failed to load user data. Please try again.", Toast.LENGTH_SHORT).show() // ✨ رسالة أوضح
                     btnPublishStory.isEnabled = false
                 }
         }
@@ -155,10 +164,15 @@ class CreateStoryActivity : AppCompatActivity() {
             }
         }
         if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
-                openMediaPicker()
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) { // For older Android versions
+                if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+                    openMediaPicker()
+                } else {
+                    Toast.makeText(this, "Storage permission is required.", Toast.LENGTH_LONG).show()
+                }
             } else {
-                Toast.makeText(this, "Storage permission is required.", Toast.LENGTH_LONG).show()
+                // Permissions for Android 10+ are handled differently by ActivityResultContracts.GetContent()
+                openMediaPicker()
             }
         }
     }
@@ -172,6 +186,7 @@ class CreateStoryActivity : AppCompatActivity() {
                 bindCameraUseCases(lensFacing)
             } catch (e: Exception) {
                 Log.e(TAG, "Error starting camera", e)
+                Toast.makeText(this, "Failed to start camera: ${e.message}", Toast.LENGTH_SHORT).show() // ✨ رسالة خطأ
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -189,8 +204,10 @@ class CreateStoryActivity : AppCompatActivity() {
 
         try {
             provider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+            cameraPreviewView.visibility = View.VISIBLE // ✨ إظهار معاينة الكاميرا
         } catch (e: Exception) {
             Log.e(TAG, "Use case binding failed", e)
+            Toast.makeText(this, "Failed to bind camera use cases: ${e.message}", Toast.LENGTH_SHORT).show() // ✨ رسالة خطأ
         }
     }
 
@@ -253,7 +270,7 @@ class CreateStoryActivity : AppCompatActivity() {
 
     private fun openMediaPicker() {
         val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "video/*, image/*"
+            type = "*/*" // ✨ لتمكين اختيار أي نوع من الوسائط
             putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
         }
         pickMediaActivityResultLauncher.launch(intent)
@@ -269,13 +286,37 @@ class CreateStoryActivity : AppCompatActivity() {
     }
 
     private fun showPreview(uri: Uri, isVideo: Boolean) {
-        storyVideoPreview.visibility = if (isVideo) View.VISIBLE else View.GONE
-        ivStoryImagePreview.visibility = if (isVideo) View.GONE else View.VISIBLE
+        // ✨ تحرير ExoPlayer القديم قبل تهيئة الجديد
+        releaseExoPlayer()
 
-        if(isVideo){
-            // setup ExoPlayer for video preview if needed
+        if (isVideo) {
+            storyVideoPreview.visibility = View.VISIBLE
+            ivStoryImagePreview.visibility = View.GONE
+            // ✨ تهيئة ExoPlayer للفيديو
+            exoPlayer = ExoPlayer.Builder(this).build().also { player ->
+                storyVideoPreview.player = player
+                val mediaItem = MediaItem.fromUri(uri)
+                player.setMediaItem(mediaItem)
+                player.playWhenReady = true
+                player.addListener(object : Player.Listener {
+                    override fun onPlaybackStateChanged(state: Int) {
+                        if (state == Player.STATE_READY || state == Player.STATE_ENDED) {
+                            pbStoryUploadProgress.visibility = View.GONE // إخفاء مؤشر التحميل عند جاهزية الفيديو
+                        }
+                    }
+                    override fun onPlayerError(error: PlaybackException) {
+                        Log.e(TAG, "ExoPlayer error: ${error.message}", error)
+                        Toast.makeText(this@CreateStoryActivity, "Error playing video preview.", Toast.LENGTH_SHORT).show()
+                        pbStoryUploadProgress.visibility = View.GONE
+                    }
+                })
+                player.prepare()
+            }
         } else {
+            storyVideoPreview.visibility = View.GONE
+            ivStoryImagePreview.visibility = View.VISIBLE
             Glide.with(this).load(uri).into(ivStoryImagePreview)
+            pbStoryUploadProgress.visibility = View.GONE // إخفاء مؤشر التحميل للصورة
         }
     }
 
@@ -293,13 +334,14 @@ class CreateStoryActivity : AppCompatActivity() {
             return
         }
         val user = currentUserModel ?: run {
-            Toast.makeText(this, "User data not loaded yet.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "User data not loaded yet. Please wait.", Toast.LENGTH_SHORT).show() // ✨ رسالة أوضح
             return
         }
 
         showProgress(true)
+
         val mimeType = contentResolver.getType(mediaUri)
-        val fileExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+        val fileExtension = MimeTypeMap.getFileExtensionFromUrl(mimeType?.substringAfterLast('/')) ?: "jpg" // ✨ الحصول على امتداد الملف من MIME type
         val fileName = "stories/${user.userId}/${UUID.randomUUID()}.$fileExtension"
         val mediaRef = storage.reference.child(fileName)
 
@@ -324,8 +366,13 @@ class CreateStoryActivity : AppCompatActivity() {
             mediaUrl = mediaUrl,
             mediaType = storyType,
             duration = duration,
-            thumbnailUrl = mediaUrl // Can be improved to generate actual thumbnails
-        )
+            thumbnailUrl = if (storyType == StoryModel.MEDIA_TYPE_VIDEO) null else mediaUrl // ✨ تعيين ThumbnailUrl لـ null للفيديو إذا لم يتم توليدها
+        ).apply {
+            authorUsername = user.username
+            authorDisplayName = user.displayName
+            authorAvatarUrl = user.profileImageUrl
+            isAuthorVerified = user.isVerified
+        }
 
         db.collection("stories").add(story)
             .addOnSuccessListener {
@@ -370,9 +417,27 @@ class CreateStoryActivity : AppCompatActivity() {
         finish()
     }
 
+    // ✨ تحرير ExoPlayer
+    private fun releaseExoPlayer() {
+        exoPlayer?.release()
+        exoPlayer = null
+    }
+
+    override fun onPause() {
+        super.onPause()
+        releaseExoPlayer() // ✨ تحرير اللاعب عند إيقاف النشاط
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
         cameraProvider?.unbindAll()
+        releaseExoPlayer() // ✨ تحرير اللاعب عند تدمير النشاط
+    }
+
+    companion object {
+        private const val TAG = "CreateStoryActivity"
+        private const val CAMERA_PERMISSION_REQUEST_CODE = 101 // ✨ تعريف ثابت
+        private const val STORAGE_PERMISSION_REQUEST_CODE = 102 // ✨ تعريف ثابت
     }
 }

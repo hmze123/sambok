@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/repositories/PostRepository.kt
 package com.spidroid.starry.repositories
 
 import android.util.Log
@@ -12,6 +13,8 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.QuerySnapshot
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
+import kotlinx.coroutines.tasks.await // ✨ إضافة هذا الاستيراد
+
 
 class PostRepository {
 
@@ -107,28 +110,34 @@ class PostRepository {
         return Tasks.forResult(null) // Return a completed task if no notification is sent
     }
 
-    fun setPostPinnedStatus(postIdToUpdate: String, authorId: String, newPinnedState: Boolean): Task<Void> {
-        val postToUpdateRef = postsCollection.document(postIdToUpdate)
+    // ✨ تم تحويل الدالة إلى suspend fun
+    suspend fun setPostPinnedStatus(postIdToUpdate: String, authorId: String, newPinnedState: Boolean) {
+        // خطوة 1: جلب أي منشورات مثبتة حاليًا للمؤلف
+        // يجب أن يتم هذا داخل coroutine لأننا نستخدم await()
+        val oldPinnedQuery = postsCollection
+            .whereEqualTo("authorId", authorId)
+            .whereEqualTo("isPinned", true)
 
-        return db.runTransaction { transaction ->
-            // If we are pinning a new post, we must first unpin any old ones.
-            if (newPinnedState) {
-                val oldPinnedQuery = postsCollection
-                    .whereEqualTo("authorId", authorId)
-                    .whereEqualTo("isPinned", true)
+        val currentlyPinnedPostsSnapshot = oldPinnedQuery.get().await() // ✨ استخدام await() هنا
 
-                val oldPinnedPosts = transaction.get(oldPinnedQuery)
-                for (oldPostDoc in oldPinnedPosts) {
-                    if (oldPostDoc.id != postIdToUpdate) {
-                        transaction.update(oldPostDoc.reference, "isPinned", false)
-                    }
+        // خطوة 2: تشغيل المعاملة
+        // db.runTransaction تُرجع Task<Void>، لذا يمكن انتظارها أيضًا
+        db.runTransaction { transaction ->
+            val postToUpdateRef = postsCollection.document(postIdToUpdate)
+
+            // إلغاء تثبيت أي منشورات أخرى كانت مثبتة
+            for (oldPostDoc in currentlyPinnedPostsSnapshot.documents) {
+                if (oldPostDoc.id != postIdToUpdate) {
+                    transaction.update(oldPostDoc.reference, "isPinned", false)
                 }
             }
 
+            // تثبيت أو إلغاء تثبيت المنشور الحالي
             transaction.update(postToUpdateRef, "isPinned", newPinnedState)
-            null
-        }
+            null // المعاملة يجب أن تُرجع null
+        }.await() // ✨ انتظار اكتمال المعاملة
     }
+
 
     fun deletePost(postId: String): Task<Void> {
         return postsCollection.document(postId).delete()

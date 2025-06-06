@@ -1,13 +1,16 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/PostDetailActivity.kt
 package com.spidroid.starry.activities
 
 import android.content.DialogInterface
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -41,9 +44,13 @@ class PostDetailActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // استلام بيانات المنشور بطريقة آمنة
-        // ملاحظة: getParcelableExtra تم تحديثه في SDK 33
-        @Suppress("DEPRECATION")
-        post = intent.getParcelableExtra(EXTRA_POST)
+        post = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getParcelableExtra(EXTRA_POST, PostModel::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getParcelableExtra(EXTRA_POST)
+        }
+
 
         // التحقق من صحة بيانات المنشور
         if (post?.postId.isNullOrEmpty()) {
@@ -125,7 +132,7 @@ class PostDetailActivity : AppCompatActivity() {
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     currentUserModel = document.toObject(UserModel::class.java)
-                    binding.inputSection.postInput.hint = "Post your reply"
+                    binding.inputSection.postInput.hint = getString(R.string.post_your_reply)
                     updatePostButtonState()
                 } else {
                     handleProfileLoadError(R.string.user_profile_not_found)
@@ -186,24 +193,24 @@ class PostDetailActivity : AppCompatActivity() {
             return
         }
 
-        val commentData = mapOf(
+        val commentData: Map<String, Any> = mapOf( // ✨ تم التصريح صراحةً بنوع الخريطة
             "content" to content,
             "authorId" to user.userId,
-            "authorDisplayName" to user.displayName,
+            "authorDisplayName" to (user.displayName ?: ""),
             "authorUsername" to user.username,
-            "authorAvatarUrl" to user.profileImageUrl,
+            "authorAvatarUrl" to (user.profileImageUrl ?: ""),
             "authorVerified" to user.isVerified,
-            "timestamp" to FieldValue.serverTimestamp(),
+            "timestamp" to FieldValue.serverTimestamp() as Any,
             "likeCount" to 0,
             "repliesCount" to 0,
-            "parentPostId" to currentPost.postId
+            "parentPostId" to currentPost.postId!! // ✨ تم التأكيد على عدم كون القيمة null
         )
 
         commentViewModel.addComment(currentPost.postId, commentData)
 
         // مسح حقل الإدخال وإخفاء لوحة المفاتيح
         binding.inputSection.postInput.text.clear()
-        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager?
+        val imm = ContextCompat.getSystemService(this, InputMethodManager::class.java)
         imm?.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
     }
 
@@ -245,7 +252,9 @@ class PostDetailActivity : AppCompatActivity() {
         override fun onReportComment(comment: CommentModel) {
             Toast.makeText(this@PostDetailActivity, getString(R.string.comment_reported_toast, comment.commentId), Toast.LENGTH_SHORT).show()
             val intent = Intent(this@PostDetailActivity, ReportActivity::class.java).apply {
-                putExtra("commentId", comment.commentId)
+                putExtra(ReportActivity.EXTRA_REPORTED_ITEM_ID, comment.commentId)
+                putExtra(ReportActivity.EXTRA_REPORT_TYPE, "comment")
+                putExtra(ReportActivity.EXTRA_REPORTED_AUTHOR_ID, comment.authorId)
                 putExtra("postId", post?.postId)
             }
             startActivity(intent)

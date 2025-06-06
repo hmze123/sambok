@@ -2,6 +2,7 @@ package com.spidroid.starry.models
 
 import android.os.Parcelable
 import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.PropertyName
 import com.google.firebase.firestore.ServerTimestamp
 import kotlinx.parcelize.Parcelize
 import java.util.Date
@@ -28,7 +29,7 @@ data class UserModel(
     // Security & Authentication
     var lastLoginIp: String? = null,
     var isVerified: Boolean = false,
-    var is2FAEnabled: Boolean = false, // Kotlin property name doesn't need "is" prefix for booleans usually
+    var is2FAEnabled: Boolean = false,
     var backupCodes: MutableList<String> = mutableListOf(),
     var trustedDevices: MutableList<LoginDevice> = mutableListOf(),
     var passwordChangedAt: Date? = null,
@@ -46,21 +47,10 @@ data class UserModel(
     var notificationPreferences: MutableMap<String, Boolean> = mutableMapOf()
 ) : Parcelable {
 
-    // Secondary constructor for required fields, matching the Java one
-    constructor(userId: String, username: String, email: String) : this(
-        userId = userId,
-        username = username,
-        email = email,
-        // Default values for other fields are handled by the primary constructor's defaults
-    ) {
-        if (userId.isEmpty() || username.isEmpty() || email.isEmpty()) {
-            throw IllegalArgumentException("Required fields cannot be empty")
-        }
-    }
-    // No-argument constructor is automatically generated if all primary constructor parameters have default values.
-    // If you need specific logic in a no-arg constructor for Firestore, you can add it:
-    // constructor() : this("", "", "") // Example if you want to call the other constructor.
-    // Or simply rely on default values.
+    // ✨ تم إزالة المُنشئ الثانوي لتجنب مشكلة "cycle in delegation"
+    // يجب أن يتم بناء كائن UserModel باستخدام المُنشئ الأساسي مباشرة
+    // (مثال: UserModel(userId = "...", username = "...", email = "..."))
+
 
     // Enum for AccountStatus
     enum class AccountStatus {
@@ -102,9 +92,6 @@ data class UserModel(
         // URL_PATTERN can be a top-level constant or in companion object
         private val URL_PATTERN: Pattern =
             Pattern.compile("^(https?://)?([\\w-]+\\.)+[\\w-]+(/\\S*)?$")
-
-        // @JvmField // If you need CREATOR for Java interop, but @Parcelize handles it.
-        // val CREATOR = parcelableCreator<UserModel>() // Handled by @Parcelize
     }
 
 

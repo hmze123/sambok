@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/MainActivity.kt
 package com.spidroid.starry.activities
 
 import android.os.Bundle
@@ -11,6 +12,10 @@ import com.spidroid.starry.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
+    private companion object {
+        private const val TAG = "MainActivity" // ✨ تم تعريف TAG
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

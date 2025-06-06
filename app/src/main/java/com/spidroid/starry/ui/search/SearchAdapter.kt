@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/search/SearchAdapter.kt
 package com.spidroid.starry.ui.search
 
 import android.view.LayoutInflater
@@ -28,7 +29,7 @@ class SearchAdapter(private var results: MutableList<String?>) :
         return results.size
     }
 
-    internal class SearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+    class SearchViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) { // ✨ تم تغيير 'internal' إلى 'class' (الذي يعني ضمنًا 'public')
         var title: TextView
 
         init {

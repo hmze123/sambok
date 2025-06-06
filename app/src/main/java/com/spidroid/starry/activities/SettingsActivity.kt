@@ -1,17 +1,20 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/SettingsActivity.kt
 package com.spidroid.starry.activities
 
 import android.content.ActivityNotFoundException
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.ViewGroup
-import android.widget.EditText
-import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
+import android.widget.EditText // ✨ تم إضافة هذا الاستيراد
+import android.widget.Toast // ✨ تم إضافة هذا الاستيراد
+import androidx.appcompat.app.AlertDialog // ✨ تم إضافة هذا الاستيراد
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider // ✨ تم إضافة هذا الاستيراد
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
@@ -93,9 +96,11 @@ class SettingsActivity : AppCompatActivity() {
             findPreference<Preference>("change_password")?.onPreferenceClickListener = this
             findPreference<Preference>("logout")?.onPreferenceClickListener = this
             // Add other click listeners here...
+            findPreference<Preference>("bug report")?.onPreferenceClickListener = this // ✨ إضافة مستمع لـ "Report a bug"
 
             findPreference<SwitchPreference>("private_account")?.onPreferenceChangeListener = this
             findPreference<SwitchPreference>("show_activity")?.onPreferenceChangeListener = this
+            findPreference<ListPreference>("app_theme")?.onPreferenceChangeListener = this // ✨ إضافة مستمع لـ "app_theme"
             // Add other change listeners here...
         }
 
@@ -123,8 +128,11 @@ class SettingsActivity : AppCompatActivity() {
         private fun updateAllPreferences(user: UserModel) {
             findPreference<Preference>("username")?.summary = user.username
             findPreference<Preference>("email")?.summary = user.email
+            findPreference<Preference>("phone_number")?.summary = user.phoneNumber ?: "Not set" // ✨ عرض رقم الهاتف
             findPreference<SwitchPreference>("private_account")?.isChecked = user.privacySettings.privateAccount
             findPreference<SwitchPreference>("show_activity")?.isChecked = user.privacySettings.showActivityStatus
+            findPreference<SwitchPreference>("allow_dms")?.isChecked = user.privacySettings.allowDMsFromEveryone // ✨ عرض حالة السماح بالرسائل
+            findPreference<ListPreference>("app_theme")?.value = PreferenceManager.getDefaultSharedPreferences(requireContext()).getString("app_theme", "bluesky") // ✨ عرض السمة الحالية
         }
 
         private fun updateEmailVerificationUI() {
@@ -148,6 +156,15 @@ class SettingsActivity : AppCompatActivity() {
                 "email_verification" -> sendVerificationEmail()
                 "change_password" -> showChangePasswordDialog()
                 "logout" -> showLogoutConfirmation()
+                "bug report" -> sendBugReportEmail() // ✨ معالجة النقر على "Report a bug"
+                "social_connections" -> Toast.makeText(context, "Social connections feature coming soon!", Toast.LENGTH_SHORT).show() // ✨ معالجة النقر على "Social connections"
+                "trusted_devices" -> Toast.makeText(context, "Trusted devices feature coming soon!", Toast.LENGTH_SHORT).show() // ✨ معالجة النقر على "Trusted devices"
+                "blocked_users" -> Toast.makeText(context, "Blocked users feature coming soon!", Toast.LENGTH_SHORT).show() // ✨ معالجة النقر على "Blocked users"
+                "about" -> Toast.makeText(context, "About Starry: Version 1.0", Toast.LENGTH_SHORT).show() // ✨ معالجة النقر على "About Starry"
+                "two_factor" -> Toast.makeText(context, "Two-Factor Authentication feature coming soon!", Toast.LENGTH_SHORT).show() // ✨ معالجة النقر على "Two-Factor Authentication"
+                "notify_messages" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
+                "notify_comments" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
+                "notify_reposts" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
                 // Handle other clicks...
             }
             return true
@@ -161,12 +178,14 @@ class SettingsActivity : AppCompatActivity() {
             when (key) {
                 "private_account" -> updateData["privacySettings.privateAccount"] = newValue
                 "show_activity" -> updateData["privacySettings.showActivityStatus"] = newValue
+                "allow_dms" -> updateData["privacySettings.allowDMsFromEveryone"] = newValue // ✨ تحديث إعداد السماح بالرسائل المباشرة
                 "app_theme" -> {
                     val selectedTheme = newValue as String
                     PreferenceManager.getDefaultSharedPreferences(requireContext()).edit()
                         .putString("app_theme", selectedTheme)
                         .apply()
                     Toast.makeText(context,"Theme changed. Restart app to apply.", Toast.LENGTH_LONG).show()
+                    activity?.recreate() // ✨ إعادة إنشاء النشاط لتطبيق السمة على الفور
                     return true // No Firestore update needed, so we return early
                 }
                 else -> return false
@@ -248,6 +267,20 @@ class SettingsActivity : AppCompatActivity() {
                 }
                 startActivity(intent)
                 activity?.finish()
+            }
+        }
+
+        private fun sendBugReportEmail() {
+            val intent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:") // Only email apps should handle this.
+                putExtra(Intent.EXTRA_EMAIL, arrayOf("support@starry.com")) // Replace with your support email
+                putExtra(Intent.EXTRA_SUBJECT, "Bug Report - Starry App")
+                putExtra(Intent.EXTRA_TEXT, "Please describe the bug:\n\nApp Version: 1.0\nDevice: ${Build.MODEL} (${Build.VERSION.RELEASE})\n\n")
+            }
+            try {
+                startActivity(intent)
+            } catch (e: ActivityNotFoundException) {
+                Toast.makeText(context, "No email app found.", Toast.LENGTH_SHORT).show()
             }
         }
 

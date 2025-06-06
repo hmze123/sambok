@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/models/PostModel.kt
 package com.spidroid.starry.models
 
 import android.os.Parcelable

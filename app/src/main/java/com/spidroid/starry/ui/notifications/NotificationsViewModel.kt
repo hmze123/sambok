@@ -1,116 +1,119 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/notifications/NotificationsViewModel.kt
 package com.spidroid.starry.ui.notifications
 
-// ★ استيراد NotificationModel
-import com.google.firebase.auth.FirebaseAuth
+import android.util.Log // ✨ تم التأكد من هذا الاستيراد
+import androidx.lifecycle.LiveData // ✨ تم التأكد من هذا الاستيراد
+import androidx.lifecycle.MutableLiveData // ✨ تم التأكد من هذا الاستيراد
+import androidx.lifecycle.ViewModel // ✨ تم التأكد من هذا الاستيراد
+import com.google.firebase.auth.FirebaseAuth // ✨ تم التأكد من هذا الاستيراد
+import com.google.firebase.auth.FirebaseUser // ✨ تم التأكد من هذا الاستيراد
+import com.google.firebase.firestore.FirebaseFirestore // ✨ تم التأكد من هذا الاستيراد
+import com.google.firebase.firestore.ListenerRegistration // ✨ تم التأكد من هذا الاستيراد
+import com.google.firebase.firestore.Query // ✨ تم التأكد من هذا الاستيراد
+import com.spidroid.starry.models.NotificationModel // ✨ تم التأكد من هذا الاستيراد
+import java.util.ArrayList // ✨ تم التأكد من هذا الاستيراد
+import java.util.Date // ✨ تم التأكد من هذا الاستيراد
+
 
 class NotificationsViewModel : ViewModel() {
-    private val notificationsList: MutableLiveData<kotlin.collections.MutableList<NotificationModel?>?> =
-        MutableLiveData<kotlin.collections.MutableList<NotificationModel?>?>()
-    private val error: MutableLiveData<kotlin.String?> = MutableLiveData<kotlin.String?>()
-    private val isLoading: MutableLiveData<kotlin.Boolean?> =
-        MutableLiveData<kotlin.Boolean?>(false)
+    private val notificationsList: MutableLiveData<List<NotificationModel>> =
+        MutableLiveData(emptyList()) // ✨ تغيير النوع إلى List<NotificationModel> وتهيئة بقائمة فارغة
+    private val error: MutableLiveData<String?> = MutableLiveData() // ✨ تغيير النوع إلى String
+    private val isLoading: MutableLiveData<Boolean> =
+        MutableLiveData(false) // ✨ تغيير النوع إلى Boolean وتهيئة بـ false
 
-
-    private val db: FirebaseFirestore
-    private val auth: FirebaseAuth
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance() // ✨ تهيئة db
+    private val auth: FirebaseAuth = FirebaseAuth.getInstance() // ✨ تهيئة auth
     private var notificationListener: ListenerRegistration? = null
 
-    init {
-        // كان الكود القديم هنا:
-        // mText = new MutableLiveData<>();
-        // mText.setValue("This is notifications fragment");
-        // سنقوم بإزالته واستبداله بمنطق الإشعارات.
 
-        db = FirebaseFirestore.getInstance()
-        auth = FirebaseAuth.getInstance()
+    init {
         fetchNotifications()
     }
 
-    fun getNotificationsList(): LiveData<kotlin.collections.MutableList<NotificationModel?>?> {
+    fun getNotificationsList(): LiveData<List<NotificationModel>> { // ✨ تغيير النوع
         return notificationsList
     }
 
-    fun getError(): LiveData<kotlin.String?> {
+    fun getError(): LiveData<String?> { // ✨ تغيير النوع
         return error
     }
 
-    fun getIsLoading(): LiveData<kotlin.Boolean?> {
+    fun getIsLoading(): LiveData<Boolean> { // ✨ تغيير النوع
         return isLoading
     }
 
     fun fetchNotifications() {
-        val currentUser: FirebaseUser? = auth.getCurrentUser()
+        val currentUser: FirebaseUser? = auth.currentUser // ✨ استخدام currentUser
         if (currentUser == null) {
-            error.setValue("User not logged in. Cannot fetch notifications.")
-            notificationsList.setValue(java.util.ArrayList<NotificationModel?>()) // إرسال قائمة فارغة
-            android.util.Log.w(
-                NotificationsViewModel.Companion.TAG,
+            error.value = "User not logged in. Cannot fetch notifications." // ✨ استخدام .value
+            notificationsList.value = emptyList() // ✨ إرسال قائمة فارغة
+            Log.w(
+                TAG, // ✨ استخدام TAG
                 "Current user is null. Cannot fetch notifications."
             )
             return
         }
 
-        val userId: kotlin.String? = currentUser.getUid()
-        isLoading.setValue(true)
+        val userId: String = currentUser.uid // ✨ استخدام .uid
+        isLoading.value = true // ✨ استخدام .value
 
         // إلغاء تسجيل أي مستمع قديم قبل تسجيل مستمع جديد
-        if (notificationListener != null) {
-            notificationListener.remove()
-        }
+        notificationListener?.remove() // ✨ استخدام safe call
 
         notificationListener = db.collection("users").document(userId)
             .collection("notifications")
             .orderBy("timestamp", Query.Direction.DESCENDING) // عرض الأحدث أولاً
             .limit(30) // تحديد عدد الإشعارات التي يتم جلبها مبدئيًا
-            .addSnapshotListener({ queryDocumentSnapshots, e ->
-                isLoading.setValue(false)
+            .addSnapshotListener { queryDocumentSnapshots, e -> // ✨ استخدام lambda المناسبة
+                isLoading.value = false // ✨ استخدام .value
                 if (e != null) {
-                    error.setValue("Error fetching notifications: " + e.getMessage())
-                    android.util.Log.e(NotificationsViewModel.Companion.TAG, "Listen failed.", e)
+                    error.value = "Error fetching notifications: " + e.message // ✨ استخدام .value و .message
+                    Log.e(TAG, "Listen failed.", e) // ✨ استخدام TAG
                     return@addSnapshotListener
                 }
                 if (queryDocumentSnapshots != null) {
-                    val newNotifications: kotlin.collections.MutableList<NotificationModel?> =
-                        java.util.ArrayList<NotificationModel?>()
+                    val newNotifications: MutableList<NotificationModel> =
+                        ArrayList()
                     for (doc in queryDocumentSnapshots) {
                         val notification: NotificationModel =
                             doc.toObject(NotificationModel::class.java)
-                        notification.setNotificationId(doc.getId()) // تعيين ID الإشعار
+                        notification.notificationId = doc.id // ✨ تعيين ID الإشعار
                         newNotifications.add(notification)
                     }
-                    notificationsList.setValue(newNotifications)
-                    android.util.Log.d(
-                        NotificationsViewModel.Companion.TAG,
+                    notificationsList.value = newNotifications // ✨ استخدام .value
+                    Log.d(
+                        TAG, // ✨ استخدام TAG
                         "Notifications fetched/updated: " + newNotifications.size
                     )
                 } else {
-                    android.util.Log.d(
-                        NotificationsViewModel.Companion.TAG,
+                    Log.d(
+                        TAG, // ✨ استخدام TAG
                         "Current data: null in snapshot listener"
                     )
-                    notificationsList.setValue(java.util.ArrayList<NotificationModel?>()) // في حالة عدم وجود بيانات
+                    notificationsList.value = emptyList() // ✨ في حالة عدم وجود بيانات
                 }
-            })
+            }
     }
 
     // (اختياري للخطوات اللاحقة) دالة لتحديث حالة قراءة الإشعار
-    fun markNotificationAsRead(notificationId: kotlin.String?) {
-        val currentUser: FirebaseUser? = auth.getCurrentUser()
+    fun markNotificationAsRead(notificationId: String?) {
+        val currentUser: FirebaseUser? = auth.currentUser
         if (currentUser == null || notificationId == null) return
 
-        val userId: kotlin.String? = currentUser.getUid()
+        val userId: String = currentUser.uid
         db.collection("users").document(userId)
             .collection("notifications").document(notificationId)
             .update("read", true)
-            .addOnSuccessListener({ aVoid ->
-                android.util.Log.d(
-                    NotificationsViewModel.Companion.TAG,
+            .addOnSuccessListener({
+                Log.d(
+                    TAG, // ✨ استخدام TAG
                     "Notification marked as read: " + notificationId
                 )
             })
             .addOnFailureListener({ e ->
-                android.util.Log.e(
-                    NotificationsViewModel.Companion.TAG,
+                Log.e(
+                    TAG, // ✨ استخدام TAG
                     "Error marking notification as read",
                     e
                 )
@@ -118,23 +121,23 @@ class NotificationsViewModel : ViewModel() {
     }
 
     // (اختياري للخطوات اللاحقة) دالة لحذف إشعار
-    fun deleteNotification(notificationId: kotlin.String?) {
-        val currentUser: FirebaseUser? = auth.getCurrentUser()
+    fun deleteNotification(notificationId: String?) {
+        val currentUser: FirebaseUser? = auth.currentUser
         if (currentUser == null || notificationId == null) return
 
-        val userId: kotlin.String? = currentUser.getUid()
+        val userId: String = currentUser.uid
         db.collection("users").document(userId)
             .collection("notifications").document(notificationId)
             .delete()
-            .addOnSuccessListener({ aVoid ->
-                android.util.Log.d(
-                    NotificationsViewModel.Companion.TAG,
+            .addOnSuccessListener({
+                Log.d(
+                    TAG, // ✨ استخدام TAG
                     "Notification deleted: " + notificationId
                 )
             })
             .addOnFailureListener({ e ->
-                android.util.Log.e(
-                    NotificationsViewModel.Companion.TAG,
+                Log.e(
+                    TAG, // ✨ استخدام TAG
                     "Error deleting notification",
                     e
                 )
@@ -142,14 +145,12 @@ class NotificationsViewModel : ViewModel() {
     }
 
 
-    override fun onCleared() {
+    override fun onCleared() { // ✨ إضافة override
         super.onCleared()
         // إلغاء تسجيل المستمع عند تدمير ViewModel لمنع تسرب الذاكرة
-        if (notificationListener != null) {
-            notificationListener.remove()
-        }
-        android.util.Log.d(
-            NotificationsViewModel.Companion.TAG,
+        notificationListener?.remove() // ✨ استخدام safe call
+        Log.d(
+            TAG, // ✨ استخدام TAG
             "NotificationsViewModel cleared and listener removed."
         )
     }

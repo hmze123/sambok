@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/repositories/CommentRepository.kt
 package com.spidroid.starry.repositories
 
 import com.google.android.gms.tasks.Task
@@ -14,7 +15,7 @@ class CommentRepository {
         return db.collection("posts")
             .document(postId)
             .collection("comments")
-            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .orderBy("timestamp", Query.Direction.DESCENDING) // ✨ تم التغيير إلى تنازلي لعرض الأحدث أولاً
             .get()
     }
 

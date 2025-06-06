@@ -1,131 +1,131 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/messages/GroupsFragment.kt
 package com.spidroid.starry.ui.messages
 
-// ★ إضافة هذا
-// ★ تأكد من هذا الاستيراد
-// ★ استخدام GroupAdapter
-// ★ استخدام نموذج Chat
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.spidroid.starry.R
+import com.spidroid.starry.activities.ChatActivity
+import com.spidroid.starry.adapters.GroupAdapter
+import com.spidroid.starry.adapters.GroupClickListener
+import com.spidroid.starry.databinding.FragmentGroupsBinding
+import com.spidroid.starry.models.Chat
+import java.util.ArrayList
+import java.util.Date
+import java.util.Objects
 
-class GroupsFragment : androidx.fragment.app.Fragment(), GroupClickListener {
+
+class GroupsFragment : Fragment(), GroupClickListener {
+
+    private var binding: FragmentGroupsBinding? = null
     private var db: FirebaseFirestore? = null
     private var auth: FirebaseAuth? = null
     private var currentUser: FirebaseUser? = null
-    private var groupAdapter: GroupAdapter? = null // ★ تغيير نوع المحول
-    private var groupsListener: ListenerRegistration? = null
 
-    private var rvGroups: RecyclerView? = null
-    private var tvEmptyGroups: TextView? = null
-    private var pbLoadingGroups: ProgressBar? = null
+    private var groupAdapter: GroupAdapter? = null
+    private var groupsListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         db = FirebaseFirestore.getInstance()
         auth = FirebaseAuth.getInstance()
-        currentUser = auth.getCurrentUser()
+        currentUser = auth?.currentUser
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): android.view.View {
-        val view: android.view.View = inflater.inflate(R.layout.fragment_groups, container, false)
-        rvGroups = view.findViewById<RecyclerView?>(R.id.rv_groups)
-        tvEmptyGroups = view.findViewById<TextView?>(R.id.tv_empty_groups)
-        pbLoadingGroups = view.findViewById<ProgressBar?>(R.id.pb_loading_groups)
-        return view
+        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
+        binding = FragmentGroupsBinding.inflate(inflater, container, false)
+        return binding!!.root
     }
 
-    override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
-        if (currentUser != null) {
-            listenForGroups()
-        } else {
-            tvEmptyGroups.setText("Please log in to see your groups.")
-            tvEmptyGroups.setVisibility(android.view.View.VISIBLE)
-            pbLoadingGroups.setVisibility(android.view.View.GONE)
-        }
+        loadGroups()
     }
 
     private fun setupRecyclerView() {
-        if (getContext() == null) return  // تحقق من أن السياق متاح
-
-        groupAdapter = GroupAdapter(getContext(), this) // ★ تمرير السياق
-        rvGroups.setLayoutManager(LinearLayoutManager(getContext()))
-        rvGroups.setAdapter(groupAdapter)
+        binding!!.rvGroups.layoutManager = LinearLayoutManager(context) // ✨ تم تغيير recyclerViewGroups إلى rvGroups
+        groupAdapter = GroupAdapter(requireContext(), this)
+        binding!!.rvGroups.adapter = groupAdapter // ✨ تم تغيير recyclerViewGroups إلى rvGroups
     }
 
-    private fun listenForGroups() {
-        if (currentUser == null) return
 
-        pbLoadingGroups.setVisibility(android.view.View.VISIBLE)
-        tvEmptyGroups.setVisibility(android.view.View.GONE)
-
-        // استعلام لجلب الدردشات التي هي مجموعات والمستخدم الحالي مشارك فيها
-        val query: Query = db.collection("chats")
-            .whereEqualTo("isGroup", true)
-            .whereArrayContains("participants", currentUser.getUid())
-            .orderBy("lastMessageTime", Query.Direction.DESCENDING) // ترتيب حسب آخر رسالة
-
-        if (groupsListener != null) {
-            groupsListener.remove() // إزالة أي مستمع قديم
+    private fun loadGroups() {
+        val currentUserId = currentUser?.uid
+        if (currentUserId == null) {
+            binding!!.tvEmptyGroups.text = "Please log in to see your groups." // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+            binding!!.tvEmptyGroups.visibility = View.VISIBLE // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+            binding!!.pbLoadingGroups.visibility = View.GONE // ✨ تم تغيير loadingProgressBarGroups إلى pbLoadingGroups
+            return
         }
 
-        groupsListener = query.addSnapshotListener({ queryDocumentSnapshots, e ->
-            pbLoadingGroups.setVisibility(android.view.View.GONE)
-            if (e != null) {
-                android.util.Log.e(GroupsFragment.Companion.TAG, "Listen failed for groups.", e)
-                tvEmptyGroups.setText("Failed to load groups.")
-                tvEmptyGroups.setVisibility(android.view.View.VISIBLE)
-                if (getContext() != null) { // تحقق من السياق قبل عرض Toast
-                    Toast.makeText(
-                        getContext(),
-                        "Error loading groups: " + e.getMessage(),
-                        Toast.LENGTH_SHORT
-                    ).show()
+        binding!!.rvGroups.visibility = View.GONE // ✨ تم تغيير recyclerViewGroups إلى rvGroups
+        binding!!.tvEmptyGroups.visibility = View.GONE // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+        binding!!.pbLoadingGroups.visibility = View.VISIBLE // ✨ تم تغيير loadingProgressBarGroups إلى pbLoadingGroups
+
+        groupsListener?.remove()
+
+        groupsListener = db?.collection("chats")
+            ?.whereArrayContains("participants", currentUserId)
+            ?.whereEqualTo("isGroup", true)
+            ?.orderBy("lastMessageTime", Query.Direction.DESCENDING)
+            ?.addSnapshotListener { queryDocumentSnapshots, e ->
+                if (e != null) {
+                    Log.e(TAG, "Listen failed for groups: " + e.message, e)
+                    binding!!.tvEmptyGroups.text = "Failed to load groups: " + e.message // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+                    binding!!.tvEmptyGroups.visibility = View.VISIBLE // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+                    binding!!.pbLoadingGroups.visibility = View.GONE // ✨ تم تغيير loadingProgressBarGroups إلى pbLoadingGroups
+                    return@addSnapshotListener
                 }
-                return@addSnapshotListener
+
+                val groups: MutableList<Chat> = ArrayList()
+                if (queryDocumentSnapshots != null) {
+                    for (doc in queryDocumentSnapshots.documents) {
+                        val chat: Chat? = doc.toObject(Chat::class.java)
+                        if (chat != null) {
+                            chat.id = doc.id
+                            groups.add(chat)
+                        }
+                    }
+                }
+                groupAdapter?.submitList(groups)
+                binding!!.pbLoadingGroups.visibility = View.GONE // ✨ تم تغيير loadingProgressBarGroups إلى pbLoadingGroups
+                binding!!.rvGroups.visibility = if (groups.isNotEmpty()) View.VISIBLE else View.GONE // ✨ تم تغيير recyclerViewGroups إلى rvGroups
+                binding!!.tvEmptyGroups.visibility = if (groups.isEmpty()) View.VISIBLE else View.GONE // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
+                binding!!.tvEmptyGroups.text = if (groups.isEmpty()) "You haven't joined any groups yet." else "" // ✨ تم تغيير emptyGroupsText إلى tvEmptyGroups
             }
-            if (queryDocumentSnapshots != null) {
-                val groups: kotlin.collections.MutableList<Chat?> = java.util.ArrayList<Chat?>()
-                for (doc in queryDocumentSnapshots) {
-                    val group: Chat = doc.toObject(Chat::class.java)
-                    group.setId(doc.getId()) // تأكد من تعيين الـ ID
-                    groups.add(group)
-                }
-                groupAdapter.submitList(groups)
-                tvEmptyGroups.setVisibility(if (groups.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE)
-                if (groups.isEmpty()) {
-                    tvEmptyGroups.setText("You are not a member of any group yet, or no groups found.")
-                }
-            } else {
-                tvEmptyGroups.setVisibility(android.view.View.VISIBLE)
-                tvEmptyGroups.setText("No groups found.")
-            }
-        })
     }
 
     override fun onGroupClick(group: Chat) {
-        if (getActivity() != null) {
-            val intent: Intent = Intent(getActivity(), ChatActivity::class.java)
-            intent.putExtra("chatId", group.getId())
-            intent.putExtra("isGroup", true) // من المهم تمرير أن هذه دردشة جماعية
-            // يمكنك تمرير اسم المجموعة وصورتها أيضًا إذا أردت عرضها مباشرة في ChatActivity
-            intent.putExtra("groupName", group.getGroupName())
-            intent.putExtra("groupImage", group.getGroupImage())
-            startActivity(intent)
-        }
+        val intent = Intent(activity, ChatActivity::class.java)
+        intent.putExtra("chatId", group.id)
+        intent.putExtra("isGroup", true)
+        intent.putExtra("groupName", group.groupName)
+        intent.putExtra("groupImage", group.groupImage)
+        startActivity(intent)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        if (groupsListener != null) {
-            groupsListener.remove()
-        }
-        // لا تقم بإلغاء تهيئة binding هنا إذا كنت لا تستخدم ViewBinding في هذا الـ Fragment
-        rvGroups = null
-        tvEmptyGroups = null
-        pbLoadingGroups = null
+        groupsListener?.remove()
+        groupsListener = null
+        binding = null
     }
 
     companion object {

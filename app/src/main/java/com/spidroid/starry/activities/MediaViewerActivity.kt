@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/MediaViewerActivity.kt
 package com.spidroid.starry.activities
 
 import android.Manifest
@@ -54,8 +55,9 @@ class MediaViewerActivity : AppCompatActivity() {
 
         initializePermissionLauncher()
 
+        // تأكد من تصفية القيم null إذا كان EXTRA_MEDIA_URLS قد يحتوي عليها
         intent.getStringArrayListExtra(EXTRA_MEDIA_URLS)?.let {
-            mediaUrls.addAll(it)
+            mediaUrls.addAll(it.filterNotNull())
         }
         currentPosition = intent.getIntExtra(EXTRA_POSITION, 0)
 
@@ -86,6 +88,21 @@ class MediaViewerActivity : AppCompatActivity() {
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPosition = position
+                // عند تغيير الصفحة، تأكد من تحرير اللاعب السابق إذا كان فيديو
+                val currentHolder = (binding.viewPager.adapter as? MediaPagerAdapter)?.getCurrentViewHolder(position)
+                if (currentHolder is MediaPagerAdapter.VideoViewHolder) {
+                    currentHolder.player?.play()
+                }
+                // وإيقاف اللاعب في الصفحة السابقة
+                for (i in 0 until (binding.viewPager.adapter?.itemCount ?: 0)) {
+                    if (i != position) {
+                        val holder = (binding.viewPager.adapter as? MediaPagerAdapter)?.getCurrentViewHolder(i)
+                        if (holder is MediaPagerAdapter.VideoViewHolder) {
+                            holder.player?.pause()
+                            holder.player?.seekTo(0) // إعادة تعيين الفيديو إلى البداية
+                        }
+                    }
+                }
             }
         })
     }
@@ -172,6 +189,11 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private inner class MediaPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
+        private val viewHolders = mutableMapOf<Int, RecyclerView.ViewHolder>() // لتتبع الـ ViewHolders النشطة
+
+        private val TYPE_IMAGE = 1 // ✨ تم تغيير 'const val' إلى 'val'
+        private val TYPE_VIDEO = 2 // ✨ تم تغيير 'const val' إلى 'val'
+
         override fun getItemViewType(position: Int): Int {
             return if (mediaUrls[position].contains(".mp4", ignoreCase = true) || mediaUrls[position].contains(".mov", ignoreCase = true)) TYPE_VIDEO else TYPE_IMAGE
         }
@@ -187,6 +209,7 @@ class MediaViewerActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val url = mediaUrls[position]
+            viewHolders[position] = holder // حفظ الـ ViewHolder النشط
             when (holder) {
                 is VideoViewHolder -> holder.bind(url)
                 is ImageViewHolder -> holder.bind(url)
@@ -200,7 +223,14 @@ class MediaViewerActivity : AppCompatActivity() {
             if (holder is VideoViewHolder) {
                 holder.releasePlayer()
             }
+            viewHolders.values.remove(holder) // إزالة الـ ViewHolder المعاد تدويره
         }
+
+        // دالة مساعدة للحصول على الـ ViewHolder الحالي
+        fun getCurrentViewHolder(position: Int): RecyclerView.ViewHolder? {
+            return viewHolders[position]
+        }
+
 
         inner class ImageViewHolder(private val binding: MediaItemImageBinding) : RecyclerView.ViewHolder(binding.root) {
             init {
@@ -216,13 +246,17 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         inner class VideoViewHolder(private val binding: MediaItemVideoBinding) : RecyclerView.ViewHolder(binding.root) {
-            private var player: ExoPlayer? = null
+            var player: ExoPlayer? = null
+
+            init {
+                binding.playerView.setOnClickListener { toggleControls() }
+            }
 
             fun bind(url: String) {
                 initializePlayer()
                 player?.setMediaItem(MediaItem.fromUri(url))
                 player?.prepare()
-                player?.play()
+                //player?.play()
             }
 
             private fun initializePlayer() {
@@ -249,15 +283,41 @@ class MediaViewerActivity : AppCompatActivity() {
                 binding.playerView.player = null
             }
         }
-
-        companion object {
-            private const val TYPE_IMAGE = 1
-            private const val TYPE_VIDEO = 2
-        }
     }
 
     private fun toggleControls() {
         binding.topControls.visibility = if (binding.topControls.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+    }
+
+    override fun onPause() {
+        super.onPause()
+        val adapter = binding.viewPager.adapter as? MediaPagerAdapter
+        for (i in 0 until (adapter?.itemCount ?: 0)) {
+            val holder = adapter?.getCurrentViewHolder(i)
+            if (holder is MediaPagerAdapter.VideoViewHolder) {
+                holder.player?.pause()
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val adapter = binding.viewPager.adapter as? MediaPagerAdapter
+        val currentHolder = adapter?.getCurrentViewHolder(binding.viewPager.currentItem)
+        if (currentHolder is MediaPagerAdapter.VideoViewHolder) {
+            currentHolder.player?.play()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val adapter = binding.viewPager.adapter as? MediaPagerAdapter
+        for (i in 0 until (adapter?.itemCount ?: 0)) {
+            val holder = adapter?.getCurrentViewHolder(i)
+            if (holder is MediaPagerAdapter.VideoViewHolder) {
+                holder.releasePlayer()
+            }
+        }
     }
 
     companion object {

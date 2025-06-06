@@ -14,7 +14,7 @@
     <string name="invalid_chat_id_error">Invalid Chat ID. Cannot open chat.</string>
     <string name="authentication_required_error">Authentication is required to proceed.</string>
 
-        <string name="failed_to_load_profile">Failed to load profile: %1$s</string>
+    <string name="failed_to_load_profile">Failed to load profile: %1$s</string>
 
     <string name="no_reactions_yet">No reactions yet.</string>
     <string name="title_home">Home</string>
@@ -58,9 +58,7 @@
     <string name="error_delete_own_comment_only">You can only delete your own comments.</string>
     <string name="comment_reported_toast">Reported comment: %1$s</string>
     <string name="add_reaction_title">Add Reaction</string>
-
-
-    <string name="action_retry">Retry</string>
+    <string name="post_your_reply">Post your reply</string> <string name="action_retry">Retry</string>
     <string name="error_search_failed">Search failed. Please try again.</string>
     <string name="search_hint">Search users</string>
 

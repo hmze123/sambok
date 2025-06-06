@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/ComposePostActivity.kt
 package com.spidroid.starry.activities
 
 import android.net.Uri
@@ -6,11 +7,13 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.View
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.google.android.gms.tasks.Task
@@ -30,10 +33,11 @@ import com.spidroid.starry.databinding.ActivityComposePostBinding
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.utils.LinkPreviewFetcher
+import kotlinx.coroutines.launch
 import java.util.*
 import java.util.regex.Pattern
 
-class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemoveListener {
+class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInteraction {
 
     private lateinit var binding: ActivityComposePostBinding
     private val auth: FirebaseAuth by lazy { Firebase.auth }
@@ -42,7 +46,7 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemove
 
     private var currentUserModel: UserModel? = null
     private lateinit var mediaPreviewAdapter: MediaPreviewAdapter
-    private val selectedMediaUris = mutableListOf<Uri>()
+    private val selectedMediaUris = mutableListOf<MediaPreviewAdapter.MediaItem>() // ✨ تم تغيير النوع إلى MediaPreviewAdapter.MediaItem
 
     private val urlPattern: Pattern =
         Pattern.compile("https?://(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)")
@@ -134,11 +138,16 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemove
     }
 
     private fun hasVideo(): Boolean {
-        return selectedMediaUris.any { uri -> contentResolver.getType(uri)?.startsWith("video/") == true }
+        return selectedMediaUris.any { item ->
+            when (item) {
+                is MediaPreviewAdapter.MediaItem.New -> contentResolver.getType(item.uri)?.startsWith("video/") == true
+                is MediaPreviewAdapter.MediaItem.Existing -> item.url.contains(".mp4", ignoreCase = true) || item.url.contains(".mov", ignoreCase = true) // Basic check for existing
+            }
+        }
     }
 
     private fun setupMediaPreviewRecyclerView() {
-        mediaPreviewAdapter = MediaPreviewAdapter(selectedMediaUris as MutableList<Uri?>, mutableListOf(), this)
+        mediaPreviewAdapter = MediaPreviewAdapter(this) // Passing 'this' as OnMediaInteraction listener
         binding.rvMediaPreview.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.rvMediaPreview.adapter = mediaPreviewAdapter
     }
@@ -155,25 +164,35 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemove
                 Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show()
                 continue // Skip this video URI
             }
-            selectedMediaUris.add(uri)
+            selectedMediaUris.add(MediaPreviewAdapter.MediaItem.New(uri)) // تم تحويل Uri إلى MediaItem.New
         }
-        mediaPreviewAdapter.notifyDataSetChanged()
+        mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList()) // تم تحديث القائمة باستخدام submitList
         binding.rvMediaPreview.visibility = if (selectedMediaUris.isNotEmpty()) View.VISIBLE else View.GONE
         updatePostButtonState()
     }
 
-    override fun onMediaRemoved(position: Int) {
+    override fun onMediaRemoved(item: MediaPreviewAdapter.MediaItem, position: Int) {
         if (position < selectedMediaUris.size) {
             selectedMediaUris.removeAt(position)
-            mediaPreviewAdapter.notifyItemRemoved(position)
-            // This is complex, a full notify is safer for now
-            mediaPreviewAdapter.notifyDataSetChanged()
+            mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList()) // تم تحديث القائمة باستخدام submitList
             if (selectedMediaUris.isEmpty()) {
                 binding.rvMediaPreview.visibility = View.GONE
             }
         }
         updatePostButtonState()
     }
+
+    override fun onMediaClicked(item: MediaPreviewAdapter.MediaItem, position: Int) {
+        // يمكنك هنا فتح عارض الوسائط
+        val mediaUrl = when (item) {
+            is MediaPreviewAdapter.MediaItem.New -> item.uri.toString()
+            is MediaPreviewAdapter.MediaItem.Existing -> item.url
+        }
+        // مثال: يمكنك استخدام MediaViewerActivity إذا كانت تدعم عرض URI محلي
+        // أو تحتاج لتحويل URI إلى ملف مؤقت أو URL قابل للوصول
+        Toast.makeText(this, "Media clicked: $mediaUrl", Toast.LENGTH_SHORT).show()
+    }
+
 
     private fun updateCharCount(count: Int) {
         binding.tvCharCount.text = getString(R.string.char_count_format, count, PostModel.MAX_CONTENT_LENGTH)
@@ -186,17 +205,20 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemove
         if (url != null) {
             if (currentLinkPreview?.url != url) {
                 showLinkPreviewLoading()
-                LinkPreviewFetcher.fetch(url, object : LinkPreviewFetcher.LinkPreviewCallback {
-                    override fun onPreviewReceived(preview: PostModel.LinkPreview?) {
-                        if (preview?.title != null) {
+                lifecycleScope.launch {
+                    val result = LinkPreviewFetcher.fetch(url)
+                    result.onSuccess { preview ->
+                        if (preview.title != null) {
                             currentLinkPreview = preview
                             bindLinkPreview(preview)
                         } else {
                             onLinkPreviewError()
                         }
+                    }.onFailure { e ->
+                        Log.e(TAG, "Link preview fetch failed: ${e.message}", e)
+                        onLinkPreviewError()
                     }
-                    override fun onError(error: String?) { onLinkPreviewError() }
-                })
+                }
             }
         } else {
             removeLinkPreview()
@@ -255,9 +277,11 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.MediaRemove
     }
 
     private fun uploadMediaAndCreatePost(content: String) {
-        val uploadTasks = selectedMediaUris.map { uri ->
+        val uploadTasks = selectedMediaUris.map { mediaItem ->
+            val uri = (mediaItem as? MediaPreviewAdapter.MediaItem.New)?.uri ?: throw IllegalArgumentException("Invalid media item URI")
             val userId = currentUserModel?.userId ?: "unknown_user"
-            val ref = storage.reference.child("post_media/$userId/${UUID.randomUUID()}")
+            val fileExtension = MimeTypeMap.getFileExtensionFromUrl(contentResolver.getType(uri)?.substringAfterLast('/')) ?: "jpg" // ✨ تم استخدام contentResolver.getType(uri) للحصول على MIME type
+            val ref = storage.reference.child("post_media/$userId/${UUID.randomUUID()}.$fileExtension")
             ref.putFile(uri).continueWithTask { task ->
                 if (!task.isSuccessful) task.exception?.let { throw it }
                 ref.downloadUrl

@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/search/SearchFragment.kt
 package com.spidroid.starry.ui.search
 
 import android.content.Intent
@@ -61,7 +62,7 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
         binding.rvResults.layoutManager = LinearLayoutManager(context)
         binding.rvResults.adapter = userResultAdapter
 
-        recentSearchAdapter = RecentSearchAdapter(mutableListOf(), this)
+        recentSearchAdapter = RecentSearchAdapter(this) // ✨ تم تعديل هذا السطر - المحول سيقوم بتهيئة قائمته بنفسه
         binding.rvRecentSearches.layoutManager = LinearLayoutManager(context)
         binding.rvRecentSearches.adapter = recentSearchAdapter
     }
@@ -83,8 +84,11 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
         }
 
         binding.ivClear.setOnClickListener {
+            val currentText = binding.etSearch.text.toString().trim()
+            if (currentText.isNotEmpty()) {
+                searchHistoryManager.addSearchTerm(currentText) // حفظ مصطلح البحث عند مسحه
+            }
             binding.etSearch.text?.clear()
-            searchHistoryManager.addSearchTerm(binding.etSearch.text.toString())
         }
     }
 
@@ -122,11 +126,11 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
     }
 
     private fun showInitialState() {
-        val history = searchHistoryManager.searchHistory
+        val history = searchHistoryManager.searchHistory.filterNotNull() // ✨ تصفية القيم null
         if (history.isEmpty()) {
             binding.layoutRecentSearches.visibility = View.GONE
         } else {
-            recentSearchAdapter.updateData(history)
+            recentSearchAdapter.submitList(history) // ✨ استخدام submitList
             binding.layoutRecentSearches.visibility = View.VISIBLE
         }
         binding.rvResults.visibility = View.GONE
@@ -134,24 +138,27 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
     }
 
     // --- OnHistoryInteractionListener Callbacks ---
-    override fun onTermClicked(term: String) {
-        binding.etSearch.setText(term)
-        binding.etSearch.setSelection(term.length)
+    override fun onTermClicked(term: String?) { // ✨ تم تعديل توقيع الدالة ليتوافق مع الواجهة
+        term?.let {
+            binding.etSearch.setText(it)
+            binding.etSearch.setSelection(it.length)
+            searchHistoryManager.addSearchTerm(it) // إعادة إضافة المصطلح إلى الأعلى عند النقر عليه
+        }
     }
 
-    override fun onRemoveClicked(term: String) {
-        searchHistoryManager.removeSearchTerm(term)
-        showInitialState() // تحديث قائمة السجل
+    override fun onRemoveClicked(term: String?) { // ✨ تم تعديل توقيع الدالة ليتوافق مع الواجهة
+        term?.let {
+            searchHistoryManager.removeSearchTerm(it)
+            showInitialState() // تحديث قائمة السجل بعد الإزالة
+        }
     }
 
     // --- OnUserInteractionListener Callbacks ---
     override fun onFollowClicked(user: UserModel, position: Int) {
         viewModel.toggleFollowStatus(user)
         // تحديث الواجهة بشكل متفائل لتحسين التجربة
-        val isCurrentlyFollowing = user.followers.containsKey(FirebaseAuth.getInstance().currentUser?.uid)
-        // يجب أن تتأكد من أن هذا التغيير سينعكس بشكل صحيح
-        // الأفضل هو أن الـ ViewModel يعيد قائمة محدثة
-        userResultAdapter.notifyItemChanged(position)
+        // (PostViewModel سيُحدّث القائمة إذا كانت هناك تغييرات في المتابعة تؤثر على العرض)
+        // userResultAdapter.notifyItemChanged(position) // يمكن إزالة هذا السطر إذا كان ViewModel يعيد القائمة المحدثة
     }
 
     override fun onUserClicked(user: UserModel) {

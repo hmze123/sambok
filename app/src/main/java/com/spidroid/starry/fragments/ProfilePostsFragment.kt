@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/fragments/ProfilePostsFragment.kt
 package com.spidroid.starry.fragments
 
 import android.content.ClipData
@@ -32,6 +33,7 @@ import com.spidroid.starry.viewmodels.ProfilePostState
 import com.spidroid.starry.viewmodels.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import com.google.firebase.auth.FirebaseAuth // ✨ تم إضافة هذا الاستيراد
 
 class ProfilePostsFragment : Fragment(), PostInteractionListener, ReactionPickerFragment.ReactionListener {
 
@@ -84,12 +86,17 @@ class ProfilePostsFragment : Fragment(), PostInteractionListener, ReactionPicker
                 when (state) {
                     is ProfilePostState.Loading -> {
                         binding.tvEmptyPosts.visibility = View.GONE
-                        // You can show a progress bar here if you have one
+                        // يمكنك إظهار مؤشر تحميل هنا إذا أردت
                     }
                     is ProfilePostState.Success -> {
                         binding.tvEmptyPosts.visibility = if (state.posts.isEmpty()) View.VISIBLE else View.GONE
                         binding.recyclerView.visibility = if (state.posts.isNotEmpty()) View.VISIBLE else View.GONE
                         postAdapter.submitCombinedList(state.posts)
+                    }
+                    is ProfilePostState.Empty -> { // ✨ تم إضافة هذا الفرع
+                        binding.recyclerView.visibility = View.GONE
+                        binding.tvEmptyPosts.visibility = View.VISIBLE
+                        binding.tvEmptyPosts.text = getString(R.string.no_posts_yet_profile)
                     }
                     is ProfilePostState.Error -> {
                         binding.recyclerView.visibility = View.GONE
@@ -137,9 +144,28 @@ class ProfilePostsFragment : Fragment(), PostInteractionListener, ReactionPicker
 
         PopupMenu(requireContext(), safeAnchor).apply {
             menuInflater.inflate(R.menu.post_options_menu, menu)
-            // ... (Menu visibility logic remains the same) ...
+            val currentAuthUserId = FirebaseAuth.getInstance().currentUser?.uid // ✨ تم الوصول إلى FirebaseAuth مباشرة
+            val isAuthor = currentAuthUserId == safePost.authorId
+
+            menu.findItem(R.id.action_pin_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_edit_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_delete_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_edit_privacy)?.isVisible = isAuthor
+            menu.findItem(R.id.action_report_post)?.isVisible = !isAuthor
+            menu.findItem(R.id.action_save_post)?.title = if (safePost.isBookmarked) "Unsave" else "Save"
+
             setOnMenuItemClickListener { item ->
-                // ... (Menu item click logic remains the same) ...
+                when (item.itemId) {
+                    R.id.action_pin_post -> onTogglePinPostClicked(safePost)
+                    R.id.action_edit_post -> onEditPost(safePost)
+                    R.id.action_delete_post -> onDeletePost(safePost)
+                    R.id.action_copy_link -> onCopyLink(safePost)
+                    R.id.action_share_post -> onSharePost(safePost)
+                    R.id.action_save_post -> onBookmarkClicked(safePost)
+                    R.id.action_edit_privacy -> onEditPostPrivacy(safePost)
+                    R.id.action_report_post -> onReportPost(safePost)
+                    else -> return@setOnMenuItemClickListener false
+                }
                 true
             }
         }.show()
@@ -182,23 +208,52 @@ class ProfilePostsFragment : Fragment(), PostInteractionListener, ReactionPicker
     }
 
     // --- Other interaction stubs ---
-    override fun onEditPost(post: PostModel?) { /* ... */ }
-    override fun onCopyLink(post: PostModel?) { /* ... */ }
-    override fun onSharePost(post: PostModel?) { /* ... */ }
-    override fun onEditPostPrivacy(post: PostModel?) { /* ... */ }
-    override fun onReportPost(post: PostModel?) { /* ... */ }
-    override fun onEmojiSelected(post: PostModel?, emojiUnicode: String?) { /* ... */ }
-    override fun onEmojiSummaryClicked(post: PostModel?) { /* ... */ }
-    override fun onFollowClicked(user: UserModel?) { /* ... */ }
-    override fun onHashtagClicked(hashtag: String?) { /* ... */ }
-    override fun onPostLongClicked(post: PostModel) { /* ... */ }
-    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) { /* ... */ }
-    override fun onVideoPlayClicked(videoUrl: String?) { /* ... */ }
+    override fun onEditPost(post: PostModel?) { Toast.makeText(context, "Edit feature is not implemented yet.", Toast.LENGTH_SHORT).show() }
+    override fun onCopyLink(post: PostModel?) {
+        val postId = post?.postId ?: return
+        val postUrl = "https://starry.app/post/$postId" // Replace with your domain
+        val clipboard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clip = ClipData.newPlainText("Post URL", postUrl)
+        clipboard?.setPrimaryClip(clip)
+        Toast.makeText(context, "Link copied!", Toast.LENGTH_SHORT).show()
+    }
+    override fun onSharePost(post: PostModel?) {
+        val safePost = post ?: return
+        val postUrl = "https://starry.app/post/${safePost.postId}" // Replace with your domain
+        val shareText = "Check out this post on Starry: ${safePost.content?.take(70)}...\n$postUrl"
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Post from Starry")
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share post via"))
+    }
+    override fun onEditPostPrivacy(post: PostModel?) { Toast.makeText(context, "Edit privacy feature is not implemented yet.", Toast.LENGTH_SHORT).show() }
+    override fun onReportPost(post: PostModel?) {
+        val safePost = post ?: return
+        val intent = Intent(activity, ReportActivity::class.java).apply {
+            putExtra(ReportActivity.EXTRA_REPORTED_ITEM_ID, safePost.postId)
+            putExtra(ReportActivity.EXTRA_REPORT_TYPE, "post")
+            putExtra(ReportActivity.EXTRA_REPORTED_AUTHOR_ID, safePost.authorId)
+        }
+        startActivity(intent)
+    }
+    override fun onEmojiSelected(post: PostModel?, emojiUnicode: String?) {
+        val safePost = post ?: return
+        val safeEmoji = emojiUnicode ?: return
+        postInteractionViewModel.handleEmojiSelection(safePost, safeEmoji)
+    }
+    override fun onEmojiSummaryClicked(post: PostModel?) { Toast.makeText(context, "Emoji summary coming soon.", Toast.LENGTH_SHORT).show() }
+    override fun onFollowClicked(user: UserModel?) { /* Not implemented directly in this fragment */ }
+    override fun onHashtagClicked(hashtag: String?) { /* Not implemented */ }
+    override fun onPostLongClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) { /* Not implemented */ }
+    override fun onVideoPlayClicked(videoUrl: String?) { /* Not implemented */ }
     override fun onLayoutClicked(post: PostModel?) { onCommentClicked(post) }
-    override fun onSeeMoreClicked(post: PostModel) { /* ... */ }
-    override fun onTranslateClicked(post: PostModel) { /* ... */ }
-    override fun onShowOriginalClicked(post: PostModel) { /* ... */ }
-    override fun onModeratePost(post: PostModel?) { /* ... */ }
+    override fun onSeeMoreClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onTranslateClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onShowOriginalClicked(post: PostModel?) { /* Not implemented */ }
+    override fun onModeratePost(post: PostModel?) { /* Not implemented */ }
 
     override fun onDestroyView() {
         super.onDestroyView()

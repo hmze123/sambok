@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/notifications/NotificationsFragment.kt
 package com.spidroid.starry.ui.notifications
 
 import android.content.ContentValues
@@ -7,9 +8,9 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
+import android.widget.Toast // ✨ تم التأكد من هذا الاستيراد
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelProvider // ✨ تم التأكد من هذا الاستيراد
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
@@ -42,7 +43,8 @@ class NotificationsFragment : Fragment(), NotificationAdapter.OnNotificationClic
     ): View {
         _binding = FragmentNotificationsBinding.inflate(inflater, container, false)
         // تهيئة ViewModel
-        notificationsViewModel = ViewModelProvider(this)[NotificationsViewModel::class.java]
+        // ✨ تم تصحيح استدعاء ViewModelProvider
+        notificationsViewModel = ViewModelProvider(this).get(NotificationsViewModel::class.java)
         return binding.root
     }
 
@@ -126,47 +128,52 @@ class NotificationsFragment : Fragment(), NotificationAdapter.OnNotificationClic
 
 
     private fun observeViewModel() {
-        notificationsViewModel.notificationsList.observe(viewLifecycleOwner) { notifications ->
+        // ✨ تم استخدام getNotificationsList() للوصول إلى LiveData
+        notificationsViewModel.getNotificationsList().observe(viewLifecycleOwner) { notifications ->
             notificationAdapter.submitList(notifications)
             binding.textViewEmptyNotifications.visibility = if (notifications.isNullOrEmpty()) View.VISIBLE else View.GONE
         }
 
-        notificationsViewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+        // ✨ تم استخدام getIsLoading() للوصول إلى LiveData
+        notificationsViewModel.getIsLoading().observe(viewLifecycleOwner) { isLoading ->
             // إظهار/إخفاء مؤشر التحميل الرئيسي فقط إذا لم يكن السحب للتحديث نشطًا
             if (!binding.swipeRefreshNotifications.isRefreshing) {
-                binding.progressBarNotifications.visibility = if (isLoading) View.VISIBLE else View.GONE
+                binding.progressBarNotifications.visibility = if (isLoading == true) View.VISIBLE else View.GONE // ✨ معالجة Boolean?
             }
             // إيقاف مؤشر السحب للتحديث عند انتهاء التحميل
-            if (!isLoading) {
+            if (isLoading == false) { // ✨ معالجة Boolean?
                 binding.swipeRefreshNotifications.isRefreshing = false
             }
         }
 
-        notificationsViewModel.error.observe(viewLifecycleOwner) { errorMsg ->
-            if (!errorMsg.isNullOrEmpty()) {
-                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+        // ✨ تم استخدام getError() للوصول إلى LiveData
+        notificationsViewModel.getError().observe(viewLifecycleOwner) { errorMsg ->
+            if (!errorMsg.isNullOrEmpty()) { // ✨ معالجة String?
+                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show() // ✨ استخدام context
                 Log.e(ContentValues.TAG, "Error observed: $errorMsg")
             }
         }
     }
 
     // ★ تطبيق الواجهة OnNotificationClickListener
-    override fun onNotificationClick(notification: NotificationModel) {
+    override fun onNotificationClick(notification: NotificationModel?) { // ✨ توقيع الدالة يجب أن يتطابق مع الواجهة
+        val safeNotification = notification ?: return
+
         // تحديث حالة الإشعار إلى مقروء
-        if (!notification.isRead) {
-            notificationsViewModel.markNotificationAsRead(notification.notificationId)
+        if (!safeNotification.isRead) {
+            notificationsViewModel.markNotificationAsRead(safeNotification.notificationId)
         }
 
         // تحديد الوجهة بناءً على نوع الإشعار
-        when (notification.type) {
+        when (safeNotification.type) {
             NotificationModel.TYPE_LIKE, NotificationModel.TYPE_COMMENT -> {
-                notification.postId?.let { openPostDetails(it) } ?: showMissingDataError("Post ID")
+                safeNotification.postId?.let { openPostDetails(it) } ?: showMissingDataError("Post ID")
             }
             NotificationModel.TYPE_FOLLOW -> {
-                notification.fromUserId?.let { openUserProfile(it) } ?: showMissingDataError("User ID")
+                safeNotification.fromUserId?.let { openUserProfile(it) } ?: showMissingDataError("User ID")
             }
             else -> {
-                Toast.makeText(context, "Notification type: ${notification.type}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Notification type: ${safeNotification.type}", Toast.LENGTH_SHORT).show()
             }
         }
     }

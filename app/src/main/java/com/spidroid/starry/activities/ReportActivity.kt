@@ -1,3 +1,4 @@
+// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/ReportActivity.kt
 package com.spidroid.starry.activities
 
 import android.annotation.SuppressLint
@@ -17,7 +18,7 @@ import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityReportBinding
-import java.util.Locale
+import java.util.Locale // ✨ تم إضافة هذا الاستيراد
 
 class ReportActivity : AppCompatActivity() {
 
@@ -61,7 +62,7 @@ class ReportActivity : AppCompatActivity() {
         supportActionBar?.apply {
             setDisplayHomeAsUpEnabled(true)
             setDisplayShowHomeEnabled(true)
-            title = "Report ${reportType?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}"
+            title = reportType?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
         }
         binding.toolbarReport.setNavigationOnClickListener { finish() }
     }
