@@ -1,9 +1,12 @@
+// settings.gradle
 pluginManagement {
   repositories {
-    gradlePluginPortal()
-    google()
     mavenCentral()
-    maven { url "https://www.jitpack.io" }
+    google()
+    gradlePluginPortal()
+    // إذا كنت تحتاج JitPack لمكتبات أخرى مثل PhotoView، أبقه هنا
+    // ولكن اجعله بعد google() و mavenCentral()
+    maven { url 'https://www.jitpack.io' }
   }
 }
 
@@ -11,11 +14,10 @@ dependencyResolutionManagement {
   repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
   repositories {
     google()
-    mavenCentral()
-    maven { url "https://www.jitpack.io" }
+    mavenCentral() // **مهم جدًا: تأكد أن هذا السطر موجود هنا**
+    maven { url 'https://www.jitpack.io' } // أبقه إذا كنت تحتاج إليه لمكتبات أخرى مثل PhotoView
   }
 }
 
-rootProject.name = "Starry"
-
-include(":app")
+rootProject.name = "Starry" // أو اسم مشروعك
+include ':app'
