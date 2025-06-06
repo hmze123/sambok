@@ -1,166 +1,173 @@
 package com.spidroid.starry.ui.search
 
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import androidx.core.widget.doOnTextChanged
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
+import com.spidroid.starry.activities.ProfileActivity
+import com.spidroid.starry.databinding.FragmentSearchBinding
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.utils.SearchHistoryManager
+import com.spidroid.starry.viewmodels.SearchUiState
+import com.spidroid.starry.viewmodels.SearchViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
 
-class SearchFragment : androidx.fragment.app.Fragment(), OnUserInteractionListener,
-    OnHistoryInteractionListener {
-    private var viewModel: com.spidroid.starry.viewmodels.SearchViewModel? = null
-    private var userResultAdapter: UserResultAdapter? = null
-    private var recentSearchAdapter: RecentSearchAdapter? = null
-    private var searchHistoryManager: SearchHistoryManager? = null
-    private var searchInput: EditText? = null
-    private var rvResults: RecyclerView? = null
-    private var rvRecentSearches: RecyclerView? = null
-    private var layoutRecentSearches: LinearLayout? = null
-    private var tvEmptyState: TextView? = null
-    private val searchHandler: android.os.Handler = android.os.Handler(Looper.getMainLooper())
-    private var searchRunnable: java.lang.Runnable? = null
+class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, RecentSearchAdapter.OnHistoryInteractionListener {
+
+    private var _binding: FragmentSearchBinding? = null
+    private val binding get() = _binding!!
+
+    private val viewModel: SearchViewModel by viewModels()
+    private lateinit var userResultAdapter: UserResultAdapter
+    private lateinit var recentSearchAdapter: RecentSearchAdapter
+    private lateinit var searchHistoryManager: SearchHistoryManager
+    private var searchJob: Job? = null
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): android.view.View? {
-        return inflater.inflate(R.layout.fragment_search, container, false)
+    ): View {
+        _binding = FragmentSearchBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        viewModel =
-            ViewModelProvider(this).get<com.spidroid.starry.viewmodels.SearchViewModel>(com.spidroid.starry.viewmodels.SearchViewModel::class.java)
         searchHistoryManager = SearchHistoryManager(requireContext())
 
-        initializeViews(view)
         setupRecyclerViews()
         setupSearchInput()
-        setupObservers()
+        observeViewModel()
 
         showInitialState()
     }
 
-    private fun initializeViews(view: android.view.View) {
-        searchInput = view.findViewById<EditText>(R.id.et_search)
-        rvResults = view.findViewById<RecyclerView>(R.id.rv_results)
-        rvRecentSearches = view.findViewById<RecyclerView>(R.id.rv_recent_searches)
-        layoutRecentSearches = view.findViewById<LinearLayout>(R.id.layout_recent_searches)
-        tvEmptyState = view.findViewById<TextView>(R.id.tv_empty_state)
-        val clearButton = view.findViewById<android.widget.ImageView>(R.id.iv_clear)
-        clearButton.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
-            searchInput.setText(
-                ""
-            )
-        })
-    }
-
     private fun setupRecyclerViews() {
-        // Adapter لنتائج البحث
-        val currentUserId: kotlin.String? =
-            if (FirebaseAuth.getInstance().getCurrentUser() != null) FirebaseAuth.getInstance()
-                .getCurrentUser().getUid() else ""
+        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
         userResultAdapter = UserResultAdapter(currentUserId, this)
-        rvResults.setLayoutManager(LinearLayoutManager(getContext()))
-        rvResults.setAdapter(userResultAdapter)
+        binding.rvResults.layoutManager = LinearLayoutManager(context)
+        binding.rvResults.adapter = userResultAdapter
 
-        // Adapter لسجل البحث
-        rvRecentSearches.setLayoutManager(LinearLayoutManager(getContext()))
+        recentSearchAdapter = RecentSearchAdapter(mutableListOf(), this)
+        binding.rvRecentSearches.layoutManager = LinearLayoutManager(context)
+        binding.rvRecentSearches.adapter = recentSearchAdapter
     }
 
     private fun setupSearchInput() {
-        searchInput.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
-
-            override fun onTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-            }
-
-            override fun afterTextChanged(s: Editable) {
-                searchHandler.removeCallbacks(searchRunnable!!)
-                val query = s.toString().trim { it <= ' ' }
-
-                if (query.isEmpty()) {
-                    showInitialState()
-                } else {
-                    layoutRecentSearches.setVisibility(android.view.View.GONE)
-                    rvResults.setVisibility(android.view.View.VISIBLE)
-
-                    searchRunnable = java.lang.Runnable {
-                        viewModel!!.searchUsers(query)
-                        searchHistoryManager.addSearchTerm(query)
-                    }
-                    searchHandler.postDelayed(searchRunnable!!, 400) // Debounce
+        binding.etSearch.doOnTextChanged { text, _, _, _ ->
+            searchJob?.cancel() // إلغاء عملية البحث السابقة
+            val query = text.toString().trim()
+            if (query.isNotEmpty()) {
+                binding.ivClear.visibility = View.VISIBLE
+                searchJob = viewLifecycleOwner.lifecycleScope.launch {
+                    delay(400) // الانتظار قبل إرسال الطلب لتحسين الأداء
+                    viewModel.searchUsers(query)
                 }
+            } else {
+                binding.ivClear.visibility = View.GONE
+                viewModel.clearSearch()
             }
-        })
+        }
+
+        binding.ivClear.setOnClickListener {
+            binding.etSearch.text?.clear()
+            searchHistoryManager.addSearchTerm(binding.etSearch.text.toString())
+        }
     }
 
-    private fun setupObservers() {
-        viewModel!!.getSearchResults().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { users: kotlin.collections.MutableList<UserModel?>? ->
-                userResultAdapter!!.updateUsers(users)
-                tvEmptyState.setVisibility(if (users!!.isEmpty()) android.view.View.VISIBLE else android.view.View.GONE)
-            })
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.uiState.collectLatest { state ->
+                // إخفاء جميع الحالات مبدئيًا
+                binding.layoutRecentSearches.visibility = View.GONE
+                binding.rvResults.visibility = View.GONE
+                binding.tvEmptyState.visibility = View.GONE
+                // يمكنك إضافة مؤشر تحميل هنا
+                // binding.progressBar.visibility = View.GONE
 
-        viewModel!!.getErrorMessage()
-            .observe(getViewLifecycleOwner(), androidx.lifecycle.Observer { error: kotlin.String? ->
-                if (error != null) {
-                    Snackbar.make(requireView(), error, Snackbar.LENGTH_LONG)
-                        .setAction(
-                            "Retry",
-                            android.view.View.OnClickListener { v: android.view.View? -> viewModel!!.retryLastSearch() })
-                        .show()
+                when (state) {
+                    is SearchUiState.Idle -> showInitialState()
+                    is SearchUiState.Loading -> {
+                        // binding.progressBar.visibility = View.VISIBLE
+                    }
+                    is SearchUiState.Success -> {
+                        binding.rvResults.visibility = View.VISIBLE
+                        userResultAdapter.submitList(state.users)
+                    }
+                    is SearchUiState.Empty -> {
+                        binding.tvEmptyState.visibility = View.VISIBLE
+                        binding.tvEmptyState.text = "No results found"
+                    }
+                    is SearchUiState.Error -> {
+                        Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG)
+                            .setAction("Retry") { viewModel.retryLastSearch() }
+                            .show()
+                    }
                 }
-            })
+            }
+        }
     }
 
     private fun showInitialState() {
-        val history = searchHistoryManager.getSearchHistory()
+        val history = searchHistoryManager.searchHistory
         if (history.isEmpty()) {
-            layoutRecentSearches.setVisibility(android.view.View.GONE)
+            binding.layoutRecentSearches.visibility = View.GONE
         } else {
-            recentSearchAdapter = RecentSearchAdapter(history, this)
-            rvRecentSearches.setAdapter(recentSearchAdapter)
-            layoutRecentSearches.setVisibility(android.view.View.VISIBLE)
+            recentSearchAdapter.updateData(history)
+            binding.layoutRecentSearches.visibility = View.VISIBLE
         }
-        rvResults.setVisibility(android.view.View.GONE)
-        tvEmptyState.setVisibility(android.view.View.GONE)
-        userResultAdapter!!.updateUsers(kotlin.collections.mutableListOf<UserModel?>())
+        binding.rvResults.visibility = View.GONE
+        binding.tvEmptyState.visibility = View.GONE
     }
 
-    // --- OnHistoryInteractionListener ---
-    override fun onTermClicked(term: kotlin.String) {
-        searchInput.setText(term)
-        searchInput.setSelection(term.length)
+    // --- OnHistoryInteractionListener Callbacks ---
+    override fun onTermClicked(term: String) {
+        binding.etSearch.setText(term)
+        binding.etSearch.setSelection(term.length)
     }
 
-    override fun onRemoveClicked(term: kotlin.String?) {
+    override fun onRemoveClicked(term: String) {
         searchHistoryManager.removeSearchTerm(term)
-        showInitialState() // Refresh history list
+        showInitialState() // تحديث قائمة السجل
     }
 
-    // --- OnUserInteractionListener ---
-    override fun onFollowClicked(user: UserModel?, position: Int) { /* ... */
+    // --- OnUserInteractionListener Callbacks ---
+    override fun onFollowClicked(user: UserModel, position: Int) {
+        viewModel.toggleFollowStatus(user)
+        // تحديث الواجهة بشكل متفائل لتحسين التجربة
+        val isCurrentlyFollowing = user.followers.containsKey(FirebaseAuth.getInstance().currentUser?.uid)
+        // يجب أن تتأكد من أن هذا التغيير سينعكس بشكل صحيح
+        // الأفضل هو أن الـ ViewModel يعيد قائمة محدثة
+        userResultAdapter.notifyItemChanged(position)
     }
 
-    override fun onUserClicked(user: UserModel?) { /* ... */
+    override fun onUserClicked(user: UserModel) {
+        val intent = Intent(activity, ProfileActivity::class.java).apply {
+            putExtra("userId", user.userId)
+        }
+        startActivity(intent)
     }
 
-    override fun onMoreClicked(user: UserModel?, anchor: android.view.View?) { /* ... */
+    override fun onMoreClicked(user: UserModel, anchor: View) {
+        // يمكن تنفيذ قائمة خيارات هنا (مثل الإبلاغ عن مستخدم)
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        searchHandler.removeCallbacks(searchRunnable!!)
+        searchJob?.cancel()
+        _binding = null
     }
 }

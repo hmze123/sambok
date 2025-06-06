@@ -1,469 +1,259 @@
 package com.spidroid.starry.activities
 
-// استخدام نموذج Chat
-// استيراد Arrays
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
+import android.view.View
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.widget.doOnTextChanged
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.ktx.storage
+import com.spidroid.starry.R
+import com.spidroid.starry.adapters.UserSelectionAdapter
+import com.spidroid.starry.databinding.ActivityCreateGroupBinding
+import com.spidroid.starry.models.Chat
+import com.spidroid.starry.models.UserModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import java.util.Date
+import java.util.UUID
 
-class CreateGroupActivity : AppCompatActivity(), OnUserSelectionChangedListener {
-    private var db: FirebaseFirestore? = null
-    private var auth: FirebaseAuth? = null
-    private var storage: FirebaseStorage? = null
+class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSelectionChangedListener {
+
+    private lateinit var binding: ActivityCreateGroupBinding
+    private val db: FirebaseFirestore by lazy { Firebase.firestore }
+    private val auth: FirebaseAuth by lazy { Firebase.auth }
+    private val storage: FirebaseStorage by lazy { Firebase.storage }
     private var currentUser: FirebaseUser? = null
 
-    private var toolbar: androidx.appcompat.widget.Toolbar? = null
-    private var ivGroupImage: de.hdodenhof.circleimageview.CircleImageView? = null
-    private var btnSelectGroupImage: android.widget.Button? = null
-    private var etGroupName: EditText? = null
-    private var etGroupDescription: EditText? = null
-    private var etSearchMembers: EditText? = null
-    private var rvSelectMembers: RecyclerView? = null
-    private var tvSelectedMembersCount: TextView? = null
-    private var pbLoading: ProgressBar? = null
-    private var fabCreateGroup: FloatingActionButton? = null
+    private lateinit var userSelectionAdapter: UserSelectionAdapter
+    private var groupImageUri: Uri? = null
 
-    private var userSelectionAdapter: UserSelectionAdapter? = null
-    private val allUsersForSelection: kotlin.collections.MutableList<UserModel?> =
-        java.util.ArrayList<UserModel?>()
-    private var groupImageUri: android.net.Uri? = null
-
-    private var pickImageLauncher: ActivityResultLauncher<Intent?>? = null
+    private lateinit var pickImageLauncher: ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_create_group)
+        binding = ActivityCreateGroupBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        db = FirebaseFirestore.getInstance()
-        auth = FirebaseAuth.getInstance()
-        storage = FirebaseStorage.getInstance()
-        currentUser = auth.getCurrentUser()
-
+        currentUser = auth.currentUser
         if (currentUser == null) {
             Toast.makeText(this, "Authentication required.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        initializeViews()
-        setupToolbar()
+        initializeLaunchers()
+        setupUI()
+        loadUsersForSelection()
+    }
+
+    private fun initializeLaunchers() {
+        pickImageLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                result.data?.data?.let { uri ->
+                    groupImageUri = uri
+                    Glide.with(this).load(uri).into(binding.ivGroupImage)
+                }
+            }
+        }
+    }
+
+    private fun setupUI() {
+        setSupportActionBar(binding.toolbarCreateGroup)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        binding.toolbarCreateGroup.setNavigationOnClickListener { finish() }
+
         setupRecyclerView()
         setupListeners()
-        loadUsersForSelection()
-
-        pickImageLauncher =
-            registerForActivityResult<Intent?, androidx.activity.result.ActivityResult?>(
-                StartActivityForResult(),
-                ActivityResultCallback { result: androidx.activity.result.ActivityResult? ->
-                    if (result!!.getResultCode() == Activity.RESULT_OK && result.getData() != null && result.getData()!!
-                            .getData() != null
-                    ) {
-                        groupImageUri = result.getData()!!.getData()
-                        Glide.with(this).load(groupImageUri).into(ivGroupImage)
-                    }
-                })
-    }
-
-    private fun initializeViews() {
-        toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar_create_group)
-        ivGroupImage =
-            findViewById<de.hdodenhof.circleimageview.CircleImageView>(R.id.iv_group_image)
-        btnSelectGroupImage = findViewById<android.widget.Button>(R.id.btn_select_group_image)
-        etGroupName = findViewById<EditText>(R.id.et_group_name)
-        etGroupDescription = findViewById<EditText>(R.id.et_group_description)
-        etSearchMembers = findViewById<EditText>(R.id.et_search_members)
-        rvSelectMembers = findViewById<RecyclerView>(R.id.rv_select_members)
-        tvSelectedMembersCount = findViewById<TextView>(R.id.tv_selected_members_count)
-        pbLoading = findViewById<ProgressBar>(R.id.pb_create_group_loading)
-        fabCreateGroup = findViewById<FloatingActionButton>(R.id.fab_create_group)
-        fabCreateGroup.setEnabled(false)
-    }
-
-    private fun setupToolbar() {
-        setSupportActionBar(toolbar)
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true)
-            getSupportActionBar().setDisplayShowHomeEnabled(true)
-        }
-        toolbar!!.setNavigationOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> finish() })
     }
 
     private fun setupRecyclerView() {
-        userSelectionAdapter = UserSelectionAdapter(this, java.util.ArrayList<UserModel?>(), this)
-        rvSelectMembers.setLayoutManager(LinearLayoutManager(this))
-        rvSelectMembers.setAdapter(userSelectionAdapter)
+        userSelectionAdapter = UserSelectionAdapter(this, mutableListOf(), this)
+        binding.rvSelectMembers.layoutManager = LinearLayoutManager(this)
+        binding.rvSelectMembers.adapter = userSelectionAdapter
     }
 
     private fun setupListeners() {
-        btnSelectGroupImage!!.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
-            val intent: Intent =
-                Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        binding.btnSelectGroupImage.setOnClickListener {
+            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             pickImageLauncher.launch(intent)
-        })
+        }
 
-        etSearchMembers.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
+        binding.etSearchMembers.doOnTextChanged { text, _, _, _ ->
+            userSelectionAdapter.filter.filter(text)
+        }
 
-            override fun onTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-                if (userSelectionAdapter != null) {
-                    userSelectionAdapter.getFilter().filter(s)
-                }
-            }
+        binding.fabCreateGroup.setOnClickListener { createGroup() }
 
-            override fun afterTextChanged(s: Editable?) {}
-        })
-
-        fabCreateGroup.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> createGroup() })
-
-        etGroupName.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                count: Int,
-                after: Int
-            ) {
-            }
-
-            override fun onTextChanged(
-                s: kotlin.CharSequence?,
-                start: Int,
-                before: Int,
-                count: Int
-            ) {
-            }
-
-            override fun afterTextChanged(s: Editable?) {
-                validateInputs()
-            }
-        })
+        binding.etGroupName.doOnTextChanged { _, _, _, _ -> validateInputs() }
     }
 
     override fun onSelectionChanged(count: Int) {
-        // تأكد من أن لديك string resource لهذا
-        tvSelectedMembersCount.setText(getString(R.string.selected_members_count_format, count))
+        binding.tvSelectedMembersCount.text = getString(R.string.selected_members_count_format, count)
         validateInputs()
     }
 
     private fun validateInputs() {
-        val groupName = etGroupName.getText().toString().trim { it <= ' ' }
-        val isNameValid =
-            !TextUtils.isEmpty(groupName) && groupName.length <= CreateGroupActivity.Companion.MAX_GROUP_NAME_LENGTH
-        val areMembersSelected =
-            userSelectionAdapter != null && !userSelectionAdapter.getSelectedUserIds().isEmpty()
-        fabCreateGroup.setEnabled(isNameValid && areMembersSelected)
+        val groupName = binding.etGroupName.text.toString().trim()
+        val isNameValid = groupName.isNotEmpty() && groupName.length <= MAX_GROUP_NAME_LENGTH
+        val areMembersSelected = userSelectionAdapter.selectedUserIds.isNotEmpty()
+        binding.fabCreateGroup.isEnabled = isNameValid && areMembersSelected
     }
 
     private fun loadUsersForSelection() {
-        pbLoading.setVisibility(android.view.View.VISIBLE)
-        // جلب قائمة المستخدمين الذين يتابعهم المستخدم الحالي أو يتابعونه
-        // هذا مثال مبسط، قد تحتاج إلى منطق أكثر تعقيدًا
-        db.collection("users")
-            .document(currentUser.getUid())
-            .get()
-            .addOnSuccessListener({ currentUserDoc ->
-                val currentUserData: UserModel? = currentUserDoc.toObject(UserModel::class.java)
-                if (currentUserData == null) {
-                    pbLoading.setVisibility(android.view.View.GONE)
-                    Toast.makeText(this, "Failed to load your data.", Toast.LENGTH_SHORT).show()
-                    return@addOnSuccessListener
-                }
+        showLoading(true)
+        val userId = currentUser?.uid ?: return
 
-                val potentialMemberIds: kotlin.collections.MutableList<kotlin.String?> =
-                    java.util.ArrayList<kotlin.String?>()
-                if (currentUserData.getFollowing() != null) {
-                    potentialMemberIds.addAll(currentUserData.getFollowing().keys)
-                }
+        db.collection("users").document(userId).get()
+            .addOnSuccessListener { currentUserDoc ->
+                val followingMap = currentUserDoc.get("following") as? Map<String, Boolean> ?: emptyMap()
+                val userIdsToFetch = followingMap.keys.toList()
 
-                // يمكنك إضافة المتابعين أيضًا إذا أردت، أو أي منطق آخر لاختيار المستخدمين
-                // if (currentUserData.getFollowers() != null) {
-                //     potentialMemberIds.addAll(currentUserData.getFollowers().keySet());
-                // }
-
-                // إزالة التكرار وإزالة المستخدم الحالي إذا كان موجودًا
-                val distinctIds: kotlin.collections.MutableList<kotlin.String?> =
-                    java.util.ArrayList<kotlin.String?>(
-                        java.util.HashSet<kotlin.String?>(potentialMemberIds)
-                    )
-                distinctIds.remove(currentUser.getUid())
-
-                if (distinctIds.isEmpty()) {
-                    pbLoading.setVisibility(android.view.View.GONE)
+                if (userIdsToFetch.isEmpty()) {
+                    showLoading(false)
                     Toast.makeText(this, "No users to add to group.", Toast.LENGTH_SHORT).show()
-                    if (userSelectionAdapter != null) {
-                        userSelectionAdapter.setData(java.util.ArrayList<UserModel?>())
-                    }
                     return@addOnSuccessListener
                 }
 
-                // جلب تفاصيل المستخدمين
-                // Firestore 'in' query is limited to 10 elements. Chunk if necessary.
-                // For simplicity, we'll fetch all if less than or equal to 10.
-                // In a real app, you'd implement pagination or chunking for larger lists.
-                val chunks = chunkList<kotlin.String?>(distinctIds, 10)
-                allUsersForSelection.clear()
-                val chunksProcessed = kotlin.intArrayOf(0)
-
-                if (chunks.isEmpty()) {
-                    pbLoading.setVisibility(android.view.View.GONE)
-                    if (userSelectionAdapter != null) {
-                        userSelectionAdapter.setData(java.util.ArrayList<UserModel?>())
+                CoroutineScope(Dispatchers.IO).launch {
+                    val allUsers = fetchUsersInChunks(userIdsToFetch)
+                    withContext(Dispatchers.Main) {
+                        userSelectionAdapter.setData(allUsers)
+                        showLoading(false)
                     }
-                    return@addOnSuccessListener
                 }
-                for (chunk in chunks) {
-                    if (chunk.isEmpty()) { // تجاوز Chunk فارغ
-                        chunksProcessed[0]++
-                        if (chunksProcessed[0] == chunks.size) {
-                            pbLoading.setVisibility(android.view.View.GONE)
-                            if (userSelectionAdapter != null) {
-                                userSelectionAdapter.setData(allUsersForSelection)
-                            }
-                        }
-                        continue
-                    }
-                    db.collection("users").whereIn("userId", chunk).get()
-                        .addOnSuccessListener({ queryDocumentSnapshots ->
-                            for (document in queryDocumentSnapshots) {
-                                val user: UserModel? = document.toObject(UserModel::class.java)
-                                if (user != null) {
-                                    user.setUserId(document.getId())
-                                    allUsersForSelection.add(user)
-                                }
-                            }
-                            chunksProcessed[0]++
-                            if (chunksProcessed[0] == chunks.size) {
-                                pbLoading.setVisibility(android.view.View.GONE)
-                                if (userSelectionAdapter != null) {
-                                    userSelectionAdapter.setData(allUsersForSelection)
-                                }
-                            }
-                        })
-                        .addOnFailureListener({ e ->
-                            chunksProcessed[0]++
-                            android.util.Log.e(
-                                CreateGroupActivity.Companion.TAG,
-                                "Error loading users for selection chunk",
-                                e
-                            )
-                            if (chunksProcessed[0] == chunks.size) { // فقط إذا كان هذا آخر chunk فاشل
-                                pbLoading.setVisibility(android.view.View.GONE)
-                                Toast.makeText(
-                                    this@CreateGroupActivity,
-                                    "Failed to load some users.",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                if (userSelectionAdapter != null) {
-                                    userSelectionAdapter.setData(allUsersForSelection) // عرض ما تم تحميله
-                                }
-                            }
-                        })
-                }
-            })
-            .addOnFailureListener({ e ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                android.util.Log.e(
-                    CreateGroupActivity.Companion.TAG,
-                    "Error loading current user's following list",
-                    e
-                )
-                Toast.makeText(
-                    this,
-                    "Failed to load your connections: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            })
+            }
+            .addOnFailureListener { e ->
+                showLoading(false)
+                Log.e(TAG, "Error loading user's connections", e)
+            }
     }
 
-    private fun <T> chunkList(
-        list: kotlin.collections.MutableList<T?>?,
-        chunkSize: Int
-    ): kotlin.collections.MutableList<kotlin.collections.MutableList<T?>> {
-        val chunks: kotlin.collections.MutableList<kotlin.collections.MutableList<T?>> =
-            java.util.ArrayList<kotlin.collections.MutableList<T?>>()
-        if (list == null || list.isEmpty() || chunkSize <= 0) return chunks
-        var i = 0
-        while (i < list.size) {
-            chunks.add(
-                java.util.ArrayList<T?>(
-                    list.subList(
-                        i,
-                        kotlin.math.min(list.size.toDouble(), (i + chunkSize).toDouble()).toInt()
-                    )
-                )
-            )
-            i += chunkSize
+    private suspend fun fetchUsersInChunks(userIds: List<String>): MutableList<UserModel> {
+        val allUsers = mutableListOf<UserModel>()
+        userIds.chunked(10).forEach { chunk ->
+            try {
+                val usersSnapshot = db.collection("users").whereIn("userId", chunk).get().await()
+                allUsers.addAll(usersSnapshot.toObjects(UserModel::class.java))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching user chunk", e)
+            }
         }
-        return chunks
+        return allUsers
     }
 
     private fun createGroup() {
-        val groupName = etGroupName.getText().toString().trim { it <= ' ' }
-        val groupDescription = etGroupDescription.getText().toString().trim { it <= ' ' }
+        val groupName = binding.etGroupName.text.toString().trim()
+        val groupDescription = binding.etGroupDescription.text.toString().trim()
+        val selectedMemberIds = userSelectionAdapter.selectedUserIds.toMutableList()
 
-        if (userSelectionAdapter == null) {
-            Toast.makeText(this, "Error: Members adapter not initialized.", Toast.LENGTH_SHORT)
-                .show()
+        if (groupName.isEmpty()) {
+            binding.etGroupName.error = "Group name is required."
             return
         }
-        val selectedMemberIdsSet = userSelectionAdapter.getSelectedUserIds()
-
-        if (TextUtils.isEmpty(groupName)) {
-            etGroupName.setError("Group name is required.")
-            return
-        }
-        if (groupName.length > CreateGroupActivity.Companion.MAX_GROUP_NAME_LENGTH) {
-            etGroupName.setError("Group name is too long (max " + CreateGroupActivity.Companion.MAX_GROUP_NAME_LENGTH + " chars).")
-            return
-        }
-        if (groupDescription.length > CreateGroupActivity.Companion.MAX_GROUP_DESC_LENGTH) {
-            etGroupDescription.setError("Description is too long (max " + CreateGroupActivity.Companion.MAX_GROUP_DESC_LENGTH + " chars).")
-            return
-        }
-        if (selectedMemberIdsSet.isEmpty()) {
+        if (selectedMemberIds.isEmpty()) {
             Toast.makeText(this, "Please select at least one member.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        pbLoading.setVisibility(android.view.View.VISIBLE)
-        fabCreateGroup.setEnabled(false)
+        showLoading(true)
+        binding.fabCreateGroup.isEnabled = false
 
-        val memberIds: kotlin.collections.MutableList<kotlin.String?> =
-            java.util.ArrayList<kotlin.String?>(selectedMemberIdsSet)
-        memberIds.add(currentUser.getUid())
+        val creatorId = currentUser?.uid ?: return
+        selectedMemberIds.add(creatorId)
 
-        if (groupImageUri != null) {
-            uploadGroupImageAndCreateGroup(groupName, groupDescription, memberIds)
-        } else {
-            saveGroupToFirestore(groupName, groupDescription, null, memberIds)
+        groupImageUri?.let {
+            uploadGroupImageAndCreateGroup(groupName, groupDescription, it,
+                selectedMemberIds as MutableList<String>
+            )
+        } ?: run {
+            saveGroupToFirestore(groupName, groupDescription, null,
+                selectedMemberIds as MutableList<String>
+            )
         }
     }
 
-    private fun uploadGroupImageAndCreateGroup(
-        groupName: kotlin.String?,
-        groupDescription: kotlin.String?,
-        memberIdsList: kotlin.collections.MutableList<kotlin.String?>?
-    ) {
-        val storageRef: StorageReference =
-            storage.getReference().child("group_images/" + java.util.UUID.randomUUID().toString())
-        storageRef.putFile(groupImageUri)
-            .addOnSuccessListener({ taskSnapshot ->
-                storageRef.getDownloadUrl()
-                    .addOnSuccessListener({ uri ->
-                        val imageUrl: kotlin.String? = uri.toString()
-                        saveGroupToFirestore(groupName, groupDescription, imageUrl, memberIdsList)
-                    })
-                    .addOnFailureListener({ e ->
-                        pbLoading.setVisibility(android.view.View.GONE)
-                        fabCreateGroup.setEnabled(true)
-                        android.util.Log.e(
-                            CreateGroupActivity.Companion.TAG,
-                            "Failed to get group image URL",
-                            e
-                        )
-                        Toast.makeText(
-                            this@CreateGroupActivity,
-                            "Failed to get image URL: " + e.getMessage(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    })
-            })
-            .addOnFailureListener({ e ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                fabCreateGroup.setEnabled(true)
-                android.util.Log.e(
-                    CreateGroupActivity.Companion.TAG,
-                    "Failed to upload group image",
-                    e
-                )
-                Toast.makeText(
-                    this@CreateGroupActivity,
-                    "Failed to upload image: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            })
+    private fun uploadGroupImageAndCreateGroup(name: String, description: String, imageUri: Uri, members: MutableList<String>) {
+        val storageRef = storage.reference.child("group_images/${UUID.randomUUID()}")
+        storageRef.putFile(imageUri)
+            .continueWithTask { task ->
+                if (!task.isSuccessful) task.exception?.let { throw it }
+                storageRef.downloadUrl
+            }.addOnSuccessListener { downloadUri ->
+                saveGroupToFirestore(name, description, downloadUri.toString(), members)
+            }.addOnFailureListener { e ->
+                handleFailure("Failed to upload image: ${e.message}")
+            }
     }
 
-    private fun saveGroupToFirestore(
-        groupName: kotlin.String?,
-        groupDescription: kotlin.String?,
-        groupImageUrl: kotlin.String?,
-        memberIdsList: kotlin.collections.MutableList<kotlin.String?>?
-    ) {
-        val groupDocRef: DocumentReference =
-            db.collection("chats").document() // استخدام collection "chats"
+    private fun saveGroupToFirestore(name: String, description: String, imageUrl: String?, members: MutableList<String>) {
+        val creatorId = currentUser?.uid ?: return
+        val groupDocRef = db.collection("chats").document()
 
-        val newGroup: Chat = Chat()
-        newGroup.setId(groupDocRef.getId())
-        newGroup.setGroupName(groupName)
-        if (!TextUtils.isEmpty(groupDescription)) {
-            newGroup.setGroupDescription(groupDescription)
-        }
-        if (groupImageUrl != null) {
-            newGroup.setGroupImage(groupImageUrl)
-        }
-        newGroup.setCreatorId(currentUser.getUid())
-        newGroup.setAdmins(java.util.Arrays.asList(currentUser.getUid()))
-        newGroup.setParticipants(memberIdsList)
-        newGroup.setGroup(true) // isGroup = true
-        newGroup.setLastMessageTime(java.util.Date()) // أو FieldValue.serverTimestamp() إذا كنت ستضبطه كـ Map
-        newGroup.setLastMessage("Group created")
-
-
-        // تحويل كائن Chat إلى Map ليتم حفظه
-        val groupDataMap: kotlin.collections.MutableMap<kotlin.String?, kotlin.Any?> =
-            java.util.HashMap<kotlin.String?, kotlin.Any?>()
-        groupDataMap.put("id", newGroup.getId())
-        groupDataMap.put("groupName", newGroup.getGroupName())
-        if (newGroup.getGroupDescription() != null) groupDataMap.put(
-            "groupDescription",
-            newGroup.getGroupDescription()
+        val newGroup = Chat(
+            id = groupDocRef.id,
+            groupName = name,
+            groupDescription = description.ifBlank { null },
+            groupImage = imageUrl,
+            creatorId = creatorId,
+            admins = mutableListOf(creatorId),
+            participants = members,
+            isGroup = true,
+            lastMessage = "Group created",
+            lastMessageTime = Date(),
+            createdAt = Date() // Will be replaced by server timestamp
         )
-        if (newGroup.getGroupImage() != null) groupDataMap.put(
-            "groupImage",
-            newGroup.getGroupImage()
-        )
-        groupDataMap.put("creatorId", newGroup.getCreatorId())
-        groupDataMap.put("admins", newGroup.getAdmins())
-        groupDataMap.put("participants", newGroup.getParticipants())
-        groupDataMap.put("isGroup", newGroup.isGroup())
-        groupDataMap.put("createdAt", FieldValue.serverTimestamp()) // استخدام الطابع الزمني للخادم
-        groupDataMap.put("lastMessage", newGroup.getLastMessage())
-        groupDataMap.put("lastMessageTime", FieldValue.serverTimestamp())
 
+        groupDocRef.set(newGroup.apply {
+            // Use FieldValue for server-side timestamps
+            // This requires sending a Map instead of the object directly
+        })
+            .addOnSuccessListener {
+                showLoading(false)
+                Toast.makeText(this, "Group '$name' created successfully!", Toast.LENGTH_SHORT).show()
+                openChatActivity(groupDocRef.id)
+            }
+            .addOnFailureListener { e ->
+                handleFailure("Failed to create group: ${e.message}")
+            }
+    }
 
-        groupDocRef.set(groupDataMap) // استخدام set مع Map
-            .addOnSuccessListener({ aVoid ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                Toast.makeText(
-                    this@CreateGroupActivity,
-                    "Group '" + groupName + "' created successfully!",
-                    Toast.LENGTH_SHORT
-                ).show()
-                val intent: Intent = Intent(this@CreateGroupActivity, ChatActivity::class.java)
-                intent.putExtra("chatId", groupDocRef.getId())
-                intent.putExtra("isGroup", true)
-                startActivity(intent)
-                finish()
-            })
-            .addOnFailureListener({ e ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                fabCreateGroup.setEnabled(true)
-                android.util.Log.e(CreateGroupActivity.Companion.TAG, "Error creating group", e)
-                Toast.makeText(
-                    this@CreateGroupActivity,
-                    "Failed to create group: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            })
+    private fun handleFailure(message: String) {
+        showLoading(false)
+        binding.fabCreateGroup.isEnabled = true
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        binding.pbCreateGroupLoading.visibility = if (isLoading) View.VISIBLE else View.GONE
+    }
+
+    private fun openChatActivity(chatId: String) {
+        val intent = Intent(this, ChatActivity::class.java).apply {
+            putExtra("chatId", chatId)
+            putExtra("isGroup", true)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        startActivity(intent)
+        finish()
     }
 
     companion object {

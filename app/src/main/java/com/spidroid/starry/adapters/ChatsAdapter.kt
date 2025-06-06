@@ -1,209 +1,121 @@
 package com.spidroid.starry.adapters
 
-// ★ تأكد من هذا الاستيراد
-// ★ تأكد من هذا الاستيراد
+import android.content.Context
+import android.text.format.DateUtils
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
-import com.google.firebase.auth.FirebaseAuth
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import com.spidroid.starry.R
+import com.spidroid.starry.databinding.ItemChatBinding
+import com.spidroid.starry.models.Chat
+import com.spidroid.starry.models.ChatMessage
 import de.hdodenhof.circleimageview.CircleImageView
 
-class ChatsAdapter(private val listener: ChatClickListener) :
-    ListAdapter<Chat, ChatViewHolder?>(ChatsAdapter.Companion.DIFF_CALLBACK) {
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val currentUserId: String? = null
+interface ChatClickListener {
+    fun onChatClick(chat: Chat)
+}
 
-    interface ChatClickListener {
-        fun onChatClick(chat: Chat?)
-    }
+class ChatsAdapter(
+    private val context: Context,
+    private val listener: ChatClickListener
+) : ListAdapter<Chat, ChatsAdapter.ChatViewHolder>(DIFF_CALLBACK) {
 
-    init {
-        // تأكد من أن المستخدم مسجل دخوله قبل محاولة الحصول على UID
-        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-            this.currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid()
-        } else {
-            // يمكنك معالجة هذه الحالة هنا، مثلاً، رمي استثناء أو تسجيل خطأ
-            // أو تعيين قيمة افتراضية إذا كان ذلك مناسبًا لسياق تطبيقك
-            this.currentUserId = "" // أو null، لكن تأكد من معالجة NullPointerException لاحقًا
-            Log.e("ChatsAdapter", "Current user is null, cannot get UID.")
-            // قد ترغب في منع إنشاء الـ adapter إذا لم يكن هناك مستخدم حالي
-        }
-    }
+    private val currentUserId: String? = Firebase.auth.currentUser?.uid
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
-        val view: View =
-            LayoutInflater.from(parent.getContext()).inflate(R.layout.item_chat, parent, false)
-        return ChatViewHolder(view)
+        val binding = ItemChatBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return ChatViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
-        val chat: Chat = getItem(position)
-        holder.bind(chat, listener)
+        val chat = getItem(position)
+        holder.bind(chat)
     }
 
-    internal inner class ChatViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val ivAvatar: CircleImageView
-        private val tvUserName: TextView
-        private val ivVerified: ImageView
-        private val tvLastMessage: TextView
-        private val tvTime: TextView
-        private val tvUnreadCount: TextView
-        private var currentChatId: String? =
-            null // لتتبع الدردشة الحالية التي يعرضها الـ ViewHolder
+    inner class ChatViewHolder(private val binding: ItemChatBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            ivAvatar = itemView.findViewById<CircleImageView>(R.id.ivAvatar)
-            tvUserName = itemView.findViewById<TextView>(R.id.tvUserName)
-            ivVerified = itemView.findViewById<ImageView>(R.id.ivVerified)
-            tvLastMessage = itemView.findViewById<TextView>(R.id.tvLastMessage)
-            tvTime = itemView.findViewById<TextView>(R.id.tvTime)
-            tvUnreadCount = itemView.findViewById<TextView>(R.id.tvUnreadCount)
-        }
+        fun bind(chat: Chat) {
+            binding.root.setOnClickListener { listener.onChatClick(chat) }
 
-        fun bind(chat: Chat, listener: ChatClickListener) {
-            currentChatId = chat.getId() // حفظ معرّف الدردشة الحالي
-            itemView.setOnClickListener(View.OnClickListener { v: View? -> listener.onChatClick(chat) })
+            // Bind Time
+            binding.tvTime.text = chat.lastMessageTime?.let {
+                DateUtils.formatDateTime(itemView.context, it.time, DateUtils.FORMAT_SHOW_TIME)
+            } ?: ""
 
-            // Handle time display
-            if (chat.getLastMessageTime() != null) {
-                tvTime.setText(
-                    DateUtils.formatDateTime(
-                        itemView.getContext(),
-                        chat.getLastMessageTime().getTime(),
-                        DateUtils.FORMAT_SHOW_TIME or DateUtils.FORMAT_ABBREV_TIME
-                    )
-                )
+            // Bind Last Message
+            binding.tvLastMessage.text = when (chat.lastMessageType) {
+                ChatMessage.TYPE_IMAGE -> context.getString(R.string.photo_message)
+                ChatMessage.TYPE_VIDEO -> context.getString(R.string.video_message)
+                else -> chat.lastMessage ?: ""
+            }
+
+            // Bind Unread Count
+            val unreadCount = chat.unreadCounts[currentUserId] ?: 0
+            if (unreadCount > 0) {
+                binding.tvUnreadCount.visibility = View.VISIBLE
+                binding.tvUnreadCount.text = unreadCount.toString()
             } else {
-                tvTime.setText("")
+                binding.tvUnreadCount.visibility = View.GONE
             }
 
-            // Bind common elements
-            bindUnreadCount(chat)
-            bindLastMessage(chat)
-
-            // Bind chat-specific elements
-            if (chat.isGroup()) {
-                bindGroupChat(chat)
+            // Bind Chat Info (Group vs Direct)
+            if (chat.isGroup) {
+                bindGroupInfo(chat)
             } else {
-                bindDirectChat(chat)
+                // This assumes the Chat object is now enriched with the other user's details
+                // This logic should be handled in the Fragment/ViewModel before submitting to the adapter
+                bindDirectChatInfo(chat)
             }
         }
 
-        private fun bindDirectChat(chat: Chat) {
-            for (participant in chat.getParticipants()) {
-                // تأكد من أن currentUserId ليس فارغًا قبل المقارنة
-                if (currentUserId != null && participant != currentUserId) {
-                    fetchUserInfo(participant)
-                    break
-                }
-            }
+        private fun bindGroupInfo(chat: Chat) {
+            binding.tvUserName.text = chat.groupName ?: "Group Chat"
+            binding.ivVerified.visibility = View.GONE
+            Glide.with(itemView.context)
+                .load(chat.groupImage)
+                .placeholder(R.drawable.ic_default_group)
+                .error(R.drawable.ic_default_group)
+                .into(binding.ivAvatar)
         }
 
-        private fun fetchUserInfo(userId: String?) {
-            db.collection("users")
-                .document(userId)
-                .get()
-                .addOnSuccessListener(
-                    { documentSnapshot ->
-                        if (documentSnapshot.exists()) {
-                            val user: UserModel? = documentSnapshot.toObject(UserModel::class.java)
-                            // تحقق من أن الـ ViewHolder لا يزال يعرض نفس الدردشة قبل تحديث الواجهة
-                            if (user != null && currentChatId != null && getItem(getAdapterPosition()) != null && currentChatId == getItem(
-                                    getAdapterPosition()
-                                ).getId()
-                            ) {
-                                updateUserInfo(user)
-                            }
-                        } else {
-                            Log.w("ChatsAdapter", "User document not found for ID: " + userId)
-                            // يمكنك هنا تعيين قيم افتراضية أو إخفاء العنصر إذا لم يتم العثور على المستخدم
-                            tvUserName.setText("Unknown User")
-                            ivAvatar.setImageResource(R.drawable.ic_default_avatar)
-                            ivVerified.setVisibility(View.GONE)
-                        }
-                    })
-                .addOnFailureListener({ e ->
-                    Log.e(
-                        "ChatsAdapter",
-                        "Error fetching user info for ID: " + userId,
-                        e
-                    )
-                })
-        }
-
-        private fun updateUserInfo(user: UserModel) {
-            tvUserName.setText(if (user.getDisplayName() != null) user.getDisplayName() else user.getUsername())
-            ivVerified.setVisibility(if (user.isVerified()) View.VISIBLE else View.GONE)
-            if (itemView.getContext() != null) { // تحقق من أن السياق متاح
-                Glide.with(itemView.getContext())
-                    .load(user.getProfileImageUrl())
-                    .placeholder(R.drawable.ic_default_avatar)
-                    .error(R.drawable.ic_default_avatar)
-                    .into(ivAvatar)
-            }
-        }
-
-        private fun bindLastMessage(chat: Chat) {
-            val message: String? = chat.getLastMessage()
-            val messageType: String? = chat.getLastMessageType()
-
-            if (message == null) {
-                tvLastMessage.setText(R.string.no_messages) // استخدم string resource
-                return
-            }
-
-            if (messageType != null) {
-                when (messageType) {
-                    ChatMessage.Companion.TYPE_IMAGE -> tvLastMessage.setText(R.string.photo_message) // استخدم string resource
-                    ChatMessage.Companion.TYPE_VIDEO -> tvLastMessage.setText(R.string.video_message) // استخدم string resource
-                    ChatMessage.Companion.TYPE_FILE -> tvLastMessage.setText(R.string.file_message) // استخدم string resource
-                    else -> tvLastMessage.setText(message)
-                }
-            } else {
-                tvLastMessage.setText(message)
-            }
-        }
-
-        private fun bindUnreadCount(chat: Chat) {
-            // تأكد من أن currentUserId ليس فارغًا
-            val unread =
-                if (chat.getUnreadCounts() != null && currentUserId != null) chat.getUnreadCounts()
-                    .getOrDefault(currentUserId, 0) else 0
-            if (unread > 0) {
-                tvUnreadCount.setVisibility(View.VISIBLE)
-                tvUnreadCount.setText(unread.toString())
-            } else {
-                tvUnreadCount.setVisibility(View.GONE)
-            }
-        }
-
-        private fun bindGroupChat(chat: Chat) {
-            tvUserName.setText(chat.getGroupName())
-            ivVerified.setVisibility(View.GONE) // المجموعات عادة لا تكون "موثقة" بنفس طريقة المستخدمين
-            if (itemView.getContext() != null) { // تحقق من أن السياق متاح
-                Glide.with(itemView.getContext())
-                    .load(chat.getGroupImage())
-                    .placeholder(R.drawable.ic_default_group) // أيقونة افتراضية للمجموعات
-                    .error(R.drawable.ic_default_group)
-                    .into(ivAvatar)
-            }
+        private fun bindDirectChatInfo(chat: Chat) {
+            // The Fragment/ViewModel should've figured out the other user and populated the Chat object
+            // For now, let's assume the chat object has a transient field for the other user's info
+            // If not, this logic needs to move out of the adapter.
+            // This is a placeholder logic.
+            binding.tvUserName.text = "Direct Chat" // Replace with other user's name
+            binding.ivVerified.visibility = View.GONE // Replace with other user's verification status
+            Glide.with(itemView.context)
+                .load(null as String?) // Replace with other user's avatar
+                .placeholder(R.drawable.ic_default_avatar)
+                .error(R.drawable.ic_default_avatar)
+                .into(binding.ivAvatar)
         }
     }
 
     companion object {
-        private val DIFF_CALLBACK: DiffUtil.ItemCallback<Chat?> =
-            object : DiffUtil.ItemCallback<Chat?>() {
-                override fun areItemsTheSame(oldItem: Chat, newItem: Chat): Boolean {
-                    return oldItem.getId() == newItem.getId()
-                }
-
-                override fun areContentsTheSame(oldItem: Chat, newItem: Chat): Boolean {
-                    // --- ★★ السطر الذي تم تعديله هنا ★★ ---
-                    // تأكد أن دالة getLastMessageTimestamp() موجودة في كلاس Chat وتُرجع long
-                    return oldItem.getLastMessageTimestamp() == newItem.getLastMessageTimestamp() && oldItem.getUnreadCounts() == newItem.getUnreadCounts()
-                            && oldItem.getLastMessage() == newItem.getLastMessage()
-                }
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<Chat>() {
+            override fun areItemsTheSame(oldItem: Chat, newItem: Chat): Boolean {
+                return oldItem.id == newItem.id
             }
+
+            override fun areContentsTheSame(oldItem: Chat, newItem: Chat): Boolean {
+                // Compare fields that affect the UI
+                return oldItem.lastMessage == newItem.lastMessage &&
+                        oldItem.lastMessageTime == newItem.lastMessageTime &&
+                        oldItem.unreadCounts == newItem.unreadCounts &&
+                        oldItem.groupName == newItem.groupName && // for groups
+                        oldItem.groupImage == newItem.groupImage // for groups
+            }
+        }
     }
 }

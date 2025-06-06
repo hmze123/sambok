@@ -1,206 +1,190 @@
 package com.spidroid.starry.activities
 
+import android.app.Activity
+import android.content.DialogInterface
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
+import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
+import com.spidroid.starry.R
+import com.spidroid.starry.databinding.ActivityEditProfileBinding
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
+import java.util.Locale
 
 class EditProfileActivity : AppCompatActivity() {
-    private var binding: com.spidroid.starry.databinding.ActivityEditProfileBinding? = null
-    private var db: FirebaseFirestore? = null
-    private var auth: FirebaseAuth? = null
-    private var storage: FirebaseStorage? = null
+
+    private lateinit var binding: ActivityEditProfileBinding
+    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
+
     private var originalUser: UserModel? = null
-    private var profileImageUri: android.net.Uri? = null
-    private var coverImageUri: android.net.Uri? = null
+    private var profileImageUri: Uri? = null
+    private var coverImageUri: Uri? = null
     private var hasChanges = false
+
+    private lateinit var pickProfileImageLauncher: ActivityResultLauncher<String>
+    private lateinit var pickCoverImageLauncher: ActivityResultLauncher<String>
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding =
-            com.spidroid.starry.databinding.ActivityEditProfileBinding.inflate(getLayoutInflater())
-        setContentView(binding!!.getRoot())
+        binding = ActivityEditProfileBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        // Initialize Firebase
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
-        storage = FirebaseStorage.getInstance()
+        if (auth.currentUser == null) {
+            Toast.makeText(this, "Authentication required.", Toast.LENGTH_SHORT).show()
+            finish()
+            return
+        }
 
+        initializeLaunchers()
         setupUI()
         loadUserData()
-        setupTextWatchers()
     }
 
+    private fun initializeLaunchers() {
+        pickProfileImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                profileImageUri = it
+                binding.ivProfile.setImageURI(it)
+                hasChanges = true
+            }
+        }
+        pickCoverImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            uri?.let {
+                coverImageUri = it
+                binding.ivCover.setImageURI(it)
+                hasChanges = true
+            }
+        }
+    }
+
+
     private fun setupUI() {
-        binding!!.btnBack.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> onBackPressed() })
-        binding!!.btnSave.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> saveProfile() })
-        binding!!.btnAddSocial.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> showAddSocialDialog() })
-        binding!!.btnChangePhoto.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
-            openImagePicker(
-                "profile"
-            )
-        })
-        binding!!.btnChangeCover.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
-            openImagePicker(
-                "cover"
-            )
-        })
+        binding.btnBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
+        binding.btnSave.setOnClickListener { saveProfile() }
+        binding.btnAddSocial.setOnClickListener { showAddSocialDialog() }
+        binding.btnChangePhoto.setOnClickListener { pickProfileImageLauncher.launch("image/*") }
+        binding.btnChangeCover.setOnClickListener { pickCoverImageLauncher.launch("image/*") }
     }
 
     private fun loadUserData() {
-        db.collection("users")
-            .document(auth.getCurrentUser().getUid())
-            .get()
-            .addOnSuccessListener(
-                { documentSnapshot ->
-                    originalUser = documentSnapshot.toObject(UserModel::class.java)
-                    if (originalUser != null) {
-                        populateFields(originalUser)
+        binding.progressBar.visibility = View.VISIBLE
+        auth.currentUser?.uid?.let { userId ->
+            db.collection("users").document(userId).get()
+                .addOnSuccessListener { document ->
+                    if (document.exists()) {
+                        originalUser = document.toObject(UserModel::class.java)
+                        originalUser?.let { populateFields(it) }
+                    } else {
+                        Toast.makeText(this, "User profile not found.", Toast.LENGTH_SHORT).show()
                     }
-                })
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "Failed to load profile: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+                .addOnCompleteListener {
+                    binding.progressBar.visibility = View.GONE
+                }
+        }
     }
 
     private fun populateFields(user: UserModel) {
-        // Profile Image
-        Glide.with(this)
-            .load(user.getProfileImageUrl())
-            .placeholder(R.drawable.ic_default_avatar)
-            .into(binding!!.ivProfile)
+        Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivProfile)
+        Glide.with(this).load(user.coverImageUrl).placeholder(R.drawable.ic_cover_placeholder).into(binding.ivCover)
 
-        // Cover Image
-        Glide.with(this)
-            .load(user.getCoverImageUrl())
-            .placeholder(R.drawable.ic_cover_placeholder)
-            .into(binding!!.ivCover)
+        binding.etDisplayName.setText(user.displayName)
+        binding.etUsername.setText(user.username)
+        binding.etBio.setText(user.bio)
 
-        // Text Fields
-        binding!!.etDisplayName.setText(user.getDisplayName())
-        binding!!.etUsername.setText(user.getUsername())
-        binding!!.etBio.setText(user.getBio())
+        binding.switchPrivate.isChecked = user.privacySettings.privateAccount
+        binding.switchActivity.isChecked = user.privacySettings.showActivityStatus
 
-        // Privacy Settings
-        binding!!.switchPrivate.setChecked(user.getPrivacySettings().isPrivateAccount())
-        binding!!.switchActivity.setChecked(user.getPrivacySettings().isShowActivityStatus())
-
-        // Social Links
-        updateSocialLinksUI(user.getSocialLinks())
+        updateSocialLinksUI(user.socialLinks)
+        setupTextWatchers() // Setup watchers after populating fields
     }
 
-    private fun updateSocialLinksUI(socialLinks: kotlin.collections.MutableMap<kotlin.String?, kotlin.String?>) {
-        binding!!.layoutSocialLinks.removeAllViews()
-        for (entry in socialLinks.entries) {
-            addSocialLinkView(entry.key!!, entry.value)
+    private fun updateSocialLinksUI(socialLinks: Map<String, String>) {
+        binding.layoutSocialLinks.removeAllViews()
+        socialLinks.forEach { (platform, url) ->
+            addSocialLinkView(platform, url)
         }
     }
 
-    private fun addSocialLinkView(platform: kotlin.String, url: kotlin.String?) {
-        val linkView: android.view.View =
-            LayoutInflater.from(this).inflate(R.layout.item_social_link, null)
-        linkView.setTag(platform)
+    private fun addSocialLinkView(platform: String, url: String) {
+        val linkView = LayoutInflater.from(this).inflate(R.layout.item_social_link, binding.layoutSocialLinks, false)
+        linkView.tag = platform
 
-        val icon = linkView.findViewById<android.widget.ImageView>(R.id.ivPlatform)
-        val etUrl: EditText = linkView.findViewById<EditText>(R.id.etUrl)
-        val btnRemove: ImageButton = linkView.findViewById<ImageButton>(R.id.btnRemove)
+        val icon = linkView.findViewById<ImageView>(R.id.ivPlatform)
+        val etUrl = linkView.findViewById<EditText>(R.id.etUrl)
+        val btnRemove = linkView.findViewById<ImageButton>(R.id.btnRemove)
 
         icon.setImageResource(getPlatformIcon(platform))
         etUrl.setText(url)
+        etUrl.addTextChangedListener(textWatcher)
 
-        btnRemove.setOnClickListener(
-            android.view.View.OnClickListener { v: android.view.View? ->
-                binding!!.layoutSocialLinks.removeView(linkView)
-                hasChanges = true
-            })
-
-        etUrl.addTextChangedListener(
-            object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    hasChanges = true
-                }
-
-                override fun beforeTextChanged(
-                    s: kotlin.CharSequence?, start: Int, count: Int, after: Int
-                ) {
-                }
-
-                override fun onTextChanged(
-                    s: kotlin.CharSequence?,
-                    start: Int,
-                    before: Int,
-                    count: Int
-                ) {
-                }
-            })
-
-        binding!!.layoutSocialLinks.addView(linkView)
-    }
-
-    private fun getPlatformIcon(platform: kotlin.String): Int {
-        when (platform.lowercase(java.util.Locale.getDefault())) {
-            else -> return R.drawable.ic_link
-        }
-    }
-
-    private fun showAddSocialDialog() {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Add Social Link")
-            .setItems(
-                kotlin.arrayOf<kotlin.String>("Twitter", "Instagram", "Facebook", "LinkedIn"),
-                DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int ->
-                    var platform = ""
-                    when (which) {
-                        0 -> platform = "twitter"
-                        1 -> platform = "instagram"
-                        2 -> platform = "facebook"
-                        3 -> platform = "linkedin"
-                    }
-                    addSocialLinkView(platform, "")
-                    hasChanges = true
-                })
-            .show()
-    }
-
-    private fun openImagePicker(type: kotlin.String) {
-        val intent: Intent = Intent(Intent.ACTION_GET_CONTENT)
-        intent.setType("image/*")
-        startActivityForResult(intent, if (type == "profile") 100 else 101)
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == Activity.RESULT_OK && data != null) {
-            val uri: android.net.Uri? = data.getData()
-            if (requestCode == 100) {
-                binding!!.ivProfile.setImageURI(uri)
-                profileImageUri = uri
-            } else if (requestCode == 101) {
-                binding!!.ivCover.setImageURI(uri)
-                coverImageUri = uri
-            }
+        btnRemove.setOnClickListener {
+            binding.layoutSocialLinks.removeView(linkView)
             hasChanges = true
         }
+
+        binding.layoutSocialLinks.addView(linkView)
+    }
+
+    private fun getPlatformIcon(platform: String): Int {
+        return when (platform.lowercase(Locale.getDefault())) {
+            UserModel.SOCIAL_TWITTER -> R.drawable.ic_share // Replace with a proper Twitter icon
+            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_add_photo // Replace with a proper Instagram icon
+            else -> R.drawable.ic_link
+        }
+    }
+
+    private val textWatcher = object: TextWatcher {
+        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+            hasChanges = true
+        }
+        override fun afterTextChanged(s: Editable?) {}
     }
 
     private fun setupTextWatchers() {
-        val watcher: TextWatcher =
-            object : TextWatcher {
-                override fun afterTextChanged(s: Editable?) {
-                    hasChanges = true
-                }
+        binding.etDisplayName.addTextChangedListener(textWatcher)
+        binding.etUsername.addTextChangedListener(textWatcher)
+        binding.etBio.addTextChangedListener(textWatcher)
+    }
 
-                override fun beforeTextChanged(
-                    s: kotlin.CharSequence?, start: Int, count: Int, after: Int
-                ) {
-                }
-
-                override fun onTextChanged(
-                    s: kotlin.CharSequence?,
-                    start: Int,
-                    before: Int,
-                    count: Int
-                ) {
-                }
+    private fun showAddSocialDialog() {
+        val platforms = arrayOf("Twitter", "Instagram", "Facebook", "LinkedIn")
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Add Social Link")
+            .setItems(platforms) { _, which ->
+                val platform = platforms[which].lowercase(Locale.getDefault())
+                addSocialLinkView(platform, "")
+                hasChanges = true
             }
-
-        binding!!.etDisplayName.addTextChangedListener(watcher)
-        binding!!.etUsername.addTextChangedListener(watcher)
-        binding!!.etBio.addTextChangedListener(watcher)
+            .show()
     }
 
     override fun onBackPressed() {
@@ -215,9 +199,7 @@ class EditProfileActivity : AppCompatActivity() {
         MaterialAlertDialogBuilder(this)
             .setTitle("Discard Changes?")
             .setMessage("You have unsaved changes. Are you sure you want to discard them?")
-            .setPositiveButton(
-                "Discard",
-                DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int -> finish() })
+            .setPositiveButton("Discard") { _, _ -> finish() }
             .setNegativeButton("Cancel", null)
             .show()
     }
@@ -225,184 +207,109 @@ class EditProfileActivity : AppCompatActivity() {
     private fun saveProfile() {
         if (!validateInputs()) return
 
-        binding!!.progressBar.setVisibility(android.view.View.VISIBLE)
+        binding.progressBar.visibility = View.VISIBLE
+        binding.btnSave.isEnabled = false
 
-        // Upload images first if changed
-        val uploadTasks: kotlin.collections.MutableList<com.google.android.gms.tasks.Task<android.net.Uri?>?> =
-            java.util.ArrayList<com.google.android.gms.tasks.Task<android.net.Uri?>?>()
-        if (profileImageUri != null) {
-            uploadTasks.add(uploadImage(profileImageUri, "profile"))
+        val profileImageTask = profileImageUri?.let { uploadImage(it, "profile") }
+        val coverImageTask = coverImageUri?.let { uploadImage(it, "cover") }
+
+        val allTasks = listOfNotNull(profileImageTask, coverImageTask)
+
+        Tasks.whenAllSuccess<Uri>(allTasks).addOnSuccessListener { uris ->
+            val profileUrl = if (profileImageTask != null) uris.firstOrNull()?.toString() else null
+            val coverUrl = if (coverImageTask != null) uris.getOrNull(if(profileImageTask != null) 1 else 0)?.toString() else null
+
+            updateFirestore(profileUrl, coverUrl)
+        }.addOnFailureListener { e ->
+            binding.progressBar.visibility = View.GONE
+            binding.btnSave.isEnabled = true
+            Toast.makeText(this, "Image upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
         }
-        if (coverImageUri != null) {
-            uploadTasks.add(uploadImage(coverImageUri, "cover"))
+
+        // If no new images to upload
+        if (allTasks.isEmpty()){
+            updateFirestore(null, null)
         }
-
-        // Proceed after all uploads succeed
-        Tasks.whenAllSuccess<kotlin.Any?>(uploadTasks)
-            .addOnSuccessListener(
-                OnSuccessListener { urls: kotlin.collections.MutableList<kotlin.Any?>? ->
-                    var profileImageUrl: kotlin.String? = null
-                    var coverImageUrl: kotlin.String? = null
-                    var index = 0
-
-                    // Extract URLs based on upload order
-                    if (profileImageUri != null && !urls!!.isEmpty()) {
-                        profileImageUrl = (urls.get(index) as android.net.Uri).toString()
-                        index++
-                    }
-                    if (coverImageUri != null && !urls!!.isEmpty() && index < urls.size) {
-                        coverImageUrl = (urls.get(index) as android.net.Uri).toString()
-                    }
-
-                    // Update originalUser with new image URLs
-                    if (profileImageUrl != null) {
-                        originalUser.setProfileImageUrl(profileImageUrl)
-                    }
-                    if (coverImageUrl != null) {
-                        originalUser.setCoverImageUrl(coverImageUrl)
-                    }
-
-                    // Update other fields from UI
-                    updateOriginalUserFields()
-                    updateUserPosts(originalUser)
-
-                    // Save changes to Firestore with merge to avoid overwriting
-                    db.collection("users")
-                        .document(originalUser.getUserId())
-                        .set(originalUser, SetOptions.merge())
-                        .addOnSuccessListener(
-                            { aVoid ->
-                                Toast.makeText(
-                                    this,
-                                    "Profile updated",
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                                finish()
-                            })
-                        .addOnFailureListener(
-                            { e ->
-                                binding!!.progressBar.setVisibility(android.view.View.GONE)
-                                Toast.makeText(
-                                    this,
-                                    "Update failed: " + e.getMessage(),
-                                    Toast.LENGTH_SHORT
-                                )
-                                    .show()
-                            })
-                })
-            .addOnFailureListener(
-                OnFailureListener { e: java.lang.Exception? ->
-                    binding!!.progressBar.setVisibility(android.view.View.GONE)
-                    Toast.makeText(
-                        this,
-                        "Image upload failed: " + e!!.message,
-                        Toast.LENGTH_SHORT
-                    )
-                        .show()
-                })
     }
 
-    private fun updateOriginalUserFields() {
-        // Update username, display name, and bio
-        originalUser.setUsername(binding!!.etUsername.getText().toString().trim { it <= ' ' })
-        originalUser.setDisplayName(binding!!.etDisplayName.getText().toString().trim { it <= ' ' })
-        originalUser.setBio(binding!!.etBio.getText().toString().trim { it <= ' ' })
+    private fun uploadImage(uri: Uri, type: String): Task<Uri> {
+        val userId = auth.currentUser?.uid ?: throw IllegalStateException("User not logged in")
+        val ref: StorageReference = storage.reference.child("${type}_images/$userId/${System.currentTimeMillis()}.jpg")
+        return ref.putFile(uri).continueWithTask { task ->
+            if (!task.isSuccessful) {
+                task.exception?.let { throw it }
+            }
+            ref.downloadUrl
+        }
+    }
 
-        // Update social links
-        val socialLinks: kotlin.collections.MutableMap<kotlin.String?, kotlin.String?> =
-            java.util.HashMap<kotlin.String?, kotlin.String?>()
-        for (i in 0..<binding!!.layoutSocialLinks.getChildCount()) {
-            val view = binding!!.layoutSocialLinks.getChildAt(i)
-            val etUrl: EditText = view.findViewById<EditText>(R.id.etUrl)
-            val platform =
-                view.getTag() as kotlin.String? // Ensure platform is set as view tag when adding
-            val url = etUrl.getText().toString().trim { it <= ' ' }
-            if (!url.isEmpty()) {
-                socialLinks.put(platform, url)
+    private fun updateFirestore(newProfileUrl: String?, newCoverUrl: String?) {
+        val user = originalUser ?: return
+        val userId = user.userId ?: return
+
+        user.displayName = binding.etDisplayName.text.toString().trim()
+        user.username = binding.etUsername.text.toString().trim()
+        user.bio = binding.etBio.text.toString().trim()
+
+        user.privacySettings.privateAccount = binding.switchPrivate.isChecked
+        user.privacySettings.showActivityStatus = binding.switchActivity.isChecked
+
+        if (newProfileUrl != null) user.profileImageUrl = newProfileUrl
+        if (newCoverUrl != null) user.coverImageUrl = newCoverUrl
+
+        val socialLinks = mutableMapOf<String, String>()
+        for (i in 0 until binding.layoutSocialLinks.childCount) {
+            val view = binding.layoutSocialLinks.getChildAt(i)
+            val etUrl = view.findViewById<EditText>(R.id.etUrl)
+            val platform = view.tag as? String
+            val url = etUrl.text.toString().trim()
+            if (platform != null && url.isNotEmpty()) {
+                socialLinks[platform] = url
             }
         }
-        originalUser.setSocialLinks(socialLinks)
+        user.socialLinks = socialLinks
 
-        // Update privacy settings
-        val privacySettings: PrivacySettings = originalUser.getPrivacySettings()
-        privacySettings.setPrivateAccount(binding!!.switchPrivate.isChecked())
-        privacySettings.setShowActivityStatus(binding!!.switchActivity.isChecked())
-        originalUser.setPrivacySettings(privacySettings)
-    }
-
-    private fun uploadImage(
-        uri: android.net.Uri?,
-        type: kotlin.String?
-    ): com.google.android.gms.tasks.Task<android.net.Uri?> {
-        val ref: StorageReference =
-            storage.getReference()
-                .child(type + "_images")
-                .child(auth.getCurrentUser().getUid())
-                .child(java.lang.System.currentTimeMillis().toString() + ".jpg")
-
-        return ref.putFile(uri).continueWithTask({ task -> ref.getDownloadUrl() })
-    }
-
-    private fun createUpdatedUser(): UserModel {
-        val user: UserModel =
-            UserModel(
-                auth.getCurrentUser().getUid(),
-                binding!!.etUsername.getText().toString(),
-                originalUser.getEmail()
-            )
-
-        // Basic info
-        user.setDisplayName(binding!!.etDisplayName.getText().toString())
-        user.setBio(binding!!.etBio.getText().toString())
-
-        // Social links
-        val socialLinks: kotlin.collections.MutableMap<kotlin.String?, kotlin.String?> =
-            java.util.HashMap<kotlin.String?, kotlin.String?>()
-        for (i in 0..<binding!!.layoutSocialLinks.getChildCount()) {
-            val view = binding!!.layoutSocialLinks.getChildAt(i)
-            val etUrl: EditText = view.findViewById<EditText>(R.id.etUrl)
-            val platform = view.getTag() as kotlin.String?
-            if (!etUrl.getText().toString().isEmpty()) {
-                socialLinks.put(platform, etUrl.getText().toString())
+        db.collection("users").document(userId).set(user, SetOptions.merge())
+            .addOnSuccessListener {
+                Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show()
+                updateUserPosts(user) // Update posts after profile is saved
+                finish()
             }
-        }
-        user.setSocialLinks(socialLinks)
-
-        // Privacy settings
-        val privacy: PrivacySettings = originalUser.getPrivacySettings()
-        privacy.setPrivateAccount(binding!!.switchPrivate.isChecked())
-        privacy.setShowActivityStatus(binding!!.switchActivity.isChecked())
-        user.setPrivacySettings(privacy)
-
-        return user
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+            .addOnCompleteListener {
+                binding.progressBar.visibility = View.GONE
+                binding.btnSave.isEnabled = true
+            }
     }
 
-    private fun validateInputs(): kotlin.Boolean {
-        val username = binding!!.etUsername.getText().toString().trim { it <= ' ' }
-        if (username.isEmpty() || username.length < 4) {
-            binding!!.etUsername.setError("Invalid username")
+    private fun validateInputs(): Boolean {
+        val username = binding.etUsername.text.toString().trim()
+        if (username.length < 4) {
+            binding.etUsername.error = "Username must be at least 4 characters"
             return false
         }
-        // Add more validation as needed
         return true
     }
 
     private fun updateUserPosts(updatedUser: UserModel) {
-        db.collection("posts")
-            .whereEqualTo("authorId", updatedUser.getUserId())
-            .get()
-            .addOnSuccessListener(
-                { queryDocumentSnapshots ->
-                    for (document in queryDocumentSnapshots.getDocuments()) {
-                        val updates: kotlin.collections.MutableMap<kotlin.String?, kotlin.Any?> =
-                            java.util.HashMap<kotlin.String?, kotlin.Any?>()
-                        updates.put("authorUsername", updatedUser.getUsername())
-                        updates.put("authorDisplayName", updatedUser.getDisplayName())
-                        updates.put("authorAvatarUrl", updatedUser.getProfileImageUrl())
+        val updates = mapOf(
+            "authorUsername" to updatedUser.username,
+            "authorDisplayName" to updatedUser.displayName,
+            "authorAvatarUrl" to updatedUser.profileImageUrl
+        )
 
-                        document.getReference().update(updates)
-                    }
-                })
+        db.collection("posts").whereEqualTo("authorId", updatedUser.userId)
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                val batch = db.batch()
+                for (document in querySnapshot.documents) {
+                    batch.update(document.reference, updates)
+                }
+                batch.commit().addOnFailureListener { e->
+                    Log.e(TAG, "Failed to update user's posts.", e)
+                }
+            }
     }
 }

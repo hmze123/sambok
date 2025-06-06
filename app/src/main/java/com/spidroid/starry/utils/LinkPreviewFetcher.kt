@@ -1,70 +1,62 @@
 package com.spidroid.starry.utils
 
-import android.os.AsyncTask
-import com.spidroid.starry.models.PostModel.LinkPreview
+import com.spidroid.starry.models.PostModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import java.io.IOException
 
 object LinkPreviewFetcher {
-    fun fetch(url: String, callback: LinkPreviewCallback) {
-        object : AsyncTask<Void?, Void?, LinkPreview?>() {
-            override fun doInBackground(vararg voids: Void?): LinkPreview? {
-                try {
-                    val doc = Jsoup.connect(url)
-                        .userAgent("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
-                        .timeout(10000)
-                        .get()
 
-                    val preview = LinkPreview()
-                    preview.setUrl(url)
+    // الدالة الآن هي suspend function وتعمل مع Coroutines
+    // وتُرجع كائن Result الذي يحتوي إما على النجاح أو الفشل
+    suspend fun fetch(url: String): Result<PostModel.LinkPreview> {
+        // التبديل إلى IO dispatcher المناسب لعمليات الشبكة
+        return withContext(Dispatchers.IO) {
+            try {
+                // الاتصال بالرابط باستخدام Jsoup مع تحديد user agent و timeout
+                val doc = Jsoup.connect(url)
+                    .userAgent("Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)")
+                    .timeout(10000)
+                    .get()
 
-                    // Try Open Graph tags first
-                    var title = getMetaTag(doc, "og:title")
-                    if (title == null) title = doc.title()
+                // إنشاء كائن LinkPreview للاحتفاظ بالبيانات
+                val preview = PostModel.LinkPreview()
+                preview.url = url
 
-                    var description = getMetaTag(doc, "og:description")
-                    if (description == null) description = getMetaTag(doc, "description")
+                // محاولة الحصول على وسوم Open Graph (og) أولاً لأنها أكثر موثوقية
+                val title = getMetaTag(doc, "og:title") ?: doc.title()
+                val description = getMetaTag(doc, "og:description") ?: getMetaTag(doc, "description")
+                val imageUrl = getMetaTag(doc, "og:image") ?: doc.select("img").first()?.absUrl("src")
+                val siteName = getMetaTag(doc, "og:site_name")
 
-                    var imageUrl = getMetaTag(doc, "og:image")
-                    if (imageUrl == null) {
-                        val img = doc.select("img").first()
-                        if (img != null) imageUrl = img.absUrl("src")
-                    }
+                preview.title = title
+                preview.description = description
+                preview.imageUrl = imageUrl
+                preview.siteName = siteName
 
-                    val siteName = getMetaTag(doc, "og:site_name")
-
-                    preview.setTitle(title)
-                    preview.setDescription(description)
-                    preview.setImageUrl(imageUrl)
-                    preview.setSiteName(siteName)
-
-                    return preview
-                } catch (e: IOException) {
-                    return null
-                }
-            }
-
-            fun getMetaTag(doc: Document, property: String?): String? {
-                val meta = doc.select("meta[property~=" + property + "]")
-                if (!meta.isEmpty()) {
-                    return meta.first()!!.attr("content")
-                }
-                return null
-            }
-
-            override fun onPostExecute(preview: LinkPreview?) {
-                if (preview != null) {
-                    callback.onPreviewReceived(preview)
+                // إذا لم يتم العثور على عنوان، اعتبر العملية فاشلة
+                if (title.isNullOrBlank()) {
+                    Result.failure(Exception("Could not find a title for the link."))
                 } else {
-                    callback.onError("Failed to fetch link preview")
+                    Result.success(preview)
                 }
+
+            } catch (e: IOException) {
+                // معالجة أخطاء الشبكة أو التحليل
+                Result.failure(e)
+            } catch (e: Exception) {
+                // معالجة أي أخطاء أخرى محتملة
+                Result.failure(e)
             }
-        }.execute()
+        }
     }
 
-    interface LinkPreviewCallback {
-        fun onPreviewReceived(preview: LinkPreview?)
-        fun onError(error: String?)
+    // دالة مساعدة لاستخراج المحتوى من وسم meta
+    private fun getMetaTag(doc: Document, attr: String): String? {
+        // تبحث عن وسوم meta التي تحتوي على "name" أو "property" مطابق للمفتاح
+        val elements = doc.select("meta[name=$attr], meta[property=$attr]")
+        return elements.first()?.attr("content")?.takeIf { it.isNotEmpty() }
     }
 }

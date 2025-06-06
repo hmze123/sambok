@@ -8,98 +8,73 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Patterns
 import android.view.View
-import android.widget.TextView
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.R
 import com.spidroid.starry.activities.MainActivity
+import com.spidroid.starry.databinding.ActivityLoginBinding
 
 class LoginActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var emailLayout: TextInputLayout
-    private lateinit var passwordLayout: TextInputLayout
-    private lateinit var emailInput: TextInputEditText
-    private lateinit var passwordInput: TextInputEditText
-    private lateinit var progressContainer: CardView
-    private lateinit var progressBar: CircularProgressBar
-    private lateinit var loginButton: MaterialButton
+    private val auth: FirebaseAuth by lazy { Firebase.auth }
+    private lateinit var binding: ActivityLoginBinding
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var forgotPasswordPrompt: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_login)
 
-        auth = FirebaseAuth.getInstance()
-        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
-
-        // إذا كان المستخدم قد سجل دخوله بالفعل، انتقل إلى الشاشة الرئيسية
+        // Redirect if user is already logged in
         if (auth.currentUser != null) {
             startMainActivity()
             return
         }
 
-        initializeViews()
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+
         setupListeners()
         loadSavedEmail()
     }
 
-    private fun initializeViews() {
-        progressContainer = findViewById(R.id.progressContainer)
-        progressBar = findViewById(R.id.progressBar)
-        emailLayout = findViewById(R.id.emailLayout)
-        passwordLayout = findViewById(R.id.passwordLayout)
-        emailInput = findViewById(R.id.emailInput)
-        passwordInput = findViewById(R.id.passwordInput)
-        loginButton = findViewById(R.id.loginButton)
-        val signUpPrompt: TextView = findViewById(R.id.signUpPrompt)
-        forgotPasswordPrompt = findViewById(R.id.forgotPasswordPrompt)
-
-        loginButton.setOnClickListener { attemptLogin() }
-        signUpPrompt.setOnClickListener { startSignUp() }
-        forgotPasswordPrompt.setOnClickListener { showForgotPasswordDialog() }
-    }
-
     private fun setupListeners() {
-        emailInput.addTextChangedListener(ClearErrorTextWatcher(emailLayout))
-        passwordInput.addTextChangedListener(ClearErrorTextWatcher(passwordLayout))
+        binding.loginButton.setOnClickListener { attemptLogin() }
+        binding.signUpPrompt.setOnClickListener { startSignUp() }
+        binding.forgotPasswordPrompt.setOnClickListener { showForgotPasswordDialog() }
+
+        binding.emailInput.addTextChangedListener(ClearErrorTextWatcher(binding.emailLayout))
+        binding.passwordInput.addTextChangedListener(ClearErrorTextWatcher(binding.passwordLayout))
     }
 
     private fun loadSavedEmail() {
-        val savedEmail = sharedPreferences.getString("user_email", "")
+        val savedEmail = sharedPreferences.getString("user_email", null)
         if (!savedEmail.isNullOrEmpty()) {
-            emailInput.setText(savedEmail)
-            emailInput.setSelection(savedEmail.length) // لنقل المؤشر إلى نهاية النص
+            binding.emailInput.setText(savedEmail)
         }
     }
 
     private fun attemptLogin() {
-        loginButton.isEnabled = false
-        val email = emailInput.text.toString().trim()
-        val password = passwordInput.text.toString().trim()
+        val email = binding.emailInput.text.toString().trim()
+        val password = binding.passwordInput.text.toString().trim()
 
-        if (!validateLoginForm(email, password)) {
-            loginButton.isEnabled = true
-            return
-        }
+        if (!validateLoginForm(email, password)) return
 
         showProgress(true)
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener(this) { task ->
                 showProgress(false)
-                loginButton.isEnabled = true
-
                 if (task.isSuccessful) {
-                    // استخدام KTX لجعل الكود أكثر نظافة
                     sharedPreferences.edit { putString("user_email", email) }
                     startMainActivity()
                 } else {
@@ -109,21 +84,17 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun validateLoginForm(email: String, password: String): Boolean {
+        binding.emailLayout.error = null
+        binding.passwordLayout.error = null
         var isValid = true
 
-        if (email.isBlank()) {
-            emailLayout.error = "Email is required"
-            isValid = false
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailLayout.error = "Valid email required"
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            binding.emailLayout.error = "Please enter a valid email"
             isValid = false
         }
 
-        if (password.isBlank()) {
-            passwordLayout.error = "Password is required"
-            isValid = false
-        } else if (password.length < 6) {
-            passwordLayout.error = "Minimum 6 characters"
+        if (password.length < 6) {
+            binding.passwordLayout.error = "Password must be at least 6 characters"
             isValid = false
         }
 
@@ -131,28 +102,33 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun handleLoginError(exception: Exception?) {
-        val error = exception?.message ?: "Authentication failed"
-        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+        val error = exception?.message ?: "Authentication failed. Please check your credentials."
+        Toast.makeText(this, error, Toast.LENGTH_LONG).show()
     }
 
     private fun showForgotPasswordDialog() {
         val resetEmailInput = TextInputEditText(this).apply {
-            hint = "Email"
+            hint = "Email Address"
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            setText(emailInput.text.toString()) // ملء الحقل تلقائيًا
+            setText(binding.emailInput.text.toString())
         }
 
-        // استخدام MaterialAlertDialogBuilder لمظهر متناسق
+        val container = FrameLayout(this).apply {
+            val padding = (20 * resources.displayMetrics.density).toInt()
+            setPadding(padding, padding, padding, 0)
+            addView(resetEmailInput)
+        }
+
         MaterialAlertDialogBuilder(this)
             .setTitle("Reset Password")
             .setMessage("Enter your email to receive a password reset link.")
-            .setView(resetEmailInput, 20, 20, 20, 20) // إضافة هوامش
-            .setPositiveButton("Send Reset Link") { _, _ ->
+            .setView(container)
+            .setPositiveButton("Send Link") { _, _ ->
                 val email = resetEmailInput.text.toString().trim()
-                if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    Toast.makeText(this, "Please enter a valid email address.", Toast.LENGTH_SHORT).show()
-                } else {
+                if (Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
                     sendPasswordResetEmail(email)
+                } else {
+                    Toast.makeText(this, "Please enter a valid email address.", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -174,8 +150,11 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun startMainActivity() {
-        startActivity(Intent(this, MainActivity::class.java))
-        finish() // إنهاء شاشة تسجيل الدخول لمنع العودة إليها
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        startActivity(intent)
+        finish()
     }
 
     private fun startSignUp() {
@@ -183,27 +162,15 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showProgress(show: Boolean) {
-        progressContainer.visibility = if (show) View.VISIBLE else View.GONE
-        if (show) {
-            ValueAnimator.ofFloat(0f, 100f).apply {
-                duration = 2000
-                addUpdateListener { animation ->
-                    progressBar.setProgress(animation.animatedValue as Float)
-                }
-                start()
-            }
-        } else {
-            progressBar.setProgress(0f)
-        }
+        binding.progressContainer.visibility = if (show) View.VISIBLE else View.GONE
+        binding.loginButton.isEnabled = !show
     }
 
-    // يمكن تبسيط TextWatcher باستخدام دوال KTX، ولكن للحفاظ على نفس الهيكل،
-    // سنقوم بتحويل الكلاس الداخلي إلى Kotlin.
     private class ClearErrorTextWatcher(private val layout: TextInputLayout) : TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-        override fun afterTextChanged(s: Editable?) {
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
             layout.error = null
         }
+        override fun afterTextChanged(s: Editable?) {}
     }
 }

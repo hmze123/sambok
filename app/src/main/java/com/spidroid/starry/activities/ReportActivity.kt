@@ -1,135 +1,123 @@
 package com.spidroid.starry.activities
 
-// تأكد من أن هذا الاستيراد صحيح
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.text.TextUtils
+import android.util.Log
+import android.view.View
+import android.widget.RadioButton
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
+import com.spidroid.starry.R
+import com.spidroid.starry.databinding.ActivityReportBinding
+import java.util.Locale
 
 class ReportActivity : AppCompatActivity() {
-    private var db: FirebaseFirestore? = null
-    private var auth: FirebaseAuth? = null
+
+    private lateinit var binding: ActivityReportBinding
+    private val db: FirebaseFirestore by lazy { Firebase.firestore }
+    private val auth: FirebaseAuth by lazy { Firebase.auth }
     private var currentUser: FirebaseUser? = null
 
-    private var tvReportingItemInfo: TextView? = null
-    private var rgReportReasons: RadioGroup? = null
-    private var etReportDetails: EditText? = null
-    private var btnSubmitReport: android.widget.Button? = null
-    private var pbLoading: ProgressBar? = null
-
-    private var reportedItemId: kotlin.String? = null
-    private var reportType: kotlin.String? = null
-    private var reportedAuthorId: kotlin.String? = null
+    private var reportedItemId: String? = null
+    private var reportType: String? = null
+    private var reportedAuthorId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_report)
+        binding = ActivityReportBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        db = FirebaseFirestore.getInstance()
-        auth = FirebaseAuth.getInstance()
-        currentUser = auth.getCurrentUser()
-
+        currentUser = auth.currentUser
         if (currentUser == null) {
-            Toast.makeText(this, "You need to be logged in to report content.", Toast.LENGTH_LONG)
-                .show()
+            Toast.makeText(this, "You must be logged in to report content.", Toast.LENGTH_LONG).show()
             finish()
             return
         }
 
-        reportedItemId = getIntent().getStringExtra(ReportActivity.Companion.EXTRA_REPORTED_ITEM_ID)
-        reportType = getIntent().getStringExtra(ReportActivity.Companion.EXTRA_REPORT_TYPE)
-        reportedAuthorId =
-            getIntent().getStringExtra(ReportActivity.Companion.EXTRA_REPORTED_AUTHOR_ID) // استلام المعرّف
+        reportedItemId = intent.getStringExtra(EXTRA_REPORTED_ITEM_ID)
+        reportType = intent.getStringExtra(EXTRA_REPORT_TYPE)
+        reportedAuthorId = intent.getStringExtra(EXTRA_REPORTED_AUTHOR_ID)
 
-        if (TextUtils.isEmpty(reportedItemId) || TextUtils.isEmpty(reportType)) {
-            Toast.makeText(this, "Invalid report data.", Toast.LENGTH_LONG).show()
+        if (reportedItemId.isNullOrEmpty() || reportType.isNullOrEmpty()) {
+            Toast.makeText(this, "Invalid report data provided.", Toast.LENGTH_LONG).show()
             finish()
             return
         }
 
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar_report)
-        setSupportActionBar(toolbar)
-        if (getSupportActionBar() != null) {
-            getSupportActionBar().setDisplayHomeAsUpEnabled(true)
-            getSupportActionBar().setDisplayShowHomeEnabled(true)
-            getSupportActionBar().setTitle("Report " + capitalize(reportType))
-        }
-        toolbar.setNavigationOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> finish() })
-
-        tvReportingItemInfo = findViewById<TextView>(R.id.tv_reporting_item_info)
-        rgReportReasons = findViewById<RadioGroup>(R.id.rg_report_reasons)
-        etReportDetails = findViewById<EditText>(R.id.et_report_details)
-        btnSubmitReport = findViewById<android.widget.Button>(R.id.btn_submit_report)
-        pbLoading = findViewById<ProgressBar>(R.id.pb_report_loading)
-
-        tvReportingItemInfo.setText("You are reporting a " + reportType + " (ID: " + reportedItemId + ")")
-
-        btnSubmitReport!!.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> submitReport() })
+        setupToolbar()
+        setupUI()
     }
 
-    private fun capitalize(str: kotlin.String?): kotlin.String? {
-        if (str == null || str.isEmpty()) {
-            return str
+    private fun setupToolbar() {
+        setSupportActionBar(binding.toolbarReport)
+        supportActionBar?.apply {
+            setDisplayHomeAsUpEnabled(true)
+            setDisplayShowHomeEnabled(true)
+            title = "Report ${reportType?.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }}"
         }
-        return str.substring(0, 1).uppercase(java.util.Locale.getDefault()) + str.substring(1)
+        binding.toolbarReport.setNavigationOnClickListener { finish() }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun setupUI() {
+        binding.tvReportingItemInfo.text = "You are reporting a $reportType (ID: $reportedItemId)"
+        binding.btnSubmitReport.setOnClickListener { submitReport() }
     }
 
     private fun submitReport() {
-        val selectedReasonId = rgReportReasons.getCheckedRadioButtonId()
+        val selectedReasonId = binding.rgReportReasons.checkedRadioButtonId
         if (selectedReasonId == -1) {
             Toast.makeText(this, "Please select a reason for reporting.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val selectedRadioButton: RadioButton = findViewById<RadioButton>(selectedReasonId)
-        val reason = selectedRadioButton.getText().toString()
-        val details = etReportDetails.getText().toString().trim { it <= ' ' }
+        val selectedRadioButton = findViewById<RadioButton>(selectedReasonId)
+        val reason = selectedRadioButton.text.toString()
+        val details = binding.etReportDetails.text.toString().trim()
 
-        pbLoading.setVisibility(android.view.View.VISIBLE)
-        btnSubmitReport!!.setEnabled(false)
+        showLoading(true)
 
-        val reportData: kotlin.collections.MutableMap<kotlin.String?, kotlin.Any?> =
-            java.util.HashMap<kotlin.String?, kotlin.Any?>()
-        reportData.put("reportingUserId", currentUser.getUid())
-        reportData.put("reportedItemId", reportedItemId)
-        reportData.put("reportedItemType", reportType)
-        if (reportedAuthorId != null && !reportedAuthorId!!.isEmpty()) { // إضافة reportedAuthorId إذا كان موجودًا
-            reportData.put("reportedAuthorId", reportedAuthorId)
-        }
-        reportData.put("reason", reason)
-        if (!details.isEmpty()) {
-            reportData.put("details", details)
-        }
-        reportData.put("timestamp", FieldValue.serverTimestamp())
-        reportData.put("status", "pending") // "pending", "reviewed_accepted", "reviewed_rejected"
+        val reportData = hashMapOf<String, Any?>(
+            "reportingUserId" to (currentUser?.uid ?: "unknown"),
+            "reportedItemId" to reportedItemId,
+            "reportedItemType" to reportType,
+            "reportedAuthorId" to reportedAuthorId, // Can be null if not provided
+            "reason" to reason,
+            "details" to if (details.isNotEmpty()) details else null,
+            "timestamp" to FieldValue.serverTimestamp(),
+            "status" to "pending"
+        )
 
-        db.collection("reports")
-            .add(reportData)
-            .addOnSuccessListener({ documentReference ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                btnSubmitReport!!.setEnabled(true)
-                Toast.makeText(
-                    this@ReportActivity,
-                    "Report submitted successfully. Thank you.",
-                    Toast.LENGTH_LONG
-                ).show()
+        db.collection("reports").add(reportData)
+            .addOnSuccessListener {
+                showLoading(false)
+                Toast.makeText(this, "Report submitted successfully. Thank you.", Toast.LENGTH_LONG).show()
                 finish()
-            })
-            .addOnFailureListener({ e ->
-                pbLoading.setVisibility(android.view.View.GONE)
-                btnSubmitReport!!.setEnabled(true)
-                android.util.Log.e(ReportActivity.Companion.TAG, "Error submitting report", e)
-                Toast.makeText(
-                    this@ReportActivity,
-                    "Failed to submit report: " + e.getMessage(),
-                    Toast.LENGTH_LONG
-                ).show()
-            })
+            }
+            .addOnFailureListener { e ->
+                showLoading(false)
+                Log.e(TAG, "Error submitting report", e)
+                Toast.makeText(this, "Failed to submit report: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        binding.pbReportLoading.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.btnSubmitReport.isEnabled = !isLoading
     }
 
     companion object {
         private const val TAG = "ReportActivity"
-
-        const val EXTRA_REPORTED_ITEM_ID: kotlin.String = "REPORTED_ITEM_ID"
-        const val EXTRA_REPORT_TYPE: kotlin.String = "REPORT_TYPE" // "post", "comment", "user"
-        const val EXTRA_REPORTED_AUTHOR_ID: kotlin.String =
-            "REPORTED_AUTHOR_ID" // معرّف صاحب المحتوى
+        const val EXTRA_REPORTED_ITEM_ID = "REPORTED_ITEM_ID"
+        const val EXTRA_REPORT_TYPE = "REPORT_TYPE"
+        const val EXTRA_REPORTED_AUTHOR_ID = "REPORTED_AUTHOR_ID"
     }
 }

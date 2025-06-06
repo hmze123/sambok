@@ -1,40 +1,68 @@
 package com.spidroid.starry.ui.home
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.DialogInterface
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.widget.PopupMenu
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
+import com.spidroid.starry.R
+import com.spidroid.starry.activities.PostDetailActivity
+import com.spidroid.starry.activities.ProfileActivity
+import com.spidroid.starry.activities.ReportActivity
+import com.spidroid.starry.adapters.PostAdapter
+import com.spidroid.starry.adapters.PostInteractionListener
+import com.spidroid.starry.databinding.FragmentFeedBinding
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.ui.common.ReactionPickerFragment
+import com.spidroid.starry.viewmodels.PostViewModel
 
-class ForYouFragment : androidx.fragment.app.Fragment(), PostInteractionListener, ReactionListener {
-    private var binding: com.spidroid.starry.databinding.FragmentFeedBinding? = null
-    private var postViewModel: PostViewModel? = null
-    private var postAdapter: PostAdapter? = null
+class ForYouFragment : Fragment(), PostInteractionListener, ReactionPickerFragment.ReactionListener {
 
-    private var currentAuthUserId: kotlin.String? = null
+    private var _binding: FragmentFeedBinding? = null
+    private val binding get() = _binding!!
+
+    private lateinit var postViewModel: PostViewModel
+    private lateinit var postAdapter: PostAdapter
+
+    private var currentAuthUserId: String? = null
     private var currentPostForReaction: PostModel? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-            currentAuthUserId = FirebaseAuth.getInstance().getCurrentUser().getUid()
-        } else {
-            android.util.Log.w(
-                ForYouFragment.Companion.TAG,
-                "Current user is not authenticated in ForYouFragment."
-            )
+        currentAuthUserId = FirebaseAuth.getInstance().currentUser?.uid
+        if (currentAuthUserId == null) {
+            Log.w(TAG, "Current user is not authenticated in ForYouFragment.")
         }
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater,
-        container: ViewGroup?,
+        inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): android.view.View? {
-        binding =
-            com.spidroid.starry.databinding.FragmentFeedBinding.inflate(inflater, container, false)
-        return binding!!.getRoot()
+    ): View {
+        _binding = FragmentFeedBinding.inflate(inflater, container, false)
+        return binding.root
     }
 
-    override fun onViewCreated(view: android.view.View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        postViewModel =
-            ViewModelProvider(requireActivity()).get<PostViewModel?>(PostViewModel::class.java)
+        // Use requireActivity() to scope the ViewModel to the Activity
+        postViewModel = ViewModelProvider(requireActivity()).get(PostViewModel::class.java)
+
         setupRecyclerView()
         setupSwipeRefresh()
         setupObservers()
@@ -42,489 +70,227 @@ class ForYouFragment : androidx.fragment.app.Fragment(), PostInteractionListener
     }
 
     private fun setupRecyclerView() {
-        if (getContext() == null) return
-        postAdapter = PostAdapter(requireContext(), this)
-        binding!!.recyclerView.setLayoutManager(LinearLayoutManager(requireContext()))
-        binding!!.recyclerView.setAdapter(postAdapter)
+        // Ensure context is available before initializing adapter
+        context?.let {
+            postAdapter = PostAdapter(it, this)
+            binding.recyclerView.layoutManager = LinearLayoutManager(it)
+            binding.recyclerView.adapter = postAdapter
+        }
     }
 
     private fun setupSwipeRefresh() {
-        binding!!.swipeRefresh.setOnRefreshListener(OnRefreshListener {
+        binding.swipeRefresh.setOnRefreshListener {
             postViewModel.fetchPosts(15)
             postViewModel.fetchUserSuggestions()
-        })
+        }
     }
 
     private fun setupObservers() {
-        postViewModel.getCombinedFeed().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { items: kotlin.collections.MutableList<kotlin.Any?>? ->
-                if (binding == null) {
-                    android.util.Log.w(
-                        ForYouFragment.Companion.TAG,
-                        "Binding is null in ForYouFragment observer, skipping update."
-                    )
-                    return@observe
-                }
-                binding!!.progressContainer.setVisibility(android.view.View.GONE)
-                binding!!.swipeRefresh.setRefreshing(false)
+        postViewModel.getCombinedFeed().observe(viewLifecycleOwner) { items ->
+            binding.progressContainer.visibility = View.GONE
+            binding.swipeRefresh.isRefreshing = false
 
-                if (items != null) {
-                    android.util.Log.d(
-                        ForYouFragment.Companion.TAG,
-                        "ForYouFragment CombinedFeed LiveData changed. Items count: " + items.size
-                    )
-                    postAdapter.submitCombinedList(items)
+            val currentList = items ?: emptyList()
+            postAdapter.submitCombinedList(currentList)
+
+            val isEmpty = currentList.isEmpty()
+            binding.emptyStateLayout.visibility = if (isEmpty) View.VISIBLE else View.GONE
+            binding.recyclerView.visibility = if (isEmpty) View.GONE else View.VISIBLE
+        }
+
+        postViewModel.errorLiveData.observe(viewLifecycleOwner) { errorMessage ->
+            if (errorMessage != null) {
+                Log.e(TAG, "Error LiveData observed: $errorMessage")
+                binding.progressContainer.visibility = View.GONE
+                binding.swipeRefresh.isRefreshing = false
+                if (postAdapter.itemCount == 0) {
+                    binding.emptyStateLayout.visibility = View.VISIBLE
                 } else {
-                    android.util.Log.w(
-                        ForYouFragment.Companion.TAG,
-                        "ForYouFragment Observer received null items, submitting empty list."
-                    )
-                    postAdapter.submitCombinedList(java.util.ArrayList<kotlin.Any?>())
+                    Snackbar.make(binding.root, errorMessage, Snackbar.LENGTH_LONG).show()
                 }
-                val isEmpty = items == null || items.isEmpty()
-                binding!!.emptyStateLayout.setVisibility(if (isEmpty) android.view.View.VISIBLE else android.view.View.GONE)
-                binding!!.recyclerView.setVisibility(if (isEmpty) android.view.View.GONE else android.view.View.VISIBLE)
-                android.util.Log.d(
-                    ForYouFragment.Companion.TAG,
-                    "ForYouFragment RecyclerView visibility: " + (if (isEmpty) "GONE" else "VISIBLE") + ", EmptyState visibility: " + (if (isEmpty) "VISIBLE" else "GONE")
-                )
-            })
+            }
+        }
 
-        postViewModel.getErrorLiveData().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { errorMessage: kotlin.String? ->
-                if (errorMessage != null && binding != null) {
-                    android.util.Log.e(
-                        ForYouFragment.Companion.TAG,
-                        "Error LiveData observed in ForYouFragment: " + errorMessage
-                    )
-                    binding!!.progressContainer.setVisibility(android.view.View.GONE)
-                    binding!!.swipeRefresh.setRefreshing(false)
-                    // إظهار emptyStateLayout إذا كان الخطأ يعني عدم وجود بيانات
-                    if (postAdapter.getItemCount() == 0) {
-                        binding!!.emptyStateLayout.setVisibility(android.view.View.VISIBLE)
-                        binding!!.recyclerView.setVisibility(android.view.View.GONE)
-                        // يمكنك تحديث نص emptyStateLayout ليعكس الخطأ
-                        // ((TextView) binding.emptyStateLayout.findViewById(R.id.tvNoPostsYet)).setText(errorMessage);
-                    } else {
-                        Snackbar.make(binding!!.getRoot(), errorMessage, Snackbar.LENGTH_LONG)
-                            .show()
-                    }
-                }
-            })
-
-        postViewModel.getPostInteractionErrorEvent().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { errorMsg: kotlin.String? ->
-                if (errorMsg != null && getContext() != null) {
-                    Toast.makeText(getContext(), errorMsg, Toast.LENGTH_LONG).show()
-                }
-            })
-
-        postViewModel.getPostUpdatedEvent().observe(
-            getViewLifecycleOwner(),
-            androidx.lifecycle.Observer { postId: kotlin.String? ->
-                if (postId != null) {
-                    android.util.Log.d(
-                        ForYouFragment.Companion.TAG,
-                        "Post " + postId + " updated event received. ForYouFragment might refresh or update item if necessary."
-                    )
-                    // إذا كان ForYouFragment يعرض قائمة قابلة للتحديث عند تغيير منشور واحد
-                    // يمكنك هنا تحديث عنصر واحد في الـ Adapter
-                    // postAdapter.notifyItemChanged(findPositionByPostId(postId));
-                    // أو إعادة تحميل بسيط (أقل كفاءة ولكن أسهل)
-                    // postViewModel.fetchPosts(15); // كن حذرًا من الاستدعاءات المتكررة
-                }
-            })
+        postViewModel.postInteractionErrorEvent.observe(viewLifecycleOwner) { errorMsg ->
+            if (errorMsg != null) {
+                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun loadInitialData() {
-        if (binding != null && postAdapter.getItemCount() == 0) {
-            binding!!.progressContainer.setVisibility(android.view.View.VISIBLE)
+        if (postAdapter.itemCount == 0) {
+            binding.progressContainer.visibility = View.VISIBLE
             postViewModel.fetchPosts(15)
             postViewModel.fetchUserSuggestions()
         }
     }
 
-    // --- تطبيقات واجهة PostInteractionListener ---
+    // region PostInteractionListener Implementations
     override fun onLikeClicked(post: PostModel?) {
-        if (postViewModel != null && post != null && post.getPostId() != null && post.getAuthorId() != null) {
-            postViewModel.toggleLike(post, post.isLiked())
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot toggle like, data missing in ForYouFragment"
-            )
-            if (getContext() != null) Toast.makeText(
-                getContext(),
-                "Error processing like.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        val safePost = post ?: return
+        postViewModel.toggleLike(safePost, safePost.isLiked)
     }
 
     override fun onBookmarkClicked(post: PostModel?) {
-        if (postViewModel != null && post != null && post.getPostId() != null) {
-            postViewModel.toggleBookmark(post.getPostId(), post.isBookmarked())
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot toggle bookmark, data missing in ForYouFragment"
-            )
-        }
+        val postId = post?.postId ?: return
+        postViewModel.toggleBookmark(postId, post.isBookmarked)
     }
 
     override fun onRepostClicked(post: PostModel?) {
-        if (postViewModel != null && post != null && post.getPostId() != null) {
-            postViewModel.toggleRepost(post.getPostId(), post.isReposted())
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot toggle repost, data missing in ForYouFragment"
-            )
-        }
+        val postId = post?.postId ?: return
+        postViewModel.toggleRepost(postId, post.isReposted)
     }
 
     override fun onCommentClicked(post: PostModel?) {
-        if (post != null && getActivity() != null) {
-            val intent: Intent = Intent(getActivity(), PostDetailActivity::class.java)
-            intent.putExtra(PostDetailActivity.Companion.EXTRA_POST, post)
-            startActivity(intent)
+        val safePost = post ?: return
+        val intent = Intent(activity, PostDetailActivity::class.java).apply {
+            putExtra(PostDetailActivity.EXTRA_POST, safePost)
         }
+        startActivity(intent)
     }
 
-    override fun onMenuClicked(post: PostModel?, anchorView: android.view.View?) {
-        if (getContext() == null || post == null || anchorView == null || currentAuthUserId == null) {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot show post options menu, data missing in ForYouFragment."
-            )
-            return
-        }
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Menu clicked for post: " + post.getPostId() + " in ForYouFragment"
-        )
+    override fun onMenuClicked(post: PostModel?, anchorView: View?) {
+        val safePost = post ?: return
+        val safeAnchor = anchorView ?: return
+        val safeContext = context ?: return
 
-        val popup = androidx.appcompat.widget.PopupMenu(requireContext(), anchorView)
-        popup.getMenuInflater().inflate(R.menu.post_options_menu, popup.getMenu())
-        val isAuthor = currentAuthUserId == post.getAuthorId()
+        PopupMenu(safeContext, safeAnchor).apply {
+            menuInflater.inflate(R.menu.post_options_menu, menu)
+            val isAuthor = currentAuthUserId == safePost.authorId
 
-        val pinItem = popup.getMenu().findItem(R.id.action_pin_post)
-        val editItem = popup.getMenu().findItem(R.id.action_edit_post)
-        val deleteItem = popup.getMenu().findItem(R.id.action_delete_post)
-        val privacyItem = popup.getMenu().findItem(R.id.action_edit_privacy)
-        val reportItem = popup.getMenu().findItem(R.id.action_report_post)
-        val saveItem = popup.getMenu().findItem(R.id.action_save_post)
-        val copyLinkItem = popup.getMenu().findItem(R.id.action_copy_link)
-        val shareItem = popup.getMenu().findItem(R.id.action_share_post)
+            menu.findItem(R.id.action_pin_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_edit_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_delete_post)?.isVisible = isAuthor
+            menu.findItem(R.id.action_edit_privacy)?.isVisible = isAuthor
+            menu.findItem(R.id.action_report_post)?.isVisible = !isAuthor
+            menu.findItem(R.id.action_save_post)?.title = if (safePost.isBookmarked) "Unsave" else "Save"
 
-        if (pinItem != null) {
-            pinItem.setVisible(isAuthor)
-            if (isAuthor) pinItem.setTitle(if (post.isPinned()) "إلغاء تثبيت المنشور" else "تثبيت المنشور")
-        }
-        if (editItem != null) editItem.setVisible(isAuthor)
-        if (deleteItem != null) deleteItem.setVisible(isAuthor)
-        if (privacyItem != null) privacyItem.setVisible(isAuthor)
-        if (reportItem != null) reportItem.setVisible(!isAuthor)
-        if (saveItem != null) saveItem.setTitle(if (post.isBookmarked()) "إلغاء حفظ المنشور" else "حفظ المنشور")
-        if (copyLinkItem != null) copyLinkItem.setVisible(true)
-        if (shareItem != null) shareItem.setVisible(true)
-
-        popup.setOnMenuItemClickListener(androidx.appcompat.widget.PopupMenu.OnMenuItemClickListener { item: android.view.MenuItem? ->
-            val itemId = item!!.getItemId()
-            if (itemId == R.id.action_pin_post) onTogglePinPostClicked(post)
-            else if (itemId == R.id.action_edit_post) onEditPost(post)
-            else if (itemId == R.id.action_delete_post) onDeletePost(post)
-            else if (itemId == R.id.action_copy_link) onCopyLink(post)
-            else if (itemId == R.id.action_share_post) onSharePost(post)
-            else if (itemId == R.id.action_save_post) onBookmarkClicked(post)
-            else if (itemId == R.id.action_edit_privacy) onEditPostPrivacy(post)
-            else if (itemId == R.id.action_report_post) onReportPost(post)
-            else return@setOnMenuItemClickListener false
-            true
-        })
-        popup.show()
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_pin_post -> onTogglePinPostClicked(safePost)
+                    R.id.action_edit_post -> onEditPost(safePost)
+                    R.id.action_delete_post -> onDeletePost(safePost)
+                    R.id.action_copy_link -> onCopyLink(safePost)
+                    R.id.action_share_post -> onSharePost(safePost)
+                    R.id.action_save_post -> onBookmarkClicked(safePost)
+                    R.id.action_edit_privacy -> onEditPostPrivacy(safePost)
+                    R.id.action_report_post -> onReportPost(safePost)
+                    else -> return@setOnMenuItemClickListener false
+                }
+                true
+            }
+        }.show()
     }
 
-    private fun showReactionPickerForPost(post: PostModel?) {
-        if (post == null || getParentFragmentManager() == null) {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot show reaction picker, post or FragmentManager is null in ForYouFragment"
-            )
-            return
-        }
-        this.currentPostForReaction = post
-        val reactionPicker: ReactionPickerFragment = ReactionPickerFragment()
-        reactionPicker.setReactionListener(this)
-        reactionPicker.show(getParentFragmentManager(), ReactionPickerFragment.Companion.TAG)
-    }
-
-    // تطبيق دالة الواجهة ReactionPickerFragment.ReactionListener
-    override fun onReactionSelected(emojiUnicode: kotlin.String?) {
-        if (currentPostForReaction != null && postViewModel != null && currentAuthUserId != null) {
-            android.util.Log.d(
-                ForYouFragment.Companion.TAG,
-                "Emoji selected by ReactionPickerFragment: " + emojiUnicode + " for post: " + currentPostForReaction.getPostId()
-            )
-            postViewModel.handleEmojiSelection(currentPostForReaction, emojiUnicode)
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot handle emoji selection from ReactionPickerFragment, data missing in ForYouFragment."
-            )
-            if (getContext() != null) Toast.makeText(
-                getContext(),
-                "Error reacting to post.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-        currentPostForReaction = null
-    }
-
-    // --- تطبيق الدوال المتبقية من PostInteractionListener ---
     override fun onTogglePinPostClicked(post: PostModel?) {
-        if (postViewModel != null && post != null && post.getPostId() != null && post.getAuthorId() != null) {
-            android.util.Log.d(
-                ForYouFragment.Companion.TAG,
-                "Toggle pin clicked for post: " + post.getPostId() + " in ForYouFragment"
-            )
-            postViewModel.togglePostPinStatus(post)
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot toggle pin status, data missing in ForYouFragment."
-            )
-            if (getContext() != null) Toast.makeText(
-                getContext(),
-                "Error processing pin/unpin action.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        val safePost = post ?: return
+        postViewModel.togglePostPinStatus(safePost)
     }
 
-    override fun onEditPost(post: PostModel) {
-        android.util.Log.d(ForYouFragment.Companion.TAG, "Edit post clicked: " + post.getPostId())
-        if (getContext() != null && currentAuthUserId != null && currentAuthUserId == post.getAuthorId()) {
-            // Intent intent = new Intent(getActivity(), ComposePostActivity.class);
-            // intent.putExtra("EDIT_POST_ID", post.getPostId());
-            // startActivity(intent);
-            Toast.makeText(
-                getContext(),
-                "TODO: Open ComposePostActivity in edit mode for: " + post.getPostId(),
-                Toast.LENGTH_SHORT
-            ).show()
-        } else if (getContext() != null) {
-            Toast.makeText(getContext(), "You can only edit your own posts.", Toast.LENGTH_SHORT)
-                .show()
-        }
+    override fun onEditPost(post: PostModel?) {
+        Toast.makeText(context, "Edit feature is not implemented yet.", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDeletePost(post: PostModel?) {
-        if (postViewModel != null && post != null && post.getPostId() != null && currentAuthUserId != null && currentAuthUserId == post.getAuthorId()) {
-            androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                .setTitle("Delete Post")
-                .setMessage("Are you sure you want to delete this post?")
-                .setPositiveButton(
-                    "Delete",
-                    DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int ->
-                        postViewModel.deletePost(post.getPostId())
-                    })
-                .setNegativeButton("Cancel", null)
-                .show()
-        } else if (getContext() != null && post != null && currentAuthUserId != null && (currentAuthUserId != post.getAuthorId())) {
-            Toast.makeText(getContext(), "You can only delete your own posts.", Toast.LENGTH_SHORT)
-                .show()
+        val safePost = post ?: return
+        if (currentAuthUserId != safePost.authorId) {
+            Toast.makeText(context, "You can only delete your own posts.", Toast.LENGTH_SHORT).show()
+            return
         }
+        AlertDialog.Builder(requireContext())
+            .setTitle("Delete Post")
+            .setMessage("Are you sure you want to delete this post?")
+            .setPositiveButton("Delete") { _, _ -> postViewModel.deletePost(safePost.postId) }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onCopyLink(post: PostModel?) {
-        if (post == null || post.getPostId() == null || getContext() == null) return
-        val postUrl = "https://starry.app/post/" + post.getPostId() // ★ استبدل برابط تطبيقك الفعلي
-        val clipboard =
-            getContext()!!.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager?
-        val clip: ClipData = android.content.ClipData.newPlainText("Post URL", postUrl)
-        if (clipboard != null) {
-            clipboard.setPrimaryClip(clip)
-            Toast.makeText(getContext(), "Link copied!", Toast.LENGTH_SHORT).show()
-        }
+        val postId = post?.postId ?: return
+        val postUrl = "https://starry.app/post/$postId" // Replace with your domain
+        val clipboard = context?.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+        val clip = ClipData.newPlainText("Post URL", postUrl)
+        clipboard?.setPrimaryClip(clip)
+        Toast.makeText(context, "Link copied!", Toast.LENGTH_SHORT).show()
     }
 
     override fun onSharePost(post: PostModel?) {
-        if (post == null || getActivity() == null || post.getPostId() == null) return
-        val postUrl = "https://starry.app/post/" + post.getPostId() // ★ استبدل برابط تطبيقك الفعلي
-        val shareText = "Check out this post on Starry: " +
-                (if (post.getContent() != null && post.getContent().length > 70)  // جعل النص أقصر قليلاً
-                    post.getContent().substring(0, 70) + "..." else post.getContent()) +
-                "\n" + postUrl
-        val shareIntent: Intent = Intent(Intent.ACTION_SEND)
-        shareIntent.setType("text/plain")
-        shareIntent.putExtra(Intent.EXTRA_SUBJECT, "Post from Starry")
-        shareIntent.putExtra(Intent.EXTRA_TEXT, shareText)
+        val safePost = post ?: return
+        val postUrl = "https://starry.app/post/${safePost.postId}" // Replace with your domain
+        val shareText = "Check out this post on Starry: ${safePost.content?.take(70)}...\n$postUrl"
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Post from Starry")
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
         startActivity(Intent.createChooser(shareIntent, "Share post via"))
     }
 
     override fun onEditPostPrivacy(post: PostModel?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Edit post privacy for: " + (if (post != null) post.getPostId() else "null")
-        )
-        if (getContext() != null && post != null && currentAuthUserId != null && currentAuthUserId == post.getAuthorId()) {
-            Toast.makeText(
-                getContext(),
-                "TODO: Implement Edit Post Privacy UI for: " + post.getPostId(),
-                Toast.LENGTH_SHORT
-            ).show()
-        } else if (getContext() != null) {
-            Toast.makeText(
-                getContext(),
-                "You can only edit privacy for your own posts.",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
+        Toast.makeText(context, "Edit privacy feature is not implemented yet.", Toast.LENGTH_SHORT).show()
     }
 
-    // ... داخل onReportPost في ForYouFragment.java أو أي مكان آخر ...
     override fun onReportPost(post: PostModel?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Report post: " + (if (post != null) post.getPostId() else "null")
-        )
-        if (getContext() != null && post != null && post.getPostId() != null && post.getAuthorId() != null) { // تأكد من وجود authorId
-            val intent: Intent = Intent(getActivity(), ReportActivity::class.java)
-            intent.putExtra(ReportActivity.Companion.EXTRA_REPORTED_ITEM_ID, post.getPostId())
-            intent.putExtra(
-                ReportActivity.Companion.EXTRA_REPORT_TYPE,
-                "post"
-            ) // أو "comment" أو "user"
-            intent.putExtra(
-                ReportActivity.Companion.EXTRA_REPORTED_AUTHOR_ID,
-                post.getAuthorId()
-            ) // تمرير معرّف صاحب المنشور
-            startActivity(intent)
-        } else if (getContext() != null && post != null) {
-            Toast.makeText(
-                getContext(),
-                "Cannot report post: missing necessary data.",
-                Toast.LENGTH_SHORT
-            ).show()
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot report post: postId=" + (post.getPostId() != null) + ", authorId=" + (post.getAuthorId() != null)
-            )
+        val safePost = post ?: return
+        val intent = Intent(activity, ReportActivity::class.java).apply {
+            putExtra(ReportActivity.EXTRA_REPORTED_ITEM_ID, safePost.postId)
+            putExtra(ReportActivity.EXTRA_REPORT_TYPE, "post")
+            putExtra(ReportActivity.EXTRA_REPORTED_AUTHOR_ID, safePost.authorId)
         }
+        startActivity(intent)
     }
 
-
-    override fun onLikeButtonLongClicked(post: PostModel?, anchorView: android.view.View?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Like button long clicked for post: " + (if (post != null) post.getPostId() else "null")
-        )
-        if (post != null) showReactionPickerForPost(post)
+    override fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?) {
+        val safePost = post ?: return
+        currentPostForReaction = safePost
+        ReactionPickerFragment().apply {
+            setReactionListener(this@ForYouFragment)
+        }.show(parentFragmentManager, ReactionPickerFragment.TAG)
     }
 
-    override fun onEmojiSelected(post: PostModel?, emojiUnicode: kotlin.String?) {
-        if (post != null && postViewModel != null && currentAuthUserId != null && emojiUnicode != null) {
-            android.util.Log.d(
-                ForYouFragment.Companion.TAG,
-                "Emoji selected via PostInteractionListener: " + emojiUnicode + " for post: " + post.getPostId()
-            )
-            postViewModel.handleEmojiSelection(post, emojiUnicode)
-        } else {
-            android.util.Log.e(
-                ForYouFragment.Companion.TAG,
-                "Cannot handle emoji selection from PostInteractionListener in ForYouFragment, data missing."
-            )
-        }
+    override fun onReactionSelected(emojiUnicode: String?) {
+        val post = currentPostForReaction ?: return
+        val emoji = emojiUnicode ?: return
+        Log.d(TAG, "Emoji selected: $emoji for post: ${post.postId}")
+        postViewModel.handleEmojiSelection(post, emoji)
+        currentPostForReaction = null
+    }
+
+    override fun onEmojiSelected(post: PostModel?, emojiUnicode: String?) {
+        val safePost = post ?: return
+        val safeEmoji = emojiUnicode ?: return
+        postViewModel.handleEmojiSelection(safePost, safeEmoji)
     }
 
     override fun onEmojiSummaryClicked(post: PostModel?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Emoji summary clicked for post: " + (if (post != null) post.getPostId() else "null")
-        )
-        if (post != null && getContext() != null) Toast.makeText(
-            getContext(),
-            "Emoji summary: " + post.getPostId(),
-            Toast.LENGTH_SHORT
-        ).show()
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        binding = null
-    }
-
-    override fun onHashtagClicked(hashtag: kotlin.String?) {
-        android.util.Log.d(ForYouFragment.Companion.TAG, "Hashtag clicked: " + hashtag)
-    }
-
-    override fun onPostLongClicked(post: PostModel) {
-        android.util.Log.d(ForYouFragment.Companion.TAG, "Post long clicked: " + post.getPostId())
-    }
-
-    override fun onMediaClicked(
-        mediaUrls: kotlin.collections.MutableList<kotlin.String?>?,
-        position: Int
-    ) {
-        android.util.Log.d(ForYouFragment.Companion.TAG, "Media clicked")
-    }
-
-    override fun onVideoPlayClicked(videoUrl: kotlin.String?) {
-        android.util.Log.d(ForYouFragment.Companion.TAG, "Video play clicked: " + videoUrl)
-    }
-
-    override fun onLayoutClicked(post: PostModel?) {
-        onCommentClicked(post)
-    }
-
-    override fun onSeeMoreClicked(post: PostModel) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "See more clicked for post: " + post.getPostId()
-        )
-    }
-
-    override fun onTranslateClicked(post: PostModel) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Translate clicked for post: " + post.getPostId()
-        )
-    }
-
-    override fun onShowOriginalClicked(post: PostModel) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Show original clicked for post: " + post.getPostId()
-        )
-    }
-
-    override fun onFollowClicked(user: UserModel?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Follow clicked for user: " + (if (user != null) user.getUserId() else "null")
-        )
+        Toast.makeText(context, "Emoji summary coming soon.", Toast.LENGTH_SHORT).show()
     }
 
     override fun onUserClicked(user: UserModel?) {
-        if (user != null && user.getUserId() != null && getActivity() != null) {
-            val intent: Intent = Intent(getActivity(), ProfileActivity::class.java)
-            intent.putExtra("userId", user.getUserId())
-            startActivity(intent)
+        val safeUser = user ?: return
+        val intent = Intent(activity, ProfileActivity::class.java).apply {
+            putExtra("userId", safeUser.userId)
         }
+        startActivity(intent)
     }
 
-    override fun onModeratePost(post: PostModel?) {
-        android.util.Log.d(
-            ForYouFragment.Companion.TAG,
-            "Moderate post clicked: " + (if (post != null) post.getPostId() else "null")
-        )
+    // Other listener methods...
+    override fun onFollowClicked(user: UserModel?) { /* Not implemented in this fragment */ }
+    override fun onHashtagClicked(hashtag: String?) { /* Not implemented */ }
+    override fun onPostLongClicked(post: PostModel) { /* Not implemented */ }
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) { /* Not implemented */ }
+    override fun onVideoPlayClicked(videoUrl: String?) { /* Not implemented */ }
+    override fun onLayoutClicked(post: PostModel?) { onCommentClicked(post) }
+    override fun onSeeMoreClicked(post: PostModel) { /* Not implemented */ }
+    override fun onTranslateClicked(post: PostModel) { /* Not implemented */ }
+    override fun onShowOriginalClicked(post: PostModel) { /* Not implemented */ }
+    override fun onModeratePost(post: PostModel?) { /* Not implemented */ }
+    // endregion
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null // Clear binding reference
     }
 
-    companion object {
-        private const val TAG = "ForYouFragment"
-    }
 }

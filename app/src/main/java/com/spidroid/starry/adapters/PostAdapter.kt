@@ -1,239 +1,156 @@
 package com.spidroid.starry.adapters
 
-// ★ إضافة استيراد FirebaseAuth
 import android.content.Context
+import android.text.TextUtils
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
+import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.databinding.ItemUserSuggestionBinding
-import java.util.Map
-import java.util.function.BinaryOperator
-import java.util.function.Function
-import java.util.function.Supplier
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.utils.PostInteractionHandler
+import java.util.Collections.emptyList
+import java.util.Comparator
+import java.util.LinkedHashMap
 import java.util.stream.Collectors
 
-class PostAdapter(private val context: Context?, private val listener: PostInteractionListener?) :
-    RecyclerView.Adapter<RecyclerView.ViewHolder?>() {
-    private var items: MutableList<Any?>? = ArrayList<Any?>()
-    private val currentUserId: String? = null // ★ إضافة حقل لتخزين معرّف المستخدم الحالي
+class PostAdapter(
+    private val context: Context,
+    private val listener: PostInteractionListener
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    // ★★★ تم تعديل المُنشئ ليقوم بتهيئة currentUserId ★★★
-    init {
-        // تهيئة currentUserId عند إنشاء الـ Adapter
-        if (FirebaseAuth.getInstance().getCurrentUser() != null) {
-            this.currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid()
-        } else {
-            this.currentUserId = "" // أو قيمة افتراضية مناسبة إذا لم يكن هناك مستخدم
-            Log.w(PostAdapter.Companion.TAG, "Current user is null when creating PostAdapter.")
-        }
-    }
+    private var items: List<Any> = emptyList()
+    private val currentUserId: String? = FirebaseAuth.getInstance().currentUser?.uid
 
-    fun submitCombinedList(newItems: MutableList<Any?>?) {
-        this.items = if (newItems != null) newItems else ArrayList<Any?>()
+    fun submitCombinedList(newItems: List<Any>) {
+        this.items = newItems
+        // For better performance, DiffUtil should be used here.
+        // But for simplicity of correction, we'll use notifyDataSetChanged.
         notifyDataSetChanged()
     }
 
+    override fun getItemViewType(position: Int): Int {
+        return when (items[position]) {
+            is PostModel -> TYPE_POST
+            is UserModel -> TYPE_SUGGESTION
+            else -> -1
+        }
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-        val inflater: LayoutInflater = LayoutInflater.from(parent.getContext())
-        if (viewType == PostAdapter.Companion.TYPE_POST) {
-            val binding = ItemPostBinding.inflate(inflater, parent, false)
-            // ★ تمرير currentUserId إلى مُنشئ PostViewHolder
-            return PostViewHolder(binding, listener, context, currentUserId)
-        } else { // TYPE_SUGGESTION
-            val binding = ItemUserSuggestionBinding.inflate(inflater, parent, false)
-            return UserSuggestionViewHolder(binding, listener)
-            // ملاحظة: UserSuggestionViewHolder لا يستخدم PostInteractionHandler مباشرة بنفس الطريقة
-            // لذا قد لا يحتاج إلى currentUserId في مُنشئه إلا إذا كنت ستضيف تفاعلات مشابهة له
+        val inflater = LayoutInflater.from(parent.context)
+        return when (viewType) {
+            TYPE_POST -> {
+                val binding = ItemPostBinding.inflate(inflater, parent, false)
+                PostViewHolder(binding, listener, context, currentUserId)
+            }
+            TYPE_SUGGESTION -> {
+                val binding = ItemUserSuggestionBinding.inflate(inflater, parent, false)
+                UserSuggestionViewHolder(binding, listener)
+            }
+            else -> throw IllegalArgumentException("Invalid view type")
         }
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        val item = items!!.get(position)
-        if (holder.getItemViewType() == PostAdapter.Companion.TYPE_POST) {
-            (holder as PostViewHolder).bindCommon(item as PostModel?)
-        } else if (holder.getItemViewType() == PostAdapter.Companion.TYPE_SUGGESTION) {
-            (holder as UserSuggestionViewHolder).bind(item as UserModel?)
+        val item = items[position]
+        when (holder) {
+            is PostViewHolder -> holder.bind(item as PostModel)
+            is UserSuggestionViewHolder -> holder.bind(item as UserModel)
         }
     }
 
-    val itemCount: Int
-        get() = if (items != null) items!!.size else 0
+    override fun getItemCount(): Int = items.size
 
-    override fun getItemViewType(position: Int): Int {
-        if (items!!.get(position) is PostModel) {
-            return PostAdapter.Companion.TYPE_POST
-        } else if (items!!.get(position) is UserModel) {
-            return PostAdapter.Companion.TYPE_SUGGESTION
-        }
-        return -1
-    }
-
-    class PostViewHolder internal constructor(
+    class PostViewHolder(
         private val binding: ItemPostBinding,
-        listener: PostInteractionListener?,
-        context: Context?,
+        listener: PostInteractionListener,
+        private val context: Context,
         currentUserId: String?
-    ) : BasePostViewHolder(
-        binding, listener, context, currentUserId
-    ) {
-        private val reactionsDisplayContainer: LinearLayout?
+    ) : BasePostViewHolder(binding, listener, context, currentUserId ?: "") {
 
-        // ★★★ تم تعديل مُنشئ PostViewHolder ليقبل currentUserId ويمرره إلى super ★★★
-        init {
-            this.reactionsDisplayContainer = binding.reactionsDisplayContainer
-            // PostInteractionHandler يتم تهيئته الآن في BasePostViewHolder
+        private val reactionsDisplayContainer: LinearLayout = binding.reactionsDisplayContainer
+
+        fun bind(post: PostModel) {
+            super.bindCommon(post) // Call the common binding logic from base class
+
+            // This method now only handles logic specific to PostViewHolder
+            updateReactionsDisplay(post.reactions)
         }
 
-        override fun bindCommon(post: PostModel?) {
-            if (post == null) {
-                Log.e(PostAdapter.Companion.TAG, "PostModel is null in bindCommon. Hiding item.")
-                itemView.setVisibility(View.GONE)
-                itemView.setLayoutParams(RecyclerView.LayoutParams(0, 0))
-                return
-            }
-            if (TextUtils.isEmpty(post.getAuthorDisplayName()) && TextUtils.isEmpty(post.getAuthorUsername())) {
-                binding.tvAuthorName.setText("Unknown User")
-            } else {
-                binding.tvAuthorName.setText(if (post.getAuthorDisplayName() != null) post.getAuthorDisplayName() else post.getAuthorUsername())
-            }
-
-            if (TextUtils.isEmpty(post.getContent()) && (post.getMediaUrls() == null || post.getMediaUrls()
-                    .isEmpty()) && (post.getLinkPreviews() == null || post.getLinkPreviews()
-                    .isEmpty())
-            ) {
-                itemView.setVisibility(View.GONE)
-                itemView.setLayoutParams(RecyclerView.LayoutParams(0, 0))
-                return
-            }
-
-            itemView.setVisibility(View.VISIBLE)
-            itemView.setLayoutParams(
-                RecyclerView.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
-
-            binding.tvUsername.setText("@" + (if (post.getAuthorUsername() != null) post.getAuthorUsername() else "unknown"))
-            binding.tvPostContent.setText(if (post.getContent() != null) post.getContent() else "")
-
-            val avatarUrl: String? = post.getAuthorAvatarUrl()
-            if (avatarUrl != null && !avatarUrl.isEmpty() && context != null) {
-                Glide.with(context).load(avatarUrl).placeholder(R.drawable.ic_default_avatar)
-                    .into(binding.ivAuthorAvatar)
-            } else if (context != null) {
-                binding.ivAuthorAvatar.setImageResource(R.drawable.ic_default_avatar)
-            }
-
-            if (interactionHandler != null) {
-                interactionHandler.bind(post)
-            }
-            updateReactionsDisplay(post.getReactions())
-        }
-
-        private fun updateReactionsDisplay(reactionsMap: MutableMap<String?, String?>?) {
-            if (reactionsDisplayContainer == null || context == null) {
-                return
-            }
+        private fun updateReactionsDisplay(reactionsMap: Map<String, String>?) {
             reactionsDisplayContainer.removeAllViews()
-
-            if (reactionsMap == null || reactionsMap.isEmpty()) {
-                reactionsDisplayContainer.setVisibility(View.GONE)
+            if (reactionsMap.isNullOrEmpty()) {
+                reactionsDisplayContainer.visibility = View.GONE
                 return
             }
 
-            val emojiCounts: MutableMap<String?, Int?> = HashMap<String?, Int?>()
-            for (emoji in reactionsMap.values) {
-                emojiCounts.put(emoji, emojiCounts.getOrDefault(emoji, 0)!! + 1)
-            }
+            val emojiCounts = reactionsMap.values.groupingBy { it }.eachCount()
 
-            val sortedEmojiCounts: MutableMap<String?, Int?> = emojiCounts.entries.stream()
-                .sorted(Map.Entry.comparingByValue<String?, Int?>(Comparator.reverseOrder<Int?>()))
-                .collect(
-                    Collectors.toMap(
-                        Function { Map.Entry.key },
-                        Function { Map.Entry.value },
-                        BinaryOperator { e1: Int?, e2: Int? -> e1 },
-                        Supplier { LinkedHashMap() }
-                    ))
+            val sortedEmoji = emojiCounts.entries.sortedByDescending { it.value }
 
             var reactionsToShow = 0
-            for (entry in sortedEmojiCounts.entries) {
+            for ((emoji, _) in sortedEmoji) {
                 if (reactionsToShow >= 3) break
-
-                val emoji = entry.key
-                val count: Int = entry.value!!
-
-                if (count > 0) {
-                    val emojiView: TextView = TextView(context)
-                    emojiView.setText(emoji)
-                    emojiView.setTextSize(16f)
-                    emojiView.setPadding(0, 0, 4, 0)
-                    reactionsDisplayContainer.addView(emojiView)
-                    reactionsToShow++
+                val emojiView = TextView(context).apply {
+                    text = emoji
+                    textSize = 16f
+                    setPadding(0, 0, 4, 0)
                 }
+                reactionsDisplayContainer.addView(emojiView)
+                reactionsToShow++
             }
 
-            if (!reactionsMap.isEmpty()) {
-                val totalReactionsView: TextView = TextView(context)
-                totalReactionsView.setText(reactionsMap.size.toString())
-                totalReactionsView.setTextSize(14f)
-                if (context != null) { // Check context before accessing resources
-                    totalReactionsView.setTextColor(
-                        context.getResources().getColor(R.color.text_secondary, null)
-                    )
+            if (reactionsMap.isNotEmpty()) {
+                val totalReactionsView = TextView(context).apply {
+                    text = reactionsMap.size.toString()
+                    textSize = 14f
+                    setTextColor(ContextCompat.getColor(context, R.color.text_secondary))
+                    layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { marginStart = 8 }
                 }
-                val params: LinearLayout.LayoutParams = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                )
-                params.setMarginStart(8)
-                totalReactionsView.setLayoutParams(params)
                 reactionsDisplayContainer.addView(totalReactionsView)
             }
 
-            if (reactionsDisplayContainer.getChildCount() > 0) {
-                reactionsDisplayContainer.setVisibility(View.VISIBLE)
-            } else {
-                reactionsDisplayContainer.setVisibility(View.GONE)
-            }
+            reactionsDisplayContainer.visibility = if (reactionsDisplayContainer.childCount > 0) View.VISIBLE else View.GONE
         }
     }
 
-    internal class UserSuggestionViewHolder(
+    class UserSuggestionViewHolder(
         private val binding: ItemUserSuggestionBinding,
         private val listener: PostInteractionListener?
-    ) : RecyclerView.ViewHolder(
-        binding.getRoot()
-    ) {
-        private val context: Context?
+    ) : RecyclerView.ViewHolder(binding.root) {
 
-        init {
-            this.context = itemView.getContext()
-        }
+        fun bind(user: UserModel) {
+            binding.username.text = "@${user.username}"
+            binding.displayName.text = user.displayName ?: user.username
 
-        fun bind(user: UserModel?) {
-            if (user == null) return
-
-            binding.username.setText("@" + (if (user.getUsername() != null) user.getUsername() else ""))
-            binding.displayName.setText(if (user.getDisplayName() != null) user.getDisplayName() else "")
-
-            if (user.getProfileImageUrl() != null && !user.getProfileImageUrl()
-                    .isEmpty() && context != null
-            ) {
-                Glide.with(context).load(user.getProfileImageUrl())
-                    .placeholder(R.drawable.ic_default_avatar).into(binding.profileImage)
-            } else if (context != null) {
-                binding.profileImage.setImageResource(R.drawable.ic_default_avatar)
+            if (!user.bio.isNullOrEmpty()) {
+                binding.tvBio.text = user.bio
+                binding.tvBio.visibility = View.VISIBLE
+            } else {
+                binding.tvBio.visibility = View.GONE
             }
 
-            binding.followButton.setOnClickListener(View.OnClickListener { v: View? ->
-                if (listener != null) listener.onFollowClicked(user)
-            })
-            itemView.setOnClickListener(View.OnClickListener { v: View? ->
-                if (listener != null) listener.onUserClicked(user)
-            })
+            Glide.with(itemView.context)
+                .load(user.profileImageUrl)
+                .placeholder(R.drawable.ic_default_avatar)
+                .error(R.drawable.ic_default_avatar)
+                .into(binding.profileImage)
+
+            binding.followButton.setOnClickListener { listener?.onFollowClicked(user) }
+            itemView.setOnClickListener { listener?.onUserClicked(user) }
         }
     }
 

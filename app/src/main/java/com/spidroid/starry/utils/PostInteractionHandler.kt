@@ -15,9 +15,9 @@ import java.util.Locale
 
 class PostInteractionHandler(
     rootView: View,
-    listener: PostInteractionListener,
-    context: Context,
-    currentUserId: String
+    private val listener: PostInteractionListener?,
+    private val context: Context?,
+    private val currentUserId: String?
 ) {
     private val btnLike: ImageButton
     private val btnBookmark: ImageButton
@@ -28,32 +28,25 @@ class PostInteractionHandler(
     private val tvRepostCount: TextView
     private val tvCommentCount: TextView
     private val ivLikeReaction: ImageView?
-    private val context: Context?
     private var currentPost: PostModel? = null
-    private val listener: PostInteractionListener?
-    private val currentUserId: String?
-    private val btnMenu: ImageButton? // ★ إضافة المتغير لزر القائمة
+    private val btnMenu: ImageButton?
 
     init {
-        this.context = context
-        this.listener = listener
-        this.currentUserId = currentUserId
-
-        btnLike = rootView.findViewById<ImageButton>(R.id.btnLike)
-        btnBookmark = rootView.findViewById<ImageButton>(R.id.btnBookmark)
-        btnRepost = rootView.findViewById<ImageButton>(R.id.btnRepost)
-        btnComment = rootView.findViewById<ImageButton>(R.id.btnComment)
-        tvLikeCount = rootView.findViewById<TextView>(R.id.tvLikeCount)
-        tvBookmarkCount = rootView.findViewById<TextView>(R.id.tvBookmarkCount)
-        tvRepostCount = rootView.findViewById<TextView>(R.id.tvRepostCount)
-        tvCommentCount = rootView.findViewById<TextView>(R.id.tvCommentCount)
-        ivLikeReaction = rootView.findViewById<ImageView?>(R.id.ivLikeReaction)
-        btnMenu = rootView.findViewById<ImageButton?>(R.id.btnMenu) // ★ تهيئة زر القائمة
+        btnLike = rootView.findViewById(R.id.btnLike)
+        btnBookmark = rootView.findViewById(R.id.btnBookmark)
+        btnRepost = rootView.findViewById(R.id.btnRepost)
+        btnComment = rootView.findViewById(R.id.btnComment)
+        tvLikeCount = rootView.findViewById(R.id.tvLikeCount)
+        tvBookmarkCount = rootView.findViewById(R.id.tvBookmarkCount)
+        tvRepostCount = rootView.findViewById(R.id.tvRepostCount)
+        tvCommentCount = rootView.findViewById(R.id.tvCommentCount)
+        ivLikeReaction = rootView.findViewById(R.id.ivLikeReaction)
+        btnMenu = rootView.findViewById(R.id.btnMenu)
 
         setupClickListeners()
     }
 
-    fun bind(post: PostModel?) {
+    fun bind(post: PostModel) {
         currentPost = post
         updateAllCounters()
         updateButtonStates()
@@ -61,202 +54,180 @@ class PostInteractionHandler(
     }
 
     fun handlePayload(payload: Bundle) {
-        if (currentPost == null) return
+        val post = currentPost ?: return
 
         for (key in payload.keySet()) {
             when (key) {
                 "liked" -> {
-                    currentPost!!.setLiked(payload.getBoolean(key))
+                    post.isLiked = payload.getBoolean(key)
                     updateLikeButton()
                     updateLikeReactionIcon()
                 }
-
                 "likeCount" -> {
-                    currentPost!!.setLikeCount(payload.getLong(key))
-                    tvLikeCount.setText(formatCount(currentPost!!.getLikeCount()))
+                    post.likeCount = payload.getLong(key)
+                    tvLikeCount.text = formatCount(post.likeCount)
                 }
-
                 "reposted" -> {
-                    currentPost!!.setReposted(payload.getBoolean(key))
+                    post.isReposted = payload.getBoolean(key)
                     updateRepostButton()
                 }
-
                 "repostCount" -> {
-                    currentPost!!.setRepostCount(payload.getLong(key))
-                    tvRepostCount.setText(formatCount(currentPost!!.getRepostCount()))
+                    post.repostCount = payload.getLong(key)
+                    tvRepostCount.text = formatCount(post.repostCount)
                 }
-
                 "bookmarked" -> {
-                    currentPost!!.setBookmarked(payload.getBoolean(key))
+                    post.isBookmarked = payload.getBoolean(key)
                     updateBookmarkButton()
                 }
-
                 "bookmarkCount" -> {
-                    currentPost!!.setBookmarkCount(payload.getLong(key))
-                    tvBookmarkCount.setText(formatCount(currentPost!!.getBookmarkCount()))
+                    post.bookmarkCount = payload.getLong(key)
+                    tvBookmarkCount.text = formatCount(post.bookmarkCount)
                 }
-
                 "replyCount" -> {
-                    currentPost!!.setReplyCount(payload.getLong(key))
-                    tvCommentCount.setText(formatCount(currentPost!!.getReplyCount()))
+                    post.replyCount = payload.getLong(key)
+                    tvCommentCount.text = formatCount(post.replyCount)
                 }
             }
         }
     }
 
     private fun setupClickListeners() {
-        btnLike.setOnClickListener(View.OnClickListener { v: View? ->
-            if (currentPost != null && listener != null) toggleLike()
-        })
-        // ★ إضافة مستمع الضغط المطول لزر الإعجاب (إذا كنت قد أضفت الدالة للواجهة)
-        btnLike.setOnLongClickListener(OnLongClickListener { v: View? ->
-            if (currentPost != null && listener != null) {
-                listener.onLikeButtonLongClicked(currentPost, btnLike)
-                return@setOnLongClickListener true
+        btnLike.setOnClickListener {
+            currentPost?.let { toggleLike(it) }
+        }
+        btnLike.setOnLongClickListener {
+            currentPost?.let { post ->
+                listener?.onLikeButtonLongClicked(post, btnLike)
             }
-            false
-        })
-        btnBookmark.setOnClickListener(View.OnClickListener { v: View? ->
-            if (currentPost != null && listener != null) toggleBookmark()
-        })
-        btnRepost.setOnClickListener(View.OnClickListener { v: View? ->
-            if (currentPost != null && listener != null) toggleRepost()
-        })
-        btnComment.setOnClickListener(View.OnClickListener { v: View? ->
-            if (listener != null && currentPost != null) listener.onCommentClicked(currentPost)
-        })
-        // ★★★ إضافة مستمع النقر لزر القائمة ★★★
-        if (btnMenu != null) {
-            btnMenu.setOnClickListener(View.OnClickListener { v: View? ->
-                if (listener != null && currentPost != null) {
-                    listener.onMenuClicked(currentPost, btnMenu)
-                }
-            })
+            true
+        }
+        btnBookmark.setOnClickListener {
+            currentPost?.let { toggleBookmark(it) }
+        }
+        btnRepost.setOnClickListener {
+            currentPost?.let { toggleRepost(it) }
+        }
+        btnComment.setOnClickListener {
+            currentPost?.let { listener?.onCommentClicked(it) }
+        }
+        btnMenu?.setOnClickListener {
+            currentPost?.let { post -> listener?.onMenuClicked(post, btnMenu) }
         }
     }
 
-    private fun toggleLike() {
-        currentPost!!.toggleLike()
+    private fun toggleLike(post: PostModel) {
+        post.toggleLike()
         updateLikeButton()
-        if (listener != null) {
-            listener.onLikeClicked(currentPost)
-        }
+        listener?.onLikeClicked(post)
         updateLikeReactionIcon()
     }
 
-    private fun toggleBookmark() {
-        currentPost!!.toggleBookmark()
+    private fun toggleBookmark(post: PostModel) {
+        post.toggleBookmark()
         updateBookmarkButton()
-        if (listener != null) listener.onBookmarkClicked(currentPost)
+        listener?.onBookmarkClicked(post)
     }
 
-    private fun toggleRepost() {
-        currentPost!!.toggleRepost()
+    private fun toggleRepost(post: PostModel) {
+        post.toggleRepost()
         updateRepostButton()
-        if (listener != null) listener.onRepostClicked(currentPost)
+        listener?.onRepostClicked(post)
     }
 
     private fun updateAllCounters() {
-        if (currentPost == null) return
-        tvLikeCount.setText(formatCount(currentPost!!.getLikeCount()))
-        tvBookmarkCount.setText(formatCount(currentPost!!.getBookmarkCount()))
-        tvRepostCount.setText(formatCount(currentPost!!.getRepostCount()))
-        tvCommentCount.setText(formatCount(currentPost!!.getReplyCount()))
+        val post = currentPost ?: return
+        tvLikeCount.text = formatCount(post.likeCount)
+        tvBookmarkCount.text = formatCount(post.bookmarkCount)
+        tvRepostCount.text = formatCount(post.repostCount)
+        tvCommentCount.text = formatCount(post.replyCount)
     }
 
     private fun updateButtonStates() {
-        if (currentPost == null) return
+        currentPost ?: return
         updateLikeButton()
-        updateButtonState(
-            btnBookmark,
-            currentPost!!.isBookmarked(),
-            R.drawable.ic_bookmark_filled,
-            R.color.yellow,
-            R.drawable.ic_bookmark_outline
-        )
-        updateButtonState(
-            btnRepost,
-            currentPost!!.isReposted(),
-            R.drawable.ic_repost_filled,
-            R.color.green,
-            R.drawable.ic_repost_outline
-        )
+        updateBookmarkButton()
+        updateRepostButton()
     }
 
     private fun updateLikeButton() {
-        if (currentPost == null) return
+        val post = currentPost ?: return
         updateButtonState(
             btnLike,
-            currentPost!!.isLiked(),
+            post.isLiked,
             R.drawable.ic_like_filled,
             R.color.red,
             R.drawable.ic_like_outline
         )
-        tvLikeCount.setText(formatCount(currentPost!!.getLikeCount()))
+        tvLikeCount.text = formatCount(post.likeCount)
     }
 
     private fun updateBookmarkButton() {
-        if (currentPost == null) return
+        val post = currentPost ?: return
         updateButtonState(
             btnBookmark,
-            currentPost!!.isBookmarked(),
+            post.isBookmarked,
             R.drawable.ic_bookmark_filled,
             R.color.yellow,
             R.drawable.ic_bookmark_outline
         )
-        tvBookmarkCount.setText(formatCount(currentPost!!.getBookmarkCount()))
+        tvBookmarkCount.text = formatCount(post.bookmarkCount)
     }
 
     private fun updateRepostButton() {
-        if (currentPost == null) return
+        val post = currentPost ?: return
         updateButtonState(
             btnRepost,
-            currentPost!!.isReposted(),
+            post.isReposted,
             R.drawable.ic_repost_filled,
             R.color.green,
             R.drawable.ic_repost_outline
         )
-        tvRepostCount.setText(formatCount(currentPost!!.getRepostCount()))
+        tvRepostCount.text = formatCount(post.repostCount)
     }
 
     private fun updateButtonState(
-        button: ImageButton?,
+        button: ImageButton,
         isActive: Boolean,
         filledRes: Int,
         activeColorRes: Int,
         outlineRes: Int
     ) {
-        if (context == null || button == null) return
+        context ?: return
         button.setImageResource(if (isActive) filledRes else outlineRes)
-        val colorRes = if (isActive) activeColorRes else R.color.text_secondary
-        button.setColorFilter(ContextCompat.getColor(context, colorRes))
+        val color = ContextCompat.getColor(context, if (isActive) activeColorRes else R.color.text_secondary)
+        button.setColorFilter(color)
     }
 
     private fun updateLikeReactionIcon() {
-        if (currentPost == null || ivLikeReaction == null || context == null || currentUserId == null) return
+        val post = currentPost
+        val reactionIcon = ivLikeReaction
+        val localContext = context
+        val userId = currentUserId
+        if (post == null || reactionIcon == null || localContext == null || userId == null) return
 
-        val userReaction = currentPost!!.getUserReaction(currentUserId)
+        val userReaction = post.getUserReaction(userId)
 
-        if (currentPost!!.isLiked() && "❤️" == userReaction) {
-            ivLikeReaction.setImageResource(R.drawable.ic_like_filled_red)
-            ivLikeReaction.setColorFilter(ContextCompat.getColor(context, R.color.red))
-            ivLikeReaction.setVisibility(View.VISIBLE)
-        } else if (currentPost!!.isLiked()) {
-            ivLikeReaction.setVisibility(View.GONE)
+        if (post.isLiked && userReaction != null && userReaction != "❤️") {
+            val drawableId = getDrawableIdForEmoji(userReaction, true)
+            if (drawableId != R.drawable.ic_emoji) {
+                reactionIcon.setImageResource(drawableId)
+                reactionIcon.clearColorFilter()
+                reactionIcon.visibility = View.VISIBLE
+            } else {
+                reactionIcon.visibility = View.GONE
+            }
         } else {
-            ivLikeReaction.setVisibility(View.GONE)
+            reactionIcon.visibility = View.GONE
         }
     }
 
     private fun formatCount(count: Long): String {
-        if (count >= 1000000000) return String.format(
-            Locale.getDefault(),
-            "%.1fB",
-            count / 1000000000.0
-        )
-        if (count >= 1000000) return String.format(Locale.getDefault(), "%.1fM", count / 1000000.0)
-        if (count >= 1000) return String.format(Locale.getDefault(), "%.0fK", count / 1000.0)
-        return count.toString()
+        return when {
+            count >= 1_000_000_000 -> String.format(Locale.getDefault(), "%.1fB", count / 1_000_000_000.0)
+            count >= 1_000_000 -> String.format(Locale.getDefault(), "%.1fM", count / 1_000_000.0)
+            count >= 1_000 -> String.format(Locale.getDefault(), "%.0fK", count / 1_000.0)
+            else -> count.toString()
+        }
     }
 
     companion object {
@@ -264,14 +235,14 @@ class PostInteractionHandler(
             if (reactionEmoji == null) {
                 return R.drawable.ic_emoji
             }
-            when (reactionEmoji) {
-                "❤️" -> return R.drawable.ic_like_filled_red
-                "😂" -> return R.drawable.ic_emoji_laugh_small // تأكد أن هذا الـ drawable موجود ومُعرَّف
-                "😮" -> return R.drawable.ic_emoji // مؤقتًا
-                "😢" -> return R.drawable.ic_emoji // مؤقتًا
-                "👍" -> return R.drawable.ic_like_filled
-                "👎" -> return R.drawable.ic_emoji // مؤقتًا
-                else -> return R.drawable.ic_emoji
+            return when (reactionEmoji) {
+                "❤️" -> R.drawable.ic_like_filled_red
+                "😂" -> R.drawable.ic_emoji_laugh_small
+                "😮" -> R.drawable.ic_emoji // Placeholder
+                "😢" -> R.drawable.ic_emoji // Placeholder
+                "👍" -> R.drawable.ic_like_filled
+                "👎" -> R.drawable.ic_emoji // Placeholder
+                else -> R.drawable.ic_emoji
             }
         }
     }

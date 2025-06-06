@@ -3,174 +3,108 @@ package com.spidroid.starry.ui.search
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.google.android.material.button.MaterialButton
 import com.spidroid.starry.R
+import com.spidroid.starry.databinding.ItemUserResultBinding
 import com.spidroid.starry.models.UserModel
-import de.hdodenhof.circleimageview.CircleImageView
 
 class UserResultAdapter(
     private val currentUserId: String?,
-    private val listener: OnUserInteractionListener?
-) : RecyclerView.Adapter<UserResultAdapter.UserViewHolder?>() {
-    private val users: MutableList<UserModel>
+    private val listener: OnUserInteractionListener
+) : ListAdapter<UserModel, UserResultAdapter.UserViewHolder>(DIFF_CALLBACK) {
 
+    // واجهة للتفاعل مع الأحداث من الـ Fragment
     interface OnUserInteractionListener {
-        fun onFollowClicked(user: UserModel?, position: Int)
-        fun onUserClicked(user: UserModel?)
-        fun onMoreClicked(user: UserModel?, anchor: View?)
-    }
-
-    init {
-        this.users = ArrayList<UserModel>()
-    }
-
-    class UserViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val ivProfile: CircleImageView
-        val tvDisplayName: TextView
-        val tvUsername: TextView
-        val tvBio: TextView
-        val btnFollow: MaterialButton
-        val ivVerified: ImageView
-
-        init {
-            ivProfile = itemView.findViewById<CircleImageView>(R.id.iv_profile)
-            tvDisplayName = itemView.findViewById<TextView>(R.id.tv_display_name)
-            tvUsername = itemView.findViewById<TextView>(R.id.tv_username)
-            tvBio = itemView.findViewById<TextView>(R.id.tv_bio)
-            btnFollow = itemView.findViewById<MaterialButton>(R.id.btn_follow)
-            ivVerified = itemView.findViewById<ImageView>(R.id.iv_verified)
-        }
+        fun onFollowClicked(user: UserModel, position: Int)
+        fun onUserClicked(user: UserModel)
+        fun onMoreClicked(user: UserModel, anchor: View)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder {
-        val view = LayoutInflater.from(parent.getContext())
-            .inflate(R.layout.item_user_result, parent, false)
-        return UserViewHolder(view)
+        val binding = ItemUserResultBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return UserViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: UserViewHolder, position: Int) {
-        val user = users.get(position)
-
-
-        // Basic Info
-        holder.tvDisplayName.setText(if (user.getDisplayName() != null) user.getDisplayName() else user.getUsername())
-        holder.tvUsername.setText("@" + user.getUsername())
-
-
-        // Bio
-        if (user.getBio() != null && !user.getBio().isEmpty()) {
-            holder.tvBio.setText(user.getBio())
-            holder.tvBio.setVisibility(View.VISIBLE)
-        } else {
-            holder.tvBio.setVisibility(View.GONE)
+        val user = getItem(position)
+        if (user != null) {
+            holder.bind(user)
         }
+    }
 
-        // Verification Badge
-        holder.ivVerified.setVisibility(if (user.isVerified()) View.VISIBLE else View.GONE)
+    // تم نقل الدالة القديمة updateUsers إلى submitList المدمجة في ListAdapter
 
-        // Follow Button State
-        updateFollowButton(holder.btnFollow, user)
+    inner class UserViewHolder(private val binding: ItemUserResultBinding) : RecyclerView.ViewHolder(binding.root) {
 
-        // Profile Image
-        Glide.with(holder.itemView.getContext())
-            .load(user.getProfileImageUrl())
-            .placeholder(R.drawable.ic_default_avatar)
-            .error(R.drawable.ic_default_avatar)
-            .into(holder.ivProfile)
-
-        // Click Listeners
-        holder.btnFollow.setOnClickListener(View.OnClickListener { v: View? ->
-            if (listener != null) {
-                listener.onFollowClicked(user, holder.getAdapterPosition())
+        init {
+            // إعداد مستمعي النقرات مرة واحدة هنا
+            binding.btnFollow.setOnClickListener {
+                if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                    listener.onFollowClicked(getItem(bindingAdapterPosition), bindingAdapterPosition)
+                }
             }
-        })
 
-        holder.itemView.setOnClickListener(View.OnClickListener { v: View? ->
-            if (listener != null) {
-                listener.onUserClicked(user)
+            itemView.setOnClickListener {
+                if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                    listener.onUserClicked(getItem(bindingAdapterPosition))
+                }
             }
-        })
+        }
 
-        holder.ivProfile.setOnClickListener(View.OnClickListener { v: View? ->
-            if (listener != null) {
-                listener.onUserClicked(user)
+        fun bind(user: UserModel) {
+            // ربط بيانات المستخدم بالواجهة
+            binding.tvDisplayName.text = user.displayName ?: user.username
+            binding.tvUsername.text = "@${user.username}"
+            binding.tvBio.text = user.bio
+            binding.tvBio.visibility = if (user.bio.isNullOrEmpty()) View.GONE else View.VISIBLE
+            binding.ivVerified.visibility = if (user.isVerified) View.VISIBLE else View.GONE
+
+            Glide.with(itemView.context)
+                .load(user.profileImageUrl)
+                .placeholder(R.drawable.ic_default_avatar)
+                .error(R.drawable.ic_default_avatar)
+                .into(binding.ivProfile)
+
+            updateFollowButton(user)
+        }
+
+        private fun updateFollowButton(user: UserModel) {
+            if (user.userId == currentUserId) {
+                binding.btnFollow.visibility = View.GONE
+                return
             }
-        })
-    }
 
-    private fun updateFollowButton(button: MaterialButton, user: UserModel) {
-        val isFollowing = user.getFollowers().containsKey(currentUserId)
-        val isPrivate = user.getPrivacySettings().isPrivateAccount()
+            binding.btnFollow.visibility = View.VISIBLE
+            val isFollowing = user.followers.containsKey(currentUserId)
 
-        button.setVisibility(
-            if (user.getUserId() == currentUserId) View.GONE else View.VISIBLE
-        )
-
-        if (isFollowing) {
-            button.setText("Following")
-            button.setIconResource(R.drawable.ic_check)
-            button.setBackgroundColor(
-                ContextCompat.getColor(button.getContext(), R.color.m3_surface_container_highest)
-            )
-        } else if (isPrivate) {
-            button.setText("Request")
-            button.setIconResource(R.drawable.ic_lock)
-            button.setBackgroundColor(
-                ContextCompat.getColor(button.getContext(), R.color.m3_primary)
-            )
-        } else {
-            button.setText("Follow")
-            button.setIconResource(R.drawable.ic_add)
-            button.setBackgroundColor(
-                ContextCompat.getColor(button.getContext(), R.color.m3_primary)
-            )
+            if (isFollowing) {
+                binding.btnFollow.text = "Following"
+                binding.btnFollow.icon = ContextCompat.getDrawable(itemView.context, R.drawable.ic_check)
+            } else {
+                binding.btnFollow.text = "Follow"
+                binding.btnFollow.icon = ContextCompat.getDrawable(itemView.context, R.drawable.ic_add)
+            }
         }
     }
 
-    override fun getItemCount(): Int {
-        return users.size
-    }
+    companion object {
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<UserModel>() {
+            override fun areItemsTheSame(oldItem: UserModel, newItem: UserModel): Boolean {
+                return oldItem.userId == newItem.userId
+            }
 
-    fun updateUsers(newUsers: MutableList<UserModel>) {
-        val diffResult = DiffUtil.calculateDiff(UserDiffCallback(users, newUsers))
-        users.clear()
-        users.addAll(newUsers)
-        diffResult.dispatchUpdatesTo(this)
-    }
-
-    private class UserDiffCallback(
-        private val oldUsers: MutableList<UserModel>,
-        private val newUsers: MutableList<UserModel>
-    ) : DiffUtil.Callback() {
-        override fun getOldListSize(): Int {
-            return oldUsers.size
-        }
-
-        override fun getNewListSize(): Int {
-            return newUsers.size
-        }
-
-        override fun areItemsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-            return (oldUsers.get(oldItemPosition).getUserId()
-                    == newUsers.get(newItemPosition).getUserId())
-        }
-
-        override fun areContentsTheSame(oldItemPosition: Int, newItemPosition: Int): Boolean {
-            val oldUser = oldUsers.get(oldItemPosition)
-            val newUser = newUsers.get(newItemPosition)
-
-            return oldUser.getFollowers().size == newUser.getFollowers().size && oldUser.isVerified() == newUser.isVerified() && oldUser.getPrivacySettings()
-                .isPrivateAccount() ==
-                    newUser.getPrivacySettings().isPrivateAccount() &&
-                    oldUser.getDisplayName() == newUser.getDisplayName() &&
-                    oldUser.getUsername() == newUser.getUsername() &&
-                    oldUser.getBio() == newUser.getBio()
+            override fun areContentsTheSame(oldItem: UserModel, newItem: UserModel): Boolean {
+                // قارن فقط الحقول التي تؤثر على العرض
+                return oldItem.displayName == newItem.displayName &&
+                        oldItem.username == newItem.username &&
+                        oldItem.profileImageUrl == newItem.profileImageUrl &&
+                        oldItem.followers.size == newItem.followers.size && // طريقة سريعة لمعرفة تغيير حالة المتابعة
+                        oldItem.isVerified == newItem.isVerified
+            }
         }
     }
 }

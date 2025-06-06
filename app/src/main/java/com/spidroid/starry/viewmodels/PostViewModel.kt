@@ -1,506 +1,224 @@
 package com.spidroid.starry.viewmodels
 
-// ★ إضافة إذا لم يكن موجودًا
 import android.util.Log
-import androidx.lifecycle.Observer
-import com.google.android.gms.tasks.Task
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.map
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.repositories.PostRepository
+import com.spidroid.starry.repositories.UserRepository
+import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
 
 class PostViewModel : ViewModel() {
-    private val postRepository: PostRepository = PostRepository()
-    private val userRepository: UserRepository = UserRepository()
+
+    private val postRepository = PostRepository()
+    private val userRepository = UserRepository()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    private val posts: MutableLiveData<MutableList<PostModel?>?> =
-        MutableLiveData<MutableList<PostModel?>?>()
-    private val error: MutableLiveData<String?> = MutableLiveData<String?>()
-    private val suggestions: MutableLiveData<MutableList<UserModel?>?> =
-        MutableLiveData<MutableList<UserModel?>?>()
-    private val combinedFeed: MediatorLiveData<MutableList<Any?>?> =
-        MediatorLiveData<MutableList<Any?>?>()
-    private val currentUserData: MutableLiveData<UserModel?> = MutableLiveData<UserModel?>()
+    private val _posts = MutableLiveData<List<PostModel>>()
+    private val _suggestions = MutableLiveData<List<UserModel>>()
+    private val _error = MutableLiveData<String?>()
+    private val _currentUserData = MutableLiveData<UserModel?>()
 
-    private val _postUpdatedEvent: MutableLiveData<String?> = MutableLiveData<String?>()
-    val postUpdatedEvent: LiveData<String?>
-        get() = _postUpdatedEvent
+    // LiveData for events, making them non-nullable and using a helper class for single-fire events might be better.
+    private val _postUpdatedEvent = MutableLiveData<String?>()
+    val postUpdatedEvent: LiveData<String?> get() = _postUpdatedEvent
 
-    private val _postInteractionErrorEvent: MutableLiveData<String?> = MutableLiveData<String?>()
-    val postInteractionErrorEvent: LiveData<String?>
-        get() = _postInteractionErrorEvent
+    private val _postInteractionErrorEvent = MutableLiveData<String?>()
+    val postInteractionErrorEvent: LiveData<String?> get() = _postInteractionErrorEvent
 
+    // Public LiveData
+    val errorLiveData: LiveData<String?> get() = _error
+    val currentUserLiveData: LiveData<UserModel?> get() = _currentUserData
+
+    val combinedFeed = MediatorLiveData<List<Any>>().apply {
+        addSource(_posts) { posts ->
+            value = combineFeeds(posts, _suggestions.value)
+        }
+        addSource(_suggestions) { suggestions ->
+            value = combineFeeds(_posts.value, suggestions)
+        }
+    }
 
     init {
-        combinedFeed.addSource<MutableList<PostModel?>?>(
-            posts,
-            Observer { postsList: MutableList<PostModel?>? ->
-                combineData(
-                    postsList,
-                    suggestions.getValue()
-                )
-            })
-        combinedFeed.addSource<MutableList<UserModel?>?>(
-            suggestions,
-            Observer { users: MutableList<UserModel?>? -> combineData(posts.getValue(), users) })
         fetchCurrentUser()
     }
 
+    private fun combineFeeds(posts: List<PostModel>?, suggestions: List<UserModel>?): List<Any> {
+        val combinedList = mutableListOf<Any>()
+        posts?.let { combinedList.addAll(it) }
+        // Logic to interleave suggestions can be added here if needed
+        suggestions?.let { combinedList.addAll(it) }
+        return combinedList
+    }
+
     private fun fetchCurrentUser() {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser != null) {
-            userRepository.getUserById(firebaseUser.getUid())
-                .observeForever(Observer { userModel: UserModel? ->
-                    if (userModel != null) {
-                        currentUserData.postValue(userModel)
-                        Log.d(
-                            PostViewModel.Companion.TAG,
-                            "Current user data loaded: " + userModel.getUsername()
-                        )
-                    } else {
-                        _postInteractionErrorEvent.postValue("Failed to load current user data from repository.")
-                        Log.e(
-                            PostViewModel.Companion.TAG,
-                            "Current user data is null from repository for UID: " + firebaseUser.getUid()
-                        )
-                    }
-                })
-        } else {
+        auth.currentUser?.uid?.let { userId ->
+            // Assuming userRepository.getUserById returns LiveData or can be adapted
+            // For simplicity, let's use a direct fetch here. A repository with LiveData is better.
+            userRepository.getUserById(userId).observeForever { userModel ->
+                if (userModel != null) {
+                    _currentUserData.postValue(userModel)
+                    Log.d(TAG, "Current user data loaded: ${userModel.username}")
+                } else {
+                    _postInteractionErrorEvent.postValue("Failed to load current user data.")
+                    Log.e(TAG, "Current user data is null from repository for UID: $userId")
+                }
+            }
+        } ?: run {
             _postInteractionErrorEvent.postValue("User not authenticated.")
-            Log.e(
-                PostViewModel.Companion.TAG,
-                "FirebaseUser is null, cannot fetch current user data."
-            )
+            Log.e(TAG, "FirebaseUser is null, cannot fetch current user data.")
         }
     }
 
-    fun getCombinedFeed(): LiveData<MutableList<Any?>?> {
-        return combinedFeed
-    }
-
-    val errorLiveData: LiveData<String?>
-        get() = error // يستخدم للأخطاء العامة لجلب الخلاصات
-    val currentUserLiveData: LiveData<UserModel?>
-        get() = currentUserData
-
     fun fetchPosts(limit: Int) {
-        Log.d(
-            PostViewModel.Companion.TAG,
-            "Attempting to fetch posts for main feed. Limit: " + limit
-        )
-        postRepository.getPosts(limit)
-            .addOnCompleteListener(OnCompleteListener { task: Task<QuerySnapshot?>? ->
-                if (task!!.isSuccessful() && task.getResult() != null) {
-                    val postList: MutableList<PostModel?> = ArrayList<PostModel?>()
-                    Log.d(
-                        PostViewModel.Companion.TAG,
-                        "Fetched " + task.getResult()
-                            .size() + " documents from Firestore for main feed."
-                    )
-                    for (doc in task.getResult()) {
-                        val post: PostModel? = doc.toObject(PostModel::class.java)
-                        if (post != null) {
-                            post.setPostId(doc.getId())
-                            updateUserInteractions(post)
-                            postList.add(post)
-                            Log.d(
-                                PostViewModel.Companion.TAG,
-                                "Added post to list: " + post.getPostId() + " with content (first 20 chars): " + (if (post.getContent() != null && post.getContent().length > 20) post.getContent()
-                                    .substring(0, 20) else post.getContent())
-                            )
-                        } else {
-                            Log.w(
-                                PostViewModel.Companion.TAG,
-                                "Document " + doc.getId() + " converted to null PostModel for main feed."
-                            )
-                        }
+        Log.d(TAG, "Attempting to fetch posts for main feed. Limit: $limit")
+        postRepository.getPosts(limit).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val postList = task.result?.mapNotNull { doc ->
+                    doc.toObject(PostModel::class.java).apply {
+                        postId = doc.id
+                        updateUserInteractions(this)
                     }
-                    posts.postValue(postList)
-                    Log.d(
-                        PostViewModel.Companion.TAG,
-                        "posts LiveData updated with " + postList.size + " posts for main feed."
-                    )
-                    if (postList.isEmpty()) {
-                        Log.w(
-                            PostViewModel.Companion.TAG,
-                            "Post list IS EMPTY after successful fetch for main feed."
-                        )
-                        error.postValue("No posts found.") // إرسال رسالة إذا كانت القائمة فارغة
-                    }
-                } else {
-                    val errorMsg =
-                        "Failed to load posts for main feed: " + (if (task.getException() != null) task.getException()!!.message else "Unknown error")
-                    error.postValue(errorMsg)
-                    Log.e(PostViewModel.Companion.TAG, errorMsg, task.getException())
-                    posts.postValue(ArrayList<PostModel?>())
                 }
-            })
+                if (postList != null) {
+                    _posts.postValue(postList)
+                    Log.d(TAG, "posts LiveData updated with ${postList.size} posts.")
+                    if (postList.isEmpty()) {
+                        _error.postValue("No posts found.")
+                    }
+                }
+            } else {
+                val errorMsg = "Failed to load posts: ${task.exception?.message ?: "Unknown error"}"
+                _error.postValue(errorMsg)
+                Log.e(TAG, errorMsg, task.exception)
+                _posts.postValue(emptyList())
+            }
+        }
     }
 
     fun fetchUserSuggestions() {
-        postRepository.getUserSuggestions()
-            .addOnCompleteListener(OnCompleteListener { task: Task<QuerySnapshot?>? ->
-                if (task!!.isSuccessful() && task.getResult() != null) {
-                    suggestions.postValue(task.getResult().toObjects(UserModel::class.java))
-                } else {
-                    Log.e(
-                        PostViewModel.Companion.TAG,
-                        "Failed to fetch user suggestions",
-                        task.getException()
-                    )
-                }
-            })
-    }
-
-    fun toggleLike(postToUpdate: PostModel?, newLikedState: Boolean) {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        val liker: UserModel? = currentUserData.getValue()
-        if (firebaseUser == null || liker == null || postToUpdate == null || postToUpdate.getPostId() == null || postToUpdate.getAuthorId() == null) {
-            handleInteractionError("toggleLike", "Authentication or data error.")
-            return
-        }
-        postRepository.toggleLike(
-            postToUpdate.getPostId(),
-            newLikedState,
-            postToUpdate.getAuthorId(),
-            liker
-        )
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Like status updated in Firestore for " + postToUpdate.getPostId()
-                )
-                updateLocalPostInteraction(
-                    postToUpdate.getPostId(),
-                    "like",
-                    newLikedState,
-                    (if (newLikedState) 1 else -1).toLong()
-                )
-                _postUpdatedEvent.postValue(postToUpdate.getPostId())
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "toggleLike",
-                    e!!.message
-                )
-            })
-    }
-
-    fun toggleBookmark(postId: String?, newBookmarkedState: Boolean) {
-        if (auth.getUid() == null || postId == null) {
-            handleInteractionError("toggleBookmark", "Authentication or Post ID error.")
-            return
-        }
-        postRepository.toggleBookmark(postId, newBookmarkedState)
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Bookmark status updated in Firestore for " + postId
-                )
-                updateLocalPostInteraction(
-                    postId,
-                    "bookmark",
-                    newBookmarkedState,
-                    (if (newBookmarkedState) 1 else -1).toLong()
-                )
-                _postUpdatedEvent.postValue(postId)
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "toggleBookmark",
-                    e!!.message
-                )
-            })
-    }
-
-    fun toggleRepost(postId: String?, newRepostedState: Boolean) {
-        if (auth.getUid() == null || postId == null) {
-            handleInteractionError("toggleRepost", "Authentication or Post ID error.")
-            return
-        }
-        postRepository.toggleRepost(postId, newRepostedState)
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Repost status updated in Firestore for " + postId
-                )
-                updateLocalPostInteraction(
-                    postId,
-                    "repost",
-                    newRepostedState,
-                    (if (newRepostedState) 1 else -1).toLong()
-                )
-                _postUpdatedEvent.postValue(postId)
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "toggleRepost",
-                    e!!.message
-                )
-            })
-    }
-
-    fun deletePost(postId: String?) {
-        if (postId == null || postId.isEmpty()) {
-            handleInteractionError("deletePost", "Post ID cannot be null or empty.")
-            return
-        }
-        postRepository.deletePost(postId)
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Post " + postId + " deleted successfully from Firestore."
-                )
-                val currentPostsList: MutableList<PostModel?>? = posts.getValue()
-                if (currentPostsList != null) {
-                    val removed =
-                        currentPostsList.removeIf { p: PostModel? -> p.getPostId() == postId }
-                    if (removed) {
-                        posts.postValue(ArrayList<PostModel?>(currentPostsList))
-                        _postUpdatedEvent.postValue(postId) // إرسال حدث أن المنشور تم حذفه
-                    }
-                }
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "deletePost",
-                    "Failed to delete post: " + e!!.message
-                )
-            })
-    }
-
-    fun handleEmojiSelection(post: PostModel?, emoji: String?) {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        val reactor: UserModel? = currentUserData.getValue()
-        if (firebaseUser == null || reactor == null || post == null || post.getPostId() == null || post.getAuthorId() == null) {
-            handleInteractionError("handleEmojiSelection", "Authentication or data error.")
-            return
-        }
-        postRepository.addOrUpdateReaction(
-            post.getPostId(),
-            reactor.getUserId(),
-            emoji,
-            post.getAuthorId(),
-            reactor
-        )
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Reaction '" + emoji + "' successfully processed for post " + post.getPostId()
-                )
-                _postUpdatedEvent.postValue(post.getPostId())
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "handleEmojiSelection",
-                    "Failed to add/update reaction: " + e!!.message
-                )
-            })
-    }
-
-    fun togglePostPinStatus(postToToggle: PostModel?) {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser == null || postToToggle == null || postToToggle.getPostId() == null || postToToggle.getAuthorId() == null) {
-            handleInteractionError("togglePostPinStatus", "Authentication or data error.")
-            return
-        }
-        if (!firebaseUser.getUid().equals(postToToggle.getAuthorId())) {
-            handleInteractionError("togglePostPinStatus", "User not authorized to pin this post.")
-            return
-        }
-        val newPinnedState: Boolean = !postToToggle.isPinned()
-        postRepository.setPostPinnedStatus(
-            postToToggle.getPostId(),
-            postToToggle.getAuthorId(),
-            newPinnedState
-        )
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Pin status updated in Firestore for " + postToToggle.getPostId() + " to " + newPinnedState
-                )
-                _postUpdatedEvent.postValue(postToToggle.getPostId()) // للإشارة إلى أن القائمة يجب أن تُعاد تحميلها في ProfilePostsFragment
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "togglePostPinStatus",
-                    e!!.message
-                )
-            })
-    }
-
-    fun editPostContent(postId: String?, newContent: String?) {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser == null || postId == null || newContent == null) {
-            handleInteractionError("editPostContent", "Authentication, Post ID, or content error.")
-            return
-        }
-        // يمكنك إضافة تحقق من ملكية المنشور هنا إذا أردت
-        postRepository.updatePostContent(postId, newContent)
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(PostViewModel.Companion.TAG, "Post " + postId + " content updated.")
-                _postUpdatedEvent.postValue(postId)
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "editPostContent",
-                    e!!.message
-                )
-            })
-    }
-
-    fun setPostPrivacy(postId: String?, newPrivacyLevel: String?) {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser == null || postId == null || newPrivacyLevel == null) {
-            handleInteractionError(
-                "setPostPrivacy",
-                "Authentication, Post ID, or privacy level error."
-            )
-            return
-        }
-        // يمكنك إضافة تحقق من ملكية المنشور هنا
-        postRepository.updatePostPrivacy(postId, newPrivacyLevel)
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Post " + postId + " privacy updated to " + newPrivacyLevel
-                )
-                _postUpdatedEvent.postValue(postId)
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "setPostPrivacy",
-                    e!!.message
-                )
-            })
-    }
-
-    fun submitReportForPost(
-        postId: String?,
-        reason: String?,
-        reportedAuthorId: String?
-    ) { // ★ إضافة reportedAuthorId
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser == null || postId == null || reason == null || reason.trim { it <= ' ' }
-                .isEmpty() || reportedAuthorId == null) {
-            handleInteractionError(
-                "submitReportForPost",
-                "Authentication, Post ID, reason, or author ID error."
-            )
-            return
-        }
-        val reportData: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-        reportData.put("reportedPostId", postId)
-        reportData.put("reportedAuthorId", reportedAuthorId) // ★ إضافة معرّف صاحب المنشور
-        reportData.put("reportingUserId", firebaseUser.getUid())
-        reportData.put("reason", reason)
-        reportData.put("timestamp", FieldValue.serverTimestamp())
-        reportData.put("status", "pending")
-
-        postRepository.submitReport(reportData)
-            .addOnSuccessListener(OnSuccessListener { documentReference: DocumentReference? ->
-                Log.d(
-                    PostViewModel.Companion.TAG,
-                    "Report submitted for post " + postId + " with ID: " + documentReference.getId()
-                )
-            })
-            .addOnFailureListener(OnFailureListener { e: Exception? ->
-                handleInteractionError(
-                    "submitReportForPost",
-                    e!!.message
-                )
-            })
-    }
-
-    private fun updateLocalPostInteraction(
-        postId: String?,
-        interactionType: String,
-        newState: Boolean,
-        countChange: Long
-    ) {
-        val currentPostsList: MutableList<PostModel?>? = posts.getValue()
-        if (currentPostsList == null) return
-
-        var listChanged = false
-        val tempList: MutableList<PostModel> =
-            ArrayList<PostModel>(currentPostsList) // اعمل على نسخة لتجنب ConcurrentModificationException
-
-        for (p in tempList) {
-            if (p.getPostId() == postId) {
-                when (interactionType) {
-                    "like" -> if (p.isLiked() != newState) {
-                        p.setLiked(newState)
-                        p.setLikeCount(p.getLikeCount() + countChange)
-                        if (p.getLikeCount() < 0) p.setLikeCount(0)
-                        listChanged = true
-                    }
-
-                    "bookmark" -> if (p.isBookmarked() != newState) {
-                        p.setBookmarked(newState)
-                        p.setBookmarkCount(p.getBookmarkCount() + countChange)
-                        if (p.getBookmarkCount() < 0) p.setBookmarkCount(0)
-                        listChanged = true
-                    }
-
-                    "repost" -> if (p.isReposted() != newState) {
-                        p.setReposted(newState)
-                        p.setRepostCount(p.getRepostCount() + countChange)
-                        if (p.getRepostCount() < 0) p.setRepostCount(0)
-                        listChanged = true
-                    }
-                }
-                break
+        postRepository.userSuggestions.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                _suggestions.postValue(task.result?.toObjects(UserModel::class.java))
+            } else {
+                Log.e(TAG, "Failed to fetch user suggestions", task.exception)
             }
         }
-        if (listChanged) {
-            posts.postValue(tempList)
-        }
-    }
-
-    private fun combineData(postsList: MutableList<PostModel?>?, users: MutableList<UserModel?>?) {
-        val combinedList: MutableList<Any?> = ArrayList<Any?>()
-        if (postsList != null) {
-            combinedList.addAll(postsList)
-        }
-        // ... (منطق دمج اقتراحات المستخدمين إذا لزم الأمر) ...
-        combinedFeed.postValue(combinedList)
     }
 
     private fun updateUserInteractions(post: PostModel) {
-        val currentUserId: String? = auth.getUid()
-        if (currentUserId == null) {
-            post.setLiked(false)
-            post.setBookmarked(false)
-            post.setReposted(false)
+        val userId = auth.currentUser?.uid
+        post.isLiked = userId != null && post.likes.containsKey(userId)
+        post.isBookmarked = userId != null && post.bookmarks.containsKey(userId)
+        post.isReposted = userId != null && post.reposts.containsKey(userId)
+    }
+
+    fun toggleLike(post: PostModel, newLikedState: Boolean) {
+        val liker = _currentUserData.value ?: run {
+            handleInteractionError("toggleLike", "User data not loaded.")
             return
         }
-        if (post.getLikes() != null) {
-            post.setLiked(post.getLikes().containsKey(currentUserId))
-        } else {
-            post.setLiked(false)
+        val postId = post.postId ?: return
+        val authorId = post.authorId ?: return
+
+        postRepository.toggleLike(postId, newLikedState, authorId, liker)
+            .addOnSuccessListener {
+                updateLocalPostInteraction(postId, "like", newLikedState, if (newLikedState) 1 else -1)
+                _postUpdatedEvent.postValue(postId)
+            }
+            .addOnFailureListener { e -> handleInteractionError("toggleLike", e.message) }
+    }
+
+    fun toggleBookmark(postId: String, newBookmarkedState: Boolean) {
+        postRepository.toggleBookmark(postId, newBookmarkedState)
+            .addOnSuccessListener {
+                updateLocalPostInteraction(postId, "bookmark", newBookmarkedState, if (newBookmarkedState) 1 else -1)
+                _postUpdatedEvent.postValue(postId)
+            }
+            .addOnFailureListener { e -> handleInteractionError("toggleBookmark", e.message) }
+    }
+
+    fun toggleRepost(postId: String, newRepostedState: Boolean) {
+        postRepository.toggleRepost(postId, newRepostedState)
+            .addOnSuccessListener {
+                updateLocalPostInteraction(postId, "repost", newRepostedState, if (newRepostedState) 1 else -1)
+                _postUpdatedEvent.postValue(postId)
+            }
+            .addOnFailureListener { e -> handleInteractionError("toggleRepost", e.message) }
+    }
+
+    fun deletePost(postId: String?) {
+        val safePostId = postId ?: run {
+            handleInteractionError("deletePost", "Post ID cannot be null.")
+            return
         }
-        if (post.getBookmarks() != null) {
-            post.setBookmarked(post.getBookmarks().containsKey(currentUserId))
-        } else {
-            post.setBookmarked(false)
+        postRepository.deletePost(safePostId)
+            .addOnSuccessListener {
+                val currentPosts = _posts.value?.toMutableList()
+                currentPosts?.removeAll { it.postId == safePostId }
+                _posts.postValue(currentPosts)
+                _postUpdatedEvent.postValue(safePostId) // To notify UI about deletion
+            }
+            .addOnFailureListener { e -> handleInteractionError("deletePost", e.message) }
+    }
+
+    fun handleEmojiSelection(post: PostModel, emoji: String) {
+        val reactor = _currentUserData.value ?: run {
+            handleInteractionError("handleEmojiSelection", "User data not loaded.")
+            return
         }
-        if (post.getReposts() != null) {
-            post.setReposted(post.getReposts().containsKey(currentUserId))
-        } else {
-            post.setReposted(false)
+        val postId = post.postId ?: return
+        val authorId = post.authorId ?: return
+
+        postRepository.addOrUpdateReaction(postId, reactor.userId, emoji, authorId, reactor)
+            .addOnSuccessListener { _postUpdatedEvent.postValue(postId) }
+            .addOnFailureListener { e -> handleInteractionError("handleEmojiSelection", e.message) }
+    }
+
+    fun togglePostPinStatus(postToToggle: PostModel) {
+        val authorId = postToToggle.authorId ?: return
+        if(auth.currentUser?.uid != authorId) {
+            handleInteractionError("togglePostPinStatus", "User not authorized to pin this post.")
+            return
         }
+        val postId = postToToggle.postId ?: return
+        val newPinnedState = !postToToggle.isPinned
+
+        postRepository.setPostPinnedStatus(postId, authorId, newPinnedState)
+            .addOnSuccessListener {
+                // Reloading might be the easiest way to reflect pinned order change
+                _postUpdatedEvent.postValue(postId)
+            }
+            .addOnFailureListener { e -> handleInteractionError("togglePostPinStatus", e.message) }
+    }
+
+    private fun updateLocalPostInteraction(postId: String, interactionType: String, newState: Boolean, countChange: Long) {
+        val currentPosts = _posts.value ?: return
+        val updatedPosts = currentPosts.map { post ->
+            if (post.postId == postId) {
+                when (interactionType) {
+                    "like" -> post.copy(isLiked = newState, likeCount = (post.likeCount + countChange).coerceAtLeast(0))
+                    "bookmark" -> post.copy(isBookmarked = newState, bookmarkCount = (post.bookmarkCount + countChange).coerceAtLeast(0))
+                    "repost" -> post.copy(isReposted = newState, repostCount = (post.repostCount + countChange).coerceAtLeast(0))
+                    else -> post
+                }
+            } else {
+                post
+            }
+        }
+        _posts.postValue(updatedPosts)
     }
 
     private fun handleInteractionError(operation: String, errorMessage: String?) {
-        val fullError = "Failed to " + operation + ": " + errorMessage
-        _postInteractionErrorEvent.postValue(fullError) // استخدام LiveData جديد لأخطاء التفاعل
-        Log.e(PostViewModel.Companion.TAG, fullError)
+        val fullError = "Failed to $operation: ${errorMessage ?: "Unknown error"}"
+        _postInteractionErrorEvent.postValue(fullError)
+        Log.e(TAG, fullError)
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        // ... (منطق إزالة المراقبين إذا لزم الأمر)
-    }
-
-    companion object {
-        private const val TAG = "PostViewModel"
-    }
 }

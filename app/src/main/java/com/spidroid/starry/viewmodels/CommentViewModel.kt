@@ -1,136 +1,166 @@
 package com.spidroid.starry.viewmodels
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.google.android.gms.tasks.OnFailureListener
-import com.google.android.gms.tasks.OnSuccessListener
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.models.CommentModel
 import com.spidroid.starry.repositories.CommentRepository
-import java.util.stream.Collectors
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+// Sealed class لتمثيل حالات واجهة عرض التعليقات
+sealed class CommentUiState {
+    object Loading : CommentUiState()
+    data class Success(val comments: List<CommentModel>) : CommentUiState()
+    data class Error(val message: String) : CommentUiState()
+}
 
 class CommentViewModel : ViewModel() {
-    private val repository = CommentRepository()
-    private val visibleComments = MutableLiveData<MutableList<CommentModel?>?>()
-    private var allComments: MutableList<CommentModel> = ArrayList<CommentModel>()
-    private val replyMap: MutableMap<String?, MutableList<CommentModel>> =
-        HashMap<String?, MutableList<CommentModel>>()
-    private val expandedComments: MutableSet<String?> = HashSet<String?>()
 
-    fun getVisibleComments(): LiveData<MutableList<CommentModel?>?> {
-        return visibleComments
-    }
+    private val repository = CommentRepository()
+    private val auth = Firebase.auth
+
+    private val _commentState = MutableLiveData<CommentUiState>()
+    val commentState: LiveData<CommentUiState> = _commentState
+
+    private var allComments: List<CommentModel> = listOf()
+    private val expandedComments = mutableSetOf<String>()
 
     fun loadComments(postId: String?) {
-        repository.getCommentsForPost(postId)
-            .addOnSuccessListener(OnSuccessListener { queryDocumentSnapshots: QuerySnapshot? ->
-                allComments = queryDocumentSnapshots.toObjects(CommentModel::class.java)
-                // تعيين الـ ID لكل تعليق
-                for (i in allComments.indices) {
-                    allComments.get(i)
-                        .setCommentId(queryDocumentSnapshots.getDocuments().get(i).getId())
-                }
-                buildReplyMapAndVisibleList()
-            })
-    }
-
-    private fun buildReplyMapAndVisibleList() {
-        replyMap.clear()
-        val topLevelComments: MutableList<CommentModel?> = ArrayList<CommentModel?>()
-
-        for (comment in allComments) {
-            comment.setDepth(0) // إعادة تعيين العمق
-            if (comment.isTopLevel()) {
-                topLevelComments.add(comment)
-            } else {
-                if (!replyMap.containsKey(comment.getParentCommentId())) {
-                    replyMap.put(comment.getParentCommentId(), ArrayList<CommentModel?>())
-                }
-                replyMap.get(comment.getParentCommentId())!!.add(comment)
-            }
+        if (postId.isNullOrEmpty()) {
+            _commentState.value = CommentUiState.Error("Invalid Post ID")
+            return
         }
 
-        // حساب عمق الردود
-        for (replies in replyMap.values) {
-            for (reply in replies) {
-                calculateDepth(reply, 1)
+        _commentState.value = CommentUiState.Loading
+
+        viewModelScope.launch {
+            try {
+                val commentsSnapshot = repository.getCommentsForPost(postId).await()
+                val fetchedComments = commentsSnapshot.documents.mapNotNull { doc ->
+                    doc.toObject(CommentModel::class.java)?.apply {
+                        commentId = doc.id
+                        isLiked = likes.containsKey(auth.currentUser?.uid)
+                    }
+                }
+                allComments = fetchedComments
+                buildAndDisplayVisibleList()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading comments for post $postId", e)
+                _commentState.value = CommentUiState.Error("Failed to load comments: ${e.message}")
             }
         }
-
-        rebuildVisibleList()
     }
 
-    private fun calculateDepth(comment: CommentModel, depth: Int) {
-        comment.setDepth(depth)
-        if (replyMap.containsKey(comment.getCommentId())) {
-            for (reply in replyMap.get(comment.getCommentId())!!) {
-                calculateDepth(reply, depth + 1)
+    fun addComment(postId: String?, commentData: Map<String, Any>) {
+        if (postId.isNullOrEmpty()) return
+        viewModelScope.launch {
+            try {
+                repository.addComment(postId, commentData).await()
+                repository.updatePostReplyCount(postId, 1).await()
+                loadComments(postId) // Reload comments to show the new one
+            } catch (e: Exception) {
+                Log.e(TAG, "Error adding comment", e)
+                // Optionally, post an error event to the UI
+            }
+        }
+    }
+
+    fun toggleLike(postId: String?, comment: CommentModel) {
+        val userId = auth.currentUser?.uid ?: return
+        val commentId = comment.commentId ?: return
+        val safePostId = postId ?: return
+
+        // Optimistically update the UI
+        val isNowLiked = !comment.isLiked
+        comment.isLiked = isNowLiked
+        comment.likeCount += if (isNowLiked) 1 else -1
+        updateCommentInList(comment)
+
+        // Update in Firestore
+        viewModelScope.launch {
+            try {
+                repository.toggleCommentLike(safePostId, commentId, userId, isNowLiked).await()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to toggle like for comment $commentId", e)
+                // Revert optimistic update on failure
+                comment.isLiked = !isNowLiked
+                comment.likeCount += if (isNowLiked) -1 else 1
+                updateCommentInList(comment)
+            }
+        }
+    }
+
+    fun deleteComment(postId: String?, comment: CommentModel) {
+        val commentId = comment.commentId ?: return
+        val safePostId = postId ?: return
+
+        viewModelScope.launch {
+            try {
+                repository.deleteComment(safePostId, commentId).await()
+                repository.updatePostReplyCount(safePostId, -1).await()
+                loadComments(safePostId) // Reload to reflect deletion
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete comment $commentId", e)
             }
         }
     }
 
     fun toggleReplies(parentComment: CommentModel) {
-        if (expandedComments.contains(parentComment.getCommentId())) {
-            expandedComments.remove(parentComment.getCommentId())
+        val parentId = parentComment.commentId ?: return
+        if (expandedComments.contains(parentId)) {
+            expandedComments.remove(parentId)
         } else {
-            expandedComments.add(parentComment.getCommentId())
+            expandedComments.add(parentId)
         }
-        rebuildVisibleList()
+        buildAndDisplayVisibleList()
     }
 
-    private fun rebuildVisibleList() {
-        val newVisibleList: MutableList<CommentModel?> = ArrayList<CommentModel?>()
-        val topLevelComments = allComments.stream()
-            .filter { obj: CommentModel? -> obj!!.isTopLevel() }
-            .collect(Collectors.toList())
+    private fun buildAndDisplayVisibleList() {
+        val replyMap = allComments.filter { !it.isTopLevel }.groupBy { it.parentCommentId }
+        val topLevelComments = allComments.filter { it.isTopLevel }
 
+        val visibleList = mutableListOf<CommentModel>()
         for (comment in topLevelComments) {
-            newVisibleList.add(comment)
-            if (expandedComments.contains(comment.getCommentId())) {
-                addRepliesRecursively(comment, newVisibleList)
+            visibleList.add(comment)
+            if (expandedComments.contains(comment.commentId)) {
+                addRepliesRecursively(comment, replyMap, visibleList, 1)
             }
         }
-        visibleComments.setValue(newVisibleList)
+        _commentState.value = CommentUiState.Success(visibleList)
     }
 
-    // ... (داخل كلاس CommentViewModel)
-    fun addComment(postId: String?, commentData: MutableMap<String?, Any?>?) {
-        repository.addComment(postId, commentData)
-            .addOnSuccessListener(OnSuccessListener { documentReference: DocumentReference? ->
-                // بعد إضافة التعليق بنجاح، نحدث عدد الردود في المنشور
-                repository.updatePostReplyCount(postId, 1)
-                // نعيد تحميل التعليقات لتظهر الإضافة الجديدة
-                loadComments(postId)
-            }).addOnFailureListener(OnFailureListener { e: Exception? -> })
-    }
-
-    fun toggleLike(postId: String?, comment: CommentModel, userId: String?) {
-        val isNowLiked = !comment.isLiked()
-        comment.setLiked(isNowLiked)
-        comment.setLikeCount(comment.getLikeCount() + (if (isNowLiked) 1 else -1))
-        visibleComments.setValue(ArrayList<CommentModel?>(visibleComments.getValue())) // لتحديث الواجهة فوراً
-
-        repository.toggleCommentLike(postId, comment.getCommentId(), userId, isNowLiked)
-    }
-
-    fun deleteComment(postId: String?, comment: CommentModel) {
-        repository.deleteComment(postId, comment.getCommentId())
-            .addOnSuccessListener(OnSuccessListener { aVoid: Void? ->
-                repository.updatePostReplyCount(postId, -1)
-                // إعادة تحميل التعليقات بعد الحذف
-                loadComments(postId)
-            })
-    }
-
-    private fun addRepliesRecursively(parent: CommentModel, list: MutableList<CommentModel?>) {
-        val replies = replyMap.get(parent.getCommentId())
-        if (replies != null) {
-            list.addAll(replies)
-            for (reply in replies) {
-                if (expandedComments.contains(reply.getCommentId())) {
-                    addRepliesRecursively(reply, list)
-                }
+    private fun addRepliesRecursively(
+        parent: CommentModel,
+        replyMap: Map<String?, List<CommentModel>>,
+        list: MutableList<CommentModel>,
+        depth: Int
+    ) {
+        val replies = replyMap[parent.commentId] ?: return
+        for (reply in replies) {
+            reply.depth = depth
+            list.add(reply)
+            if (expandedComments.contains(reply.commentId)) {
+                addRepliesRecursively(reply, replyMap, list, depth + 1)
             }
         }
+    }
+
+    private fun updateCommentInList(updatedComment: CommentModel) {
+        val currentState = _commentState.value
+        if (currentState is CommentUiState.Success) {
+            val updatedList = currentState.comments.map {
+                if (it.commentId == updatedComment.commentId) updatedComment else it
+            }
+            _commentState.value = CommentUiState.Success(updatedList)
+        }
+    }
+
+    companion object {
+        private const val TAG = "CommentViewModel"
     }
 }

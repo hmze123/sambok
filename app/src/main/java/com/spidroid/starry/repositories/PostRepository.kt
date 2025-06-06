@@ -2,233 +2,155 @@ package com.spidroid.starry.repositories
 
 import android.util.Log
 import com.google.android.gms.tasks.Task
+import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
-import java.util.Objects
+import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.QuerySnapshot
+import com.spidroid.starry.models.PostModel
+import com.spidroid.starry.models.UserModel
 
 class PostRepository {
+
     private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val postsCollection: CollectionReference = db.collection("posts")
 
-    // ★★★ تم تعديل هذا الاستعلام ليكون أبسط للصفحة الرئيسية ★★★
-    fun getPosts(limit: Int): Task<QuerySnapshot?> {
-        Log.d(
-            PostRepository.Companion.TAG,
-            "Executing Firestore query for main feed: orderBy 'createdAt' DESC, limit " + limit
-        )
+    fun getPosts(limit: Int): Task<QuerySnapshot> {
+        Log.d(TAG, "Executing Firestore query for main feed: orderBy 'createdAt' DESC, limit $limit")
         return postsCollection
             .orderBy("createdAt", Query.Direction.DESCENDING)
-            .limit(limit)
+            .limit(limit.toLong())
             .get()
     }
 
     val userSuggestions: Task<QuerySnapshot>
         get() = db.collection("users").limit(5).get()
 
-    fun toggleLike(
-        postId: String?,
-        newLikedState: Boolean,
-        postAuthorId: String?,
-        likerUser: UserModel?
-    ): Task<Void?>? {
-        val currentUserId: String? = auth.getUid()
-        if (currentUserId == null || postId == null || postId.isEmpty()) {
-            return Tasks.forException<Void?>(IllegalArgumentException("User ID or Post ID cannot be null for toggleLike."))
-        }
+    fun toggleLike(postId: String, newLikedState: Boolean, postAuthorId: String, likerUser: UserModel): Task<Void> {
+        val currentUserId = auth.currentUser?.uid ?: return Tasks.forException(Exception("User not authenticated."))
+        val postRef = postsCollection.document(postId)
 
-        val postRef: DocumentReference = postsCollection.document(postId)
-        val postUpdates: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-        postUpdates.put("likeCount", FieldValue.increment(if (newLikedState) 1 else -1))
-        postUpdates.put("likes." + currentUserId, if (newLikedState) true else FieldValue.delete())
+        return db.runTransaction { transaction ->
+            val postSnapshot = transaction.get(postRef)
+            val currentLikes = (postSnapshot.getLong("likeCount") ?: 0L)
+            val newLikeCount = if (newLikedState) currentLikes + 1 else (currentLikes - 1).coerceAtLeast(0)
 
-        if (newLikedState && postAuthorId != null && likerUser != null && (currentUserId != postAuthorId)) {
-            val notificationRef: DocumentReference? = db.collection("users").document(postAuthorId)
-                .collection("notifications").document()
-            val notificationData: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-            notificationData.put("type", "like")
-            notificationData.put("fromUserId", currentUserId)
-            notificationData.put(
-                "fromUsername",
-                if (likerUser.getUsername() != null) likerUser.getUsername() else "Someone"
-            )
-            notificationData.put(
-                "fromUserAvatarUrl",
-                if (likerUser.getProfileImageUrl() != null) likerUser.getProfileImageUrl() else ""
-            )
-            notificationData.put("postId", postId)
-            notificationData.put("timestamp", FieldValue.serverTimestamp())
-            notificationData.put("read", false)
+            val likeUpdate = if (newLikedState) true else FieldValue.delete()
+            transaction.update(postRef, "likes.$currentUserId", likeUpdate)
+            transaction.update(postRef, "likeCount", newLikeCount)
 
-            return db.runTransaction({ transaction ->
-                transaction.update(postRef, postUpdates)
+            // Send notification only if someone else likes the post
+            if (newLikedState && currentUserId != postAuthorId) {
+                val notificationRef = db.collection("users").document(postAuthorId).collection("notifications").document()
+                val notificationData = hashMapOf(
+                    "type" to "like",
+                    "fromUserId" to currentUserId,
+                    "fromUsername" to (likerUser.username),
+                    "fromUserAvatarUrl" to (likerUser.profileImageUrl ?: ""),
+                    "postId" to postId,
+                    "timestamp" to FieldValue.serverTimestamp(),
+                    "read" to false
+                )
                 transaction.set(notificationRef, notificationData)
-                null
-            })
-        } else {
-            return postRef.update(postUpdates)
+            }
+            null // Transaction must return null
         }
     }
 
-    fun toggleBookmark(postId: String?, newBookmarkedState: Boolean): Task<Void?>? {
-        val userId: String? = auth.getUid()
-        if (userId == null || postId == null || postId.isEmpty()) {
-            return Tasks.forException<Void?>(IllegalArgumentException("User ID or Post ID cannot be null for toggleBookmark."))
-        }
-        val postRef: DocumentReference = postsCollection.document(postId)
-        val updates: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-        updates.put("bookmarkCount", FieldValue.increment(if (newBookmarkedState) 1 else -1))
-        updates.put("bookmarks." + userId, if (newBookmarkedState) true else FieldValue.delete())
-        return postRef.update(updates)
+    fun toggleBookmark(postId: String, newBookmarkedState: Boolean): Task<Void> {
+        val userId = auth.currentUser?.uid ?: return Tasks.forException(Exception("User not authenticated."))
+        val postRef = postsCollection.document(postId)
+        val updateData = mapOf(
+            "bookmarkCount" to FieldValue.increment(if (newBookmarkedState) 1 else -1),
+            "bookmarks.$userId" to if (newBookmarkedState) true else FieldValue.delete()
+        )
+        return postRef.update(updateData)
     }
 
-    fun toggleRepost(postId: String?, newRepostedState: Boolean): Task<Void?>? {
-        val userId: String? = auth.getUid()
-        if (userId == null || postId == null || postId.isEmpty()) {
-            return Tasks.forException<Void?>(IllegalArgumentException("User ID or Post ID cannot be null for toggleRepost."))
-        }
-        val postRef: DocumentReference = postsCollection.document(postId)
-        val updates: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-        updates.put("repostCount", FieldValue.increment(if (newRepostedState) 1 else -1))
-        updates.put("reposts." + userId, if (newRepostedState) true else FieldValue.delete())
-        return postRef.update(updates)
+    fun toggleRepost(postId: String, newRepostedState: Boolean): Task<Void> {
+        val userId = auth.currentUser?.uid ?: return Tasks.forException(Exception("User not authenticated."))
+        val postRef = postsCollection.document(postId)
+        val updateData = mapOf(
+            "repostCount" to FieldValue.increment(if (newRepostedState) 1 else -1),
+            "reposts.$userId" to if (newRepostedState) true else FieldValue.delete()
+        )
+        return postRef.update(updateData)
     }
 
-    fun addOrUpdateReaction(
-        postId: String?,
-        reactingUserId: String?,
-        emoji: String?,
-        postAuthorId: String?,
-        reactorDetails: UserModel?
-    ): Task<Void?>? {
-        if (postId == null || reactingUserId == null) {
-            Log.e(
-                PostRepository.Companion.TAG,
-                "Post ID or Reacting User ID is null for addOrUpdateReaction."
+    fun addOrUpdateReaction(postId: String, reactingUserId: String, emoji: String, postAuthorId: String, reactorDetails: UserModel): Task<Void> {
+        val postRef = postsCollection.document(postId)
+        val reactionUpdate = mapOf("reactions.$reactingUserId" to emoji)
+
+        // This part can also be a transaction if you want to ensure the notification is sent only if the reaction is updated.
+        postRef.update(reactionUpdate)
+
+        // Send notification logic
+        if (reactingUserId != postAuthorId) {
+            val notificationRef = db.collection("users").document(postAuthorId).collection("notifications").document()
+            val notificationData = hashMapOf(
+                "type" to "reaction",
+                "fromUserId" to reactingUserId,
+                "fromUsername" to reactorDetails.username,
+                "fromUserAvatarUrl" to (reactorDetails.profileImageUrl ?: ""),
+                "postId" to postId,
+                "postContentPreview" to "reacted with $emoji",
+                "timestamp" to FieldValue.serverTimestamp(),
+                "read" to false
             )
-            return Tasks.forException<Void?>(IllegalArgumentException("Post ID or Reacting User ID cannot be null."))
+            return notificationRef.set(notificationData) // Returns the task for setting the notification
         }
 
-        val postRef: DocumentReference = postsCollection.document(postId)
-        val updates: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-
-        if (emoji == null || emoji.isEmpty()) {
-            updates.put("reactions." + reactingUserId, FieldValue.delete())
-        } else {
-            updates.put("reactions." + reactingUserId, emoji)
-        }
-
-        if (postAuthorId != null && reactorDetails != null && (reactingUserId != postAuthorId) && emoji != null && !emoji.isEmpty()) {
-            val notificationRef: DocumentReference? = db.collection("users").document(postAuthorId)
-                .collection("notifications").document()
-            val notificationData: MutableMap<String?, Any?> = HashMap<String?, Any?>()
-            notificationData.put("type", "reaction")
-            notificationData.put("fromUserId", reactingUserId)
-            notificationData.put(
-                "fromUsername",
-                if (reactorDetails.getUsername() != null) reactorDetails.getUsername() else "Someone"
-            )
-            notificationData.put(
-                "fromUserAvatarUrl",
-                if (reactorDetails.getProfileImageUrl() != null) reactorDetails.getProfileImageUrl() else ""
-            )
-            notificationData.put("postId", postId)
-            notificationData.put("postContentPreview", "reacted with " + emoji)
-            notificationData.put("timestamp", FieldValue.serverTimestamp())
-            notificationData.put("read", false)
-
-            return db.runTransaction({ transaction ->
-                transaction.update(postRef, updates)
-                transaction.set(notificationRef, notificationData)
-                null
-            })
-        } else {
-            return postRef.update(updates)
-        }
+        return Tasks.forResult(null) // Return a completed task if no notification is sent
     }
 
-    fun setPostPinnedStatus(
-        postIdToUpdate: String?,
-        authorId: String?,
-        newPinnedState: Boolean
-    ): Task<Void?>? {
-        if (postIdToUpdate == null || authorId == null) {
-            return Tasks.forException<Void?>(IllegalArgumentException("Post ID or Author ID cannot be null for pinning."))
-        }
+    fun setPostPinnedStatus(postIdToUpdate: String, authorId: String, newPinnedState: Boolean): Task<Void> {
+        val postToUpdateRef = postsCollection.document(postIdToUpdate)
 
-        val postToUpdateRef: DocumentReference = postsCollection.document(postIdToUpdate)
+        return db.runTransaction { transaction ->
+            // If we are pinning a new post, we must first unpin any old ones.
+            if (newPinnedState) {
+                val oldPinnedQuery = postsCollection
+                    .whereEqualTo("authorId", authorId)
+                    .whereEqualTo("isPinned", true)
 
-        if (newPinnedState) {
-            return postsCollection
-                .whereEqualTo("authorId", authorId)
-                .whereEqualTo("isPinned", true)
-                .get()
-                .continueWithTask({ task ->
-                    if (!task.isSuccessful()) {
-                        Log.e(
-                            PostRepository.Companion.TAG,
-                            "Failed to query old pinned posts.",
-                            task.getException()
-                        )
-                        throw Objects.requireNonNull<T?>(task.getException())
+                val oldPinnedPosts = transaction.get(oldPinnedQuery)
+                for (oldPostDoc in oldPinnedPosts) {
+                    if (oldPostDoc.id != postIdToUpdate) {
+                        transaction.update(oldPostDoc.reference, "isPinned", false)
                     }
-                    val oldPinnedDocs: MutableList<DocumentSnapshot> =
-                        task.getResult().getDocuments()
-                    db.runTransaction({ innerTransaction ->
-                        for (oldPinnedPostDoc in oldPinnedDocs) {
-                            if (!oldPinnedPostDoc.getId().equals(postIdToUpdate)) {
-                                Log.d(
-                                    PostRepository.Companion.TAG,
-                                    "Unpinning old post: " + oldPinnedPostDoc.getId() + " inside transaction"
-                                )
-                                innerTransaction.update(
-                                    oldPinnedPostDoc.getReference(),
-                                    "isPinned",
-                                    false
-                                )
-                            }
-                        }
-                        Log.d(
-                            PostRepository.Companion.TAG,
-                            "Pinning new post: " + postIdToUpdate + " inside transaction"
-                        )
-                        innerTransaction.update(postToUpdateRef, "isPinned", true)
-                        null
-                    })
-                })
-        } else {
-            Log.d(PostRepository.Companion.TAG, "Unpinning post: " + postIdToUpdate)
-            return postToUpdateRef.update("isPinned", false)
+                }
+            }
+
+            transaction.update(postToUpdateRef, "isPinned", newPinnedState)
+            null
         }
     }
 
-    fun deletePost(postId: String?): Task<Void?>? {
-        if (postId == null || postId.isEmpty()) {
-            return Tasks.forException<Void?>(IllegalArgumentException("Post ID cannot be null or empty for deletePost."))
-        }
+    fun deletePost(postId: String): Task<Void> {
         return postsCollection.document(postId).delete()
     }
 
-    fun updatePostContent(postId: String?, newContent: String?): Task<Void?>? {
-        if (postId == null || postId.isEmpty() || newContent == null) {
-            return Tasks.forException<Void?>(IllegalArgumentException("Post ID or new content cannot be null."))
-        }
-        return postsCollection.document(postId)
-            .update("content", newContent, "updatedAt", FieldValue.serverTimestamp())
+    fun updatePostContent(postId: String, newContent: String): Task<Void> {
+        val updates = mapOf(
+            "content" to newContent,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        return postsCollection.document(postId).update(updates)
     }
 
-    fun updatePostPrivacy(postId: String?, newPrivacyLevel: String?): Task<Void?>? {
-        if (postId == null || postId.isEmpty() || newPrivacyLevel == null) {
-            return Tasks.forException<Void?>(IllegalArgumentException("Post ID or new privacy level cannot be null."))
-        }
-        // ستحتاج لإضافة حقل "privacyLevel" إلى PostModel.java
-        return postsCollection.document(postId)
-            .update("privacyLevel", newPrivacyLevel, "updatedAt", FieldValue.serverTimestamp())
+    fun updatePostPrivacy(postId: String, newPrivacyLevel: String): Task<Void> {
+        val updates = mapOf(
+            "privacyLevel" to newPrivacyLevel,
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        return postsCollection.document(postId).update(updates)
     }
 
-    fun submitReport(reportData: MutableMap<String?, Any?>?): Task<DocumentReference?>? {
-        if (reportData == null || reportData.isEmpty()) {
-            return Tasks.forException<DocumentReference?>(IllegalArgumentException("Report data cannot be null or empty."))
-        }
+    fun submitReport(reportData: Map<String, Any>): Task<DocumentReference> {
         return db.collection("reports").add(reportData)
     }
 

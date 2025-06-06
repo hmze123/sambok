@@ -2,55 +2,80 @@ package com.spidroid.starry.adapters
 
 import android.net.Uri
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.spidroid.starry.R
-import com.spidroid.starry.adapters.LinkPreviewAdapter.LinkPreviewViewHolder
+import com.spidroid.starry.databinding.ItemLinkPreviewBinding
 import com.spidroid.starry.models.PostModel.LinkPreview
 
-class LinkPreviewAdapter(private val linkPreviews: MutableList<LinkPreview>) :
-    RecyclerView.Adapter<LinkPreviewViewHolder?>() {
+class LinkPreviewAdapter(
+    private val listener: OnLinkPreviewListener?
+) : ListAdapter<LinkPreview, LinkPreviewAdapter.LinkPreviewViewHolder>(DIFF_CALLBACK) {
+
+    // واجهة للتفاعل مع النقرات على المعاينة أو زر الحذف
+    interface OnLinkPreviewListener {
+        fun onLinkPreviewClicked(preview: LinkPreview)
+        fun onRemoveLinkClicked(preview: LinkPreview)
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): LinkPreviewViewHolder {
-        val view = LayoutInflater.from(parent.getContext())
-            .inflate(R.layout.item_link_preview, parent, false)
-        return LinkPreviewViewHolder(view)
+        val binding = ItemLinkPreviewBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return LinkPreviewViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: LinkPreviewViewHolder, position: Int) {
-        val preview = linkPreviews.get(position)
-
-        holder.tvTitle.setText(preview.getTitle())
-        holder.tvDescription.setText(preview.getDescription())
-        holder.tvDomain.setText(Uri.parse(preview.getUrl()).getHost())
-
-        // Load preview image
-        if (preview.getImageUrl() != null && !preview.getImageUrl().isEmpty()) {
-            Glide.with(holder.itemView.getContext())
-                .load(preview.getImageUrl())
-                .placeholder(R.drawable.ic_cover_placeholder)
-                .into(holder.ivImage)
+        val preview = getItem(position)
+        if (preview != null) {
+            holder.bind(preview)
         }
     }
 
-    override fun getItemCount(): Int {
-        return linkPreviews.size
+    inner class LinkPreviewViewHolder(private val binding: ItemLinkPreviewBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(preview: LinkPreview) {
+            binding.tvLinkTitle.text = preview.title ?: "No Title Available"
+            binding.tvLinkDescription.text = preview.description ?: ""
+            binding.tvDomain.text = try {
+                preview.url?.let { Uri.parse(it).host } ?: "unknown.com"
+            } catch (e: Exception) {
+                "invalid.url"
+            }
+
+            if (!preview.imageUrl.isNullOrEmpty()) {
+                Glide.with(itemView.context)
+                    .load(preview.imageUrl)
+                    .placeholder(R.drawable.ic_cover_placeholder)
+                    .error(R.drawable.ic_cover_placeholder) // Show placeholder on error
+                    .into(binding.ivLinkImage)
+            } else {
+                // Set a default image or hide it if no image URL is available
+                binding.ivLinkImage.setImageResource(R.drawable.ic_cover_placeholder)
+            }
+
+            // تعيين مستمعي النقرات
+            itemView.setOnClickListener {
+                listener?.onLinkPreviewClicked(preview)
+            }
+
+            binding.btnRemoveLink.setOnClickListener {
+                listener?.onRemoveLinkClicked(preview)
+            }
+        }
     }
 
-    internal class LinkPreviewViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var ivImage: ImageView
-        var tvTitle: TextView
-        var tvDescription: TextView
-        var tvDomain: TextView
+    companion object {
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<LinkPreview>() {
+            override fun areItemsTheSame(oldItem: LinkPreview, newItem: LinkPreview): Boolean {
+                // Assuming URL is a unique identifier for a preview
+                return oldItem.url == newItem.url
+            }
 
-        init {
-            ivImage = itemView.findViewById<ImageView>(R.id.ivLinkImage)
-            tvTitle = itemView.findViewById<TextView>(R.id.tvLinkTitle)
-            tvDescription = itemView.findViewById<TextView>(R.id.tvLinkDescription)
-            tvDomain = itemView.findViewById<TextView>(R.id.tvLinkDomain)
+            override fun areContentsTheSame(oldItem: LinkPreview, newItem: LinkPreview): Boolean {
+                return oldItem == newItem
+            }
         }
     }
 }

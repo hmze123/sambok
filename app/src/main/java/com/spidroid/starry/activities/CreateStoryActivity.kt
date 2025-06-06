@@ -1,763 +1,378 @@
 package com.spidroid.starry.activities
 
-// ★ إضافة هذا إذا لم يكن موجودًا
-// ★ إضافة هذا
-// ★ إضافة هذا
-// ★ إضافة هذا
-// ★ إضافة هذا
-// ★ إضافة هذا
-// ★ إضافة هذا
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.ContentValues
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.MediaMetadataRetriever
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.provider.MediaStore
+import android.util.Log
+import android.view.View
+import android.webkit.MimeTypeMap
+import android.widget.Button
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.media3.ui.PlayerView
+import com.bumptech.glide.Glide
+import com.google.common.util.concurrent.ListenableFuture
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
+import com.spidroid.starry.R
+import com.spidroid.starry.models.StoryModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.ui.common.BottomSheetPostOptions.Companion.TAG
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.UUID
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class CreateStoryActivity : AppCompatActivity() {
-    private var db: FirebaseFirestore? = null
-    private var storage: FirebaseStorage? = null
-    private var auth: FirebaseAuth? = null // تأكد من وجود هذا
-    private val currentUserId: kotlin.String? = null // ★★ هذا هو التعريف المهم ★★
+
+    private val db: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val storage: FirebaseStorage by lazy { FirebaseStorage.getInstance() }
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
+
     private var currentUserModel: UserModel? = null
-    private var cameraPreviewView: PreviewView? = null
-    private var ivStoryImagePreview: android.widget.ImageView? = null
-    private var storyVideoPreview: PlayerView? = null
 
-    // ...
-    private var btnCaptureStory: ImageButton? = null
-    private var btnSwitchCamera: ImageButton? = null
-    private var btnGallery: ImageButton? = null // ★ زر المعرض اسمه btnGallery
+    private lateinit var cameraPreviewView: PreviewView
+    private lateinit var ivStoryImagePreview: ImageView
+    private lateinit var storyVideoPreview: PlayerView
+    private lateinit var btnCaptureStory: ImageButton
+    private lateinit var btnSwitchCamera: ImageButton
+    private lateinit var btnGallery: ImageButton
+    private lateinit var editToolsContainer: LinearLayout
+    private lateinit var captureControlsContainer: LinearLayout
+    private lateinit var btnPublishStory: Button
+    private lateinit var pbStoryUploadProgress: ProgressBar
 
-    // ... (باقي المتغيرات)
-    private var editToolsContainer: LinearLayout? = null
-    private var captureControlsContainer: LinearLayout? = null
-    private var btnPublishStory: android.widget.Button? = null
-    private var pbStoryUploadProgress: ProgressBar? = null
-
-    private var selectedMediaUri: android.net.Uri? = null
-    private var capturedImageUri: android.net.Uri? = null
-
-
-    // private Uri recordedVideoUri; // لم يتم استخدامه بعد بشكل كامل
-    private var cameraProviderFuture: ListenableFuture<ProcessCameraProvider?>? = null
+    private var selectedMediaUri: Uri? = null
     private var cameraProvider: ProcessCameraProvider? = null
     private var imageCapture: ImageCapture? = null
-    private val videoCapture: VideoCapture<androidx.camera.video.Recorder?>? = null
-    private val currentRecording: androidx.camera.video.Recording? = null
-    private var cameraExecutor: java.util.concurrent.ExecutorService? = null
+    private lateinit var cameraExecutor: ExecutorService
     private var currentCameraSelector: Int = CameraSelector.LENS_FACING_BACK
 
-
-    // Launcher جديد لـ pickMedia (يحل محل onActivityResult لـ PICK_MEDIA_REQUEST)
-    private val pickMediaActivityResultLauncher: ActivityResultLauncher<Intent?> =
-        registerForActivityResult<Intent?, androidx.activity.result.ActivityResult?>(
-            StartActivityForResult(),
-            ActivityResultCallback { result: androidx.activity.result.ActivityResult? ->
-                if (result!!.getResultCode() == AppCompatActivity.RESULT_OK && result.getData() != null && result.getData()!!
-                        .getData() != null
-                ) {
-                    val uri = result.getData()!!.getData()
-                    try {
-                        val takeFlags = result.getData()!!
-                            .getFlags() and (Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        if ((takeFlags and Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
-                            getContentResolver().takePersistableUriPermission(
-                                uri,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            )
-                        }
-
-                        selectedMediaUri = uri
-                        capturedImageUri = null
-
-                        // recordedVideoUri = null; // مسح أي فيديو مسجل بالكاميرا
-                        val mimeType = getContentResolver().getType(selectedMediaUri)
-                        android.util.Log.d(
-                            CreateStoryActivity.Companion.TAG,
-                            "Selected media from gallery: " + selectedMediaUri.toString() + ", MIME type: " + mimeType
-                        )
-
-                        if (mimeType != null && mimeType.startsWith("video/")) {
-                            showVideoPreview(selectedMediaUri)
-                        } else if (mimeType != null && mimeType.startsWith("image/")) {
-                            showImagePreview(selectedMediaUri)
-                        } else {
-                            Toast.makeText(
-                                this,
-                                "Unsupported file type selected.",
-                                Toast.LENGTH_LONG
-                            ).show()
-                            selectedMediaUri = null
-                            if (ivStoryImagePreview != null) ivStoryImagePreview!!.setVisibility(
-                                android.view.View.GONE
-                            )
-                            if (storyVideoPreview != null) storyVideoPreview.setVisibility(android.view.View.GONE)
-                            if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-                            return@registerForActivityResult
-                        }
-                        // إظهار/إخفاء العناصر المناسبة
-                        if (cameraPreviewView != null) cameraPreviewView.setVisibility(android.view.View.GONE)
-                        if (captureControlsContainer != null) captureControlsContainer.setVisibility(
-                            android.view.View.GONE
-                        )
-                        if (editToolsContainer != null) editToolsContainer.setVisibility(android.view.View.VISIBLE)
-                        if (btnPublishStory != null) btnPublishStory!!.setEnabled(true)
-                    } catch (e: java.lang.Exception) {
-                        android.util.Log.e(
-                            CreateStoryActivity.Companion.TAG,
-                            "Error processing media from gallery: " + e.message,
-                            e
-                        )
-                        Toast.makeText(
-                            this,
-                            "Could not load selected media. Please try again.",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        selectedMediaUri = null
-                        if (ivStoryImagePreview != null) ivStoryImagePreview!!.setVisibility(android.view.View.GONE)
-                        if (storyVideoPreview != null) storyVideoPreview.setVisibility(android.view.View.GONE)
-                        if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-                    }
+    private val pickMediaActivityResultLauncher: ActivityResultLauncher<Intent> =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK) {
+                result.data?.data?.let { uri ->
+                    handleSelectedMedia(uri)
                 }
-            })
-
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_create_story)
 
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
-        storage = FirebaseStorage.getInstance()
+        if (auth.currentUser == null) {
+            handleAuthError()
+            return
+        }
 
         initializeViews()
         setupListeners()
-
-        cameraExecutor = java.util.concurrent.Executors.newSingleThreadExecutor()
-        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
-
+        cameraExecutor = Executors.newSingleThreadExecutor()
         checkAndRequestCameraPermissions()
-        loadCurrentUserDetails() // ★ جلب بيانات المستخدم الحالي
+        loadCurrentUserDetails()
     }
 
     private fun initializeViews() {
-        cameraPreviewView = findViewById<PreviewView?>(R.id.camera_preview_view)
-        ivStoryImagePreview = findViewById<android.widget.ImageView?>(R.id.iv_story_image_preview)
-        storyVideoPreview = findViewById<PlayerView?>(R.id.story_video_preview)
-        btnCaptureStory = findViewById<ImageButton?>(R.id.btn_capture_story)
-        btnSwitchCamera = findViewById<ImageButton?>(R.id.btn_switch_camera_story)
-        btnGallery = findViewById<ImageButton?>(R.id.btn_gallery_story)
-        editToolsContainer = findViewById<LinearLayout?>(R.id.edit_tools_container)
-        captureControlsContainer = findViewById<LinearLayout?>(R.id.capture_controls_container)
-        btnPublishStory = findViewById<android.widget.Button?>(R.id.btnPublishStory)
-        pbStoryUploadProgress = findViewById<ProgressBar?>(R.id.pb_story_upload_progress)
-        findViewById<android.view.View?>(R.id.btnCloseStory).setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> finish() })
+        cameraPreviewView = findViewById(R.id.camera_preview_view)
+        ivStoryImagePreview = findViewById(R.id.iv_story_image_preview)
+        storyVideoPreview = findViewById(R.id.story_video_preview)
+        btnCaptureStory = findViewById(R.id.btn_capture_story)
+        btnSwitchCamera = findViewById(R.id.btn_switch_camera_story)
+        btnGallery = findViewById(R.id.btn_gallery_story)
+        editToolsContainer = findViewById(R.id.edit_tools_container)
+        captureControlsContainer = findViewById(R.id.capture_controls_container)
+        btnPublishStory = findViewById(R.id.btnPublishStory)
+        pbStoryUploadProgress = findViewById(R.id.pb_story_upload_progress)
+        findViewById<View>(R.id.btnCloseStory).setOnClickListener { finish() }
     }
 
     private fun setupListeners() {
-        if (btnCaptureStory != null) btnCaptureStory.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> takePhoto() }) // مؤقتًا لالتقاط الصور فقط
-
-        if (btnSwitchCamera != null) btnSwitchCamera.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> switchCamera() })
-        if (btnGallery != null) btnGallery.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> openGallery() })
-        if (btnPublishStory != null) btnPublishStory!!.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> publishStory() })
+        btnCaptureStory.setOnClickListener { takePhoto() }
+        btnSwitchCamera.setOnClickListener { switchCamera() }
+        btnGallery.setOnClickListener { openGallery() }
+        btnPublishStory.setOnClickListener { publishStory() }
     }
 
     private fun loadCurrentUserDetails() {
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser()
-        if (firebaseUser != null) {
-            db.collection("users").document(firebaseUser.getUid()).get()
-                .addOnSuccessListener({ documentSnapshot ->
-                    if (documentSnapshot.exists()) {
-                        currentUserModel = documentSnapshot.toObject(UserModel::class.java)
-                        if (currentUserModel == null) {
-                            android.util.Log.e(
-                                CreateStoryActivity.Companion.TAG,
-                                "currentUserModel is null after fetching from Firestore."
-                            )
-                            Toast.makeText(
-                                this,
-                                "Failed to load your profile data to create story.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            btnPublishStory!!.setEnabled(false) // تعطيل النشر إذا لم يتم تحميل المستخدم
-                        } else {
-                            android.util.Log.d(
-                                CreateStoryActivity.Companion.TAG,
-                                "Current user details loaded for story creation."
-                            )
-                            // يمكنك تفعيل زر النشر هنا إذا كان selectedMediaUri ليس null
-                            if (selectedMediaUri != null && btnPublishStory != null) {
-                                btnPublishStory!!.setEnabled(true)
-                            }
-                        }
-                    } else {
-                        android.util.Log.e(
-                            CreateStoryActivity.Companion.TAG,
-                            "Current user document does not exist in Firestore for story creation."
-                        )
-                        Toast.makeText(
-                            this,
-                            "Your profile data not found, cannot create story.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
+        auth.currentUser?.uid?.let { userId ->
+            db.collection("users").document(userId).get()
+                .addOnSuccessListener { document ->
+                    currentUserModel = document.toObject(UserModel::class.java)
+                    if (currentUserModel == null) {
+                        Toast.makeText(this, "Failed to load profile data.", Toast.LENGTH_SHORT).show()
+                        btnPublishStory.isEnabled = false
                     }
-                })
-                .addOnFailureListener({ e ->
-                    android.util.Log.e(
-                        CreateStoryActivity.Companion.TAG,
-                        "Failed to load current user data for story: " + e.getMessage(),
-                        e
-                    )
-                    Toast.makeText(
-                        this,
-                        "Error loading your profile data for story.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-                })
-        } else {
-            if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "Failed to load user data.", e)
+                    btnPublishStory.isEnabled = false
+                }
         }
     }
 
-
+    // Camera and Permissions
     private fun checkAndRequestCameraPermissions() {
-        if (androidx.core.content.ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.CAMERA
-            ) != PackageManager.PERMISSION_GRANTED ||
-            androidx.core.content.ContextCompat.checkSelfPermission(
-                this,
-                android.Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            androidx.core.app.ActivityCompat.requestPermissions(
-                this,
-                kotlin.arrayOf<kotlin.String>(
-                    android.Manifest.permission.CAMERA,
-                    android.Manifest.permission.RECORD_AUDIO
-                ),
-                CreateStoryActivity.Companion.CAMERA_PERMISSION_REQUEST_CODE
-            )
-        } else {
+        val permissions = arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        if (permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
             startCamera(currentCameraSelector)
-        }
-    }
-
-    private fun checkAndRequestStoragePermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.READ_MEDIA_IMAGES
-                ) != PackageManager.PERMISSION_GRANTED ||
-                androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.READ_MEDIA_VIDEO
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    this,
-                    kotlin.arrayOf<kotlin.String>(
-                        android.Manifest.permission.READ_MEDIA_IMAGES,
-                        android.Manifest.permission.READ_MEDIA_VIDEO
-                    ),
-                    CreateStoryActivity.Companion.STORAGE_PERMISSION_REQUEST_CODE
-                )
-            } else {
-                openMediaPicker()
-            }
         } else {
-            if (androidx.core.content.ContextCompat.checkSelfPermission(
-                    this,
-                    android.Manifest.permission.READ_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                androidx.core.app.ActivityCompat.requestPermissions(
-                    this,
-                    kotlin.arrayOf<kotlin.String>(android.Manifest.permission.READ_EXTERNAL_STORAGE),
-                    CreateStoryActivity.Companion.STORAGE_PERMISSION_REQUEST_CODE
-                )
-            } else {
-                openMediaPicker()
-            }
+            ActivityCompat.requestPermissions(this, permissions, CAMERA_PERMISSION_REQUEST_CODE)
         }
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: kotlin.Array<kotlin.String?>,
-        grantResults: IntArray
-    ) {
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == CreateStoryActivity.Companion.CAMERA_PERMISSION_REQUEST_CODE) {
-            if (grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        if (requestCode == CAMERA_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 startCamera(currentCameraSelector)
             } else {
-                Toast.makeText(
-                    this,
-                    "Camera and Audio permissions are required to use this feature.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this, "Camera and Audio permissions are required.", Toast.LENGTH_LONG).show()
                 finish()
             }
-        } else if (requestCode == CreateStoryActivity.Companion.STORAGE_PERMISSION_REQUEST_CODE) {
-            if (grantResults.size > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+        }
+        if (requestCode == STORAGE_PERMISSION_REQUEST_CODE) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
                 openMediaPicker()
             } else {
-                Toast.makeText(
-                    this,
-                    "Storage permission is required to select media.",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this, "Storage permission is required.", Toast.LENGTH_LONG).show()
             }
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun startCamera(lensFacing: Int) {
-        if (cameraPreviewView == null) {
-            android.util.Log.e(
-                CreateStoryActivity.Companion.TAG,
-                "cameraPreviewView is null in startCamera. Cannot start camera."
-            )
-            return
-        }
-        cameraProviderFuture.addListener(java.lang.Runnable {
+        val cameraProviderFuture: ListenableFuture<ProcessCameraProvider> = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture.addListener({
             try {
                 cameraProvider = cameraProviderFuture.get()
-                if (cameraProvider == null) {
-                    android.util.Log.e(CreateStoryActivity.Companion.TAG, "Camera provider is null")
-                    return@addListener
-                }
                 bindCameraUseCases(lensFacing)
-            } catch (e: java.lang.Exception) {
-                android.util.Log.e(CreateStoryActivity.Companion.TAG, "Error starting camera", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting camera", e)
             }
-        }, androidx.core.content.ContextCompat.getMainExecutor(this))
+        }, ContextCompat.getMainExecutor(this))
     }
 
     @SuppressLint("MissingPermission")
     private fun bindCameraUseCases(lensFacing: Int) {
-        if (cameraProvider == null || cameraPreviewView == null) {
-            android.util.Log.e(
-                CreateStoryActivity.Companion.TAG,
-                "Camera provider or PreviewView not available, cannot bind use cases."
-            )
-            return
+        val provider = cameraProvider ?: return
+        provider.unbindAll()
+
+        val cameraSelector = CameraSelector.Builder().requireLensFacing(lensFacing).build()
+        val preview = Preview.Builder().build().also {
+            it.setSurfaceProvider(cameraPreviewView.surfaceProvider)
         }
-        cameraProvider.unbindAll()
+        imageCapture = ImageCapture.Builder().build()
 
-        val cameraSelector: CameraSelector = CameraSelector.Builder()
-            .requireLensFacing(lensFacing)
-            .build()
-
-        val preview = androidx.camera.core.Preview.Builder().build()
-        preview.setSurfaceProvider(cameraPreviewView.getSurfaceProvider())
-
-        imageCapture = ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-            .build()
-
-        // Recorder recorder = new Recorder.Builder()
-        //         .setQualitySelector(QualitySelector.from(Quality.HD))
-        //         .build();
-        // videoCapture = VideoCapture.withOutput(recorder);
         try {
-            // ★ مؤقتًا، سنربط فقط معاينة الكاميرا والتقاط الصور
-            cameraProvider.bindToLifecycle(
-                this,
-                cameraSelector,
-                preview,
-                imageCapture /*, videoCapture */
-            )
-            android.util.Log.d(
-                CreateStoryActivity.Companion.TAG,
-                "Camera use cases bound successfully for lens: " + (if (lensFacing == CameraSelector.LENS_FACING_BACK) "BACK" else "FRONT")
-            )
-        } catch (e: java.lang.Exception) {
-            android.util.Log.e(CreateStoryActivity.Companion.TAG, "Use case binding failed", e)
+            provider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+        } catch (e: Exception) {
+            Log.e(TAG, "Use case binding failed", e)
         }
     }
 
     private fun switchCamera() {
-        currentCameraSelector =
-            if (currentCameraSelector == CameraSelector.LENS_FACING_BACK) CameraSelector.LENS_FACING_FRONT else CameraSelector.LENS_FACING_BACK
+        currentCameraSelector = if (currentCameraSelector == CameraSelector.LENS_FACING_BACK)
+            CameraSelector.LENS_FACING_FRONT
+        else
+            CameraSelector.LENS_FACING_BACK
         startCamera(currentCameraSelector)
     }
 
-
     private fun takePhoto() {
-        if (imageCapture == null) {
-            android.util.Log.e(
-                CreateStoryActivity.Companion.TAG,
-                "ImageCapture use case is null. Cannot take photo."
-            )
-            return
-        }
-        val name = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US)
-            .format(java.lang.System.currentTimeMillis())
-        val contentValues: ContentValues = ContentValues()
-        contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-        contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
-            contentValues.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/StarryApp")
+        val localImageCapture = imageCapture ?: return
+
+        val name = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(System.currentTimeMillis())
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, name)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.P) {
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/StarryApp")
+            }
         }
 
-        val outputOptions: OutputFileOptions = OutputFileOptions.Builder(
-            getContentResolver(),
+        val outputOptions = ImageCapture.OutputFileOptions.Builder(
+            contentResolver,
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             contentValues
+        ).build()
+
+        localImageCapture.takePicture(
+            outputOptions,
+            ContextCompat.getMainExecutor(this),
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                    handleSelectedMedia(output.savedUri)
+                }
+
+                override fun onError(exc: ImageCaptureException) {
+                    Log.e(TAG, "Photo capture failed: ${exc.message}", exc)
+                    Toast.makeText(baseContext, "Photo capture failed: ${exc.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         )
-            .build()
-
-        imageCapture.takePicture(
-            outputOptions, androidx.core.content.ContextCompat.getMainExecutor(this),
-            object : OnImageSavedCallback {
-                override fun onImageSaved(outputFileResults: OutputFileResults) {
-                    capturedImageUri = outputFileResults.getSavedUri()
-                    android.util.Log.d(
-                        CreateStoryActivity.Companion.TAG,
-                        "Photo capture succeeded: " + capturedImageUri
-                    )
-                    if (capturedImageUri != null) {
-                        selectedMediaUri = capturedImageUri
-                        // recordedVideoUri = null; // إذا كان هناك فيديو مسجل سابقًا
-                        showImagePreview(capturedImageUri)
-                        if (cameraPreviewView != null) cameraPreviewView.setVisibility(android.view.View.GONE)
-                        if (captureControlsContainer != null) captureControlsContainer.setVisibility(
-                            android.view.View.GONE
-                        )
-                        if (editToolsContainer != null) editToolsContainer.setVisibility(android.view.View.VISIBLE)
-                        if (btnPublishStory != null) btnPublishStory!!.setEnabled(true)
-                    } else {
-                        Toast.makeText(
-                            this@CreateStoryActivity,
-                            "Failed to save image.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-
-                override fun onError(exception: ImageCaptureException) {
-                    android.util.Log.e(
-                        CreateStoryActivity.Companion.TAG,
-                        "Photo capture failed: " + exception.message,
-                        exception
-                    )
-                    Toast.makeText(
-                        this@CreateStoryActivity,
-                        "Photo capture failed: " + exception.message,
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            })
     }
 
+    // Media Selection
     private fun openGallery() {
-        checkAndRequestStoragePermissions()
+        val permissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+
+        if (permissions.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }) {
+            openMediaPicker()
+        } else {
+            ActivityCompat.requestPermissions(this, permissions, STORAGE_PERMISSION_REQUEST_CODE)
+        }
     }
 
     private fun openMediaPicker() {
-        val intent: Intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
-        intent.addCategory(Intent.CATEGORY_OPENABLE)
-        intent.setType("image/*,video/*") // ★ السماح بالصور والفيديو
-        val mimeTypes = kotlin.arrayOf<kotlin.String?>("image/*", "video/*")
-        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes)
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "video/*, image/*"
+            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+        }
         pickMediaActivityResultLauncher.launch(intent)
     }
 
-    private fun showImagePreview(uri: android.net.Uri?) {
-        if (ivStoryImagePreview == null || storyVideoPreview == null) return
-        ivStoryImagePreview!!.setVisibility(android.view.View.VISIBLE)
-        storyVideoPreview.setVisibility(android.view.View.GONE)
-        if (!isDestroyed() && !isFinishing()) { // تحقق قبل استخدام Glide
+    private fun handleSelectedMedia(uri: Uri?) {
+        selectedMediaUri = uri ?: return
+        val mimeType = contentResolver.getType(selectedMediaUri!!)
+
+        val isVideo = mimeType?.startsWith("video/") == true
+        showPreview(selectedMediaUri!!, isVideo)
+        updateUIVisibility(true)
+    }
+
+    private fun showPreview(uri: Uri, isVideo: Boolean) {
+        storyVideoPreview.visibility = if (isVideo) View.VISIBLE else View.GONE
+        ivStoryImagePreview.visibility = if (isVideo) View.GONE else View.VISIBLE
+
+        if(isVideo){
+            // setup ExoPlayer for video preview if needed
+        } else {
             Glide.with(this).load(uri).into(ivStoryImagePreview)
         }
     }
 
-    private fun showVideoPreview(uri: android.net.Uri?) {
-        if (ivStoryImagePreview == null || storyVideoPreview == null) return
-        ivStoryImagePreview!!.setVisibility(android.view.View.GONE)
-        storyVideoPreview.setVisibility(android.view.View.VISIBLE)
-        // يمكنك تهيئة ExoPlayer هنا لعرض معاينة الفيديو
-        // أو يمكنك عرض صورة مصغرة للفيديو مؤقتًا
-        if (!isDestroyed() && !isFinishing()) {
-            Glide.with(this).load(uri).placeholder(R.drawable.ic_cover_placeholder)
-                .into(ivStoryImagePreview)
-            ivStoryImagePreview!!.setVisibility(android.view.View.VISIBLE)
-            storyVideoPreview.setVisibility(android.view.View.GONE)
-        }
+    private fun updateUIVisibility(hasMedia: Boolean) {
+        captureControlsContainer.visibility = if (hasMedia) View.GONE else View.VISIBLE
+        cameraPreviewView.visibility = if (hasMedia) View.GONE else View.VISIBLE
+        editToolsContainer.visibility = if (hasMedia) View.VISIBLE else View.GONE
+        btnPublishStory.isEnabled = hasMedia && (currentUserModel != null)
     }
 
-
-    private fun loadCurrentUserData() {
-        if (currentUserId == null) { // currentUserId هو متغير عضو يجب تهيئته في initializeFirebase()
-            android.util.Log.e(
-                CreateStoryActivity.Companion.TAG,
-                "Cannot load current user data, currentUserId is null."
-            )
-            // يمكنك هنا تعطيل زر النشر أو إظهار رسالة خطأ مناسبة
-            if (btnPublishStory != null) {
-                btnPublishStory!!.setEnabled(false)
-                Toast.makeText(
-                    this,
-                    "User authentication error. Cannot create story.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-            return
-        }
-        db.collection("users").document(currentUserId).get()
-            .addOnSuccessListener({ documentSnapshot ->
-                if (documentSnapshot.exists()) {
-                    currentUserModel = documentSnapshot.toObject(UserModel::class.java)
-                    if (currentUserModel == null) {
-                        android.util.Log.e(
-                            CreateStoryActivity.Companion.TAG,
-                            "currentUserModel is null after fetching from Firestore in CreateStoryActivity."
-                        )
-                        Toast.makeText(
-                            this,
-                            "Failed to load your profile data to create story.",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-                    } else {
-                        android.util.Log.d(
-                            CreateStoryActivity.Companion.TAG,
-                            "Current user data loaded for story creation: " +
-                                    (if (currentUserModel.getUsername() != null) currentUserModel.getUsername() else "N/A")
-                        )
-                        // تمكين زر النشر إذا تم اختيار وسائط بالفعل وبيانات المستخدم متوفرة
-                        if (selectedMediaUri != null && btnPublishStory != null) {
-                            btnPublishStory!!.setEnabled(true)
-                        }
-                    }
-                } else {
-                    android.util.Log.e(
-                        CreateStoryActivity.Companion.TAG,
-                        "Current user document does not exist in Firestore for story creation."
-                    )
-                    Toast.makeText(
-                        this,
-                        "Your profile data not found, cannot create story.",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                    if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-                }
-            })
-            .addOnFailureListener({ e ->
-                android.util.Log.e(
-                    CreateStoryActivity.Companion.TAG,
-                    "Failed to load current user data for story: " + e.getMessage(),
-                    e
-                )
-                Toast.makeText(
-                    this,
-                    "Error loading your profile data for story.",
-                    Toast.LENGTH_SHORT
-                ).show()
-                if (btnPublishStory != null) btnPublishStory!!.setEnabled(false)
-            })
-    }
-
+    // Publishing Story
     private fun publishStory() {
-        if (selectedMediaUri == null) {
+        val mediaUri = selectedMediaUri ?: run {
             Toast.makeText(this, "Please select media for your story", Toast.LENGTH_SHORT).show()
             return
         }
-        val firebaseUser: FirebaseUser? = auth.getCurrentUser() // الحصول على المستخدم الحالي
-        if (firebaseUser == null) {
-            Toast.makeText(this, "You must be logged in to create a story", Toast.LENGTH_SHORT)
-                .show()
-            return
-        }
-        if (currentUserModel == null) { // ★ تحقق إضافي
-            Toast.makeText(
-                this,
-                "User data not loaded yet. Cannot publish story.",
-                Toast.LENGTH_SHORT
-            ).show()
-            loadCurrentUserData() // محاولة إعادة التحميل
+        val user = currentUserModel ?: run {
+            Toast.makeText(this, "User data not loaded yet.", Toast.LENGTH_SHORT).show()
             return
         }
 
         showProgress(true)
+        val mimeType = contentResolver.getType(mediaUri)
+        val fileExtension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType) ?: "jpg"
+        val fileName = "stories/${user.userId}/${UUID.randomUUID()}.$fileExtension"
+        val mediaRef = storage.reference.child(fileName)
 
-        val userId: kotlin.String = firebaseUser.getUid()
-        val fileExtension = getFileExtension(selectedMediaUri)
-        val fileName =
-            "stories/" + userId + "/" + java.util.UUID.randomUUID().toString() + fileExtension
-        val mediaRef: StorageReference = storage.getReference().child(fileName)
-
-        // ★★ تعريف وتهيئة mimeType هنا ★★
-        val mimeType = getContentResolver().getType(selectedMediaUri)
-        val storyMediaType: kotlin.String =
-            if (mimeType != null && mimeType.startsWith("image")) StoryModel.Companion.MEDIA_TYPE_IMAGE else StoryModel.Companion.MEDIA_TYPE_VIDEO
-
-        var duration: kotlin.Long = 5000 // مدة افتراضية للصور
-        if (StoryModel.Companion.MEDIA_TYPE_VIDEO == storyMediaType) {
-            try {
-                val retriever: MediaMetadataRetriever = MediaMetadataRetriever()
-                retriever.setDataSource(this, selectedMediaUri)
-                val durationStr: kotlin.String? =
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                if (durationStr != null) {
-                    duration = durationStr.toLong()
-                }
-                retriever.release()
-            } catch (e: java.lang.Exception) {
-                android.util.Log.e(
-                    CreateStoryActivity.Companion.TAG,
-                    "Failed to get video duration",
-                    e
-                )
-                // إذا فشل جلب المدة، استخدم مدة افتراضية معقولة للفيديو أو أظهر خطأ
-            }
-        }
-
-        val finalDuration = duration
-
-        val uploadTask: UploadTask = mediaRef.putFile(selectedMediaUri)
-        uploadTask.addOnSuccessListener({ taskSnapshot ->
-            mediaRef.getDownloadUrl().addOnSuccessListener({ uri ->
-                val mediaUrl: kotlin.String? = uri.toString()
-                val story: StoryModel = StoryModel(
-                    userId,
-                    mediaUrl,
-                    storyMediaType,
-                    finalDuration,
-                    mediaUrl
-                ) // استخدام mediaUrl كـ thumbnailUrl للفيديو مؤقتًا
-
-                // استخدام currentUserModel الذي تم تحميله مسبقًا
-                if (currentUserModel != null) {
-                    story.setAuthorDisplayName(if (currentUserModel.getDisplayName() != null) currentUserModel.getDisplayName() else currentUserModel.getUsername())
-                    story.setAuthorUsername(currentUserModel.getUsername())
-                    story.setAuthorAvatarUrl(currentUserModel.getProfileImageUrl())
-                    story.setAuthorVerified(currentUserModel.isVerified())
-                } else {
-                    // حالة نادرة، لكن يجب التعامل معها
-                    android.util.Log.w(
-                        CreateStoryActivity.Companion.TAG,
-                        "currentUserModel is null when creating story object in Firestore."
-                    )
-                }
-                db.collection("stories").add(story)
-                    .addOnSuccessListener({ docRef ->
-                        docRef.update("storyId", docRef.getId())
-                        showProgress(false)
-                        Toast.makeText(
-                            this@CreateStoryActivity,
-                            "Story published!",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        finish()
-                    })
-                    .addOnFailureListener({ e ->
-                        showProgress(false)
-                        Toast.makeText(
-                            this@CreateStoryActivity,
-                            "Failed to save story: " + e.getMessage(),
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        android.util.Log.e(
-                            CreateStoryActivity.Companion.TAG,
-                            "Error publishing story",
-                            e
-                        )
-                    })
-            }).addOnFailureListener({ e ->
-                showProgress(false)
-                Toast.makeText(
-                    this@CreateStoryActivity,
-                    "Failed to get media URL: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-                android.util.Log.e(CreateStoryActivity.Companion.TAG, "Error getting media URL", e)
-            })
-        }
-        ).addOnFailureListener({ e ->
-            showProgress(false)
-            var errorMessage = "Media upload failed: " + e.getMessage()
-            if (e is com.google.firebase.storage.StorageException) {
-                val storageException: com.google.firebase.storage.StorageException =
-                    e as com.google.firebase.storage.StorageException
-                if (storageException.getErrorCode() === com.google.firebase.storage.StorageException.ERROR_OBJECT_NOT_FOUND || storageException.getErrorCode() === com.google.firebase.storage.StorageException.ERROR_NOT_AUTHORIZED || storageException.getErrorCode() === com.google.firebase.storage.StorageException.ERROR_PROJECT_NOT_FOUND) { // تحقق من كود خطأ آخر محتمل
-                    errorMessage =
-                        "Upload failed. Please check Storage plan, rules, or App Check configuration."
-                    android.util.Log.e(
-                        CreateStoryActivity.Companion.TAG,
-                        "Upload failed due to Storage config/rules/plan. ErrorCode: " + storageException.getErrorCode()
-                    )
-                } else if (storageException.getErrorCode() === com.google.firebase.storage.StorageException.ERROR_CANCELED) {
-                    errorMessage = "Upload cancelled."
+        mediaRef.putFile(mediaUri)
+            .addOnSuccessListener {
+                mediaRef.downloadUrl.addOnSuccessListener { downloadUrl ->
+                    createStoryInFirestore(downloadUrl.toString(), mimeType)
                 }
             }
-            Toast.makeText(this@CreateStoryActivity, errorMessage, Toast.LENGTH_LONG).show()
-            android.util.Log.e(CreateStoryActivity.Companion.TAG, "Error uploading media", e)
-        })
+            .addOnFailureListener { e ->
+                handleUploadFailure(e)
+            }
     }
 
-    private fun showProgress(show: kotlin.Boolean) {
-        if (pbStoryUploadProgress != null) pbStoryUploadProgress.setVisibility(if (show) android.view.View.VISIBLE else android.view.View.GONE)
-        if (btnPublishStory != null) btnPublishStory!!.setEnabled(!show)
-        if (btnGallery != null) btnGallery.setEnabled(!show)
-        if (btnCaptureStory != null) btnCaptureStory.setEnabled(!show)
-        if (btnSwitchCamera != null) btnSwitchCamera.setEnabled(!show)
-    }
+    private fun createStoryInFirestore(mediaUrl: String, mimeType: String?) {
+        val user = currentUserModel ?: return
+        val storyType = if (mimeType?.startsWith("video/") == true) StoryModel.MEDIA_TYPE_VIDEO else StoryModel.MEDIA_TYPE_IMAGE
+        val duration = if (storyType == StoryModel.MEDIA_TYPE_VIDEO) getVideoDuration(selectedMediaUri) else 5000L
 
-    private fun getFileExtension(uri: android.net.Uri?): kotlin.String {
-        var extension: kotlin.String? = ""
-        if (uri == null) {
-            android.util.Log.w(
-                CreateStoryActivity.Companion.TAG,
-                "getFileExtension called with null URI"
-            )
-            return ".jpg"
-        }
-        try {
-            val mimeType = getContentResolver().getType(uri)
-            if (mimeType != null) {
-                extension = MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)
-                if (extension != null && !extension.isEmpty()) {
-                    return "." + extension
-                }
-            }
-            val path = uri.getPath()
-            if (path != null) {
-                val lastDot = path.lastIndexOf(".")
-                if (lastDot >= 0 && lastDot < path.length - 1) {
-                    return path.substring(lastDot)
-                }
-            }
-        } catch (e: java.lang.Exception) {
-            android.util.Log.e(
-                CreateStoryActivity.Companion.TAG,
-                "Error getting file extension for URI: " + uri.toString(),
-                e
-            )
-        }
-        android.util.Log.w(
-            CreateStoryActivity.Companion.TAG,
-            "Could not determine file extension for URI: " + uri.toString() + ". Defaulting to .jpg"
+        val story = StoryModel(
+            userId = user.userId,
+            mediaUrl = mediaUrl,
+            mediaType = storyType,
+            duration = duration,
+            thumbnailUrl = mediaUrl // Can be improved to generate actual thumbnails
         )
-        return ".jpg"
+
+        db.collection("stories").add(story)
+            .addOnSuccessListener {
+                showProgress(false)
+                Toast.makeText(this, "Story published!", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+            .addOnFailureListener { e ->
+                handleUploadFailure(e, "Failed to save story")
+            }
     }
 
+    private fun getVideoDuration(uri: Uri?): Long {
+        if (uri == null) return 5000L
+        return try {
+            MediaMetadataRetriever().use { retriever ->
+                retriever.setDataSource(this, uri)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLong() ?: 5000L
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get video duration", e)
+            5000L
+        }
+    }
+
+    private fun handleUploadFailure(e: Exception, message: String = "Media upload failed") {
+        showProgress(false)
+        Toast.makeText(this, "$message: ${e.message}", Toast.LENGTH_LONG).show()
+        Log.e(TAG, message, e)
+    }
+
+    private fun showProgress(show: Boolean) {
+        pbStoryUploadProgress.visibility = if (show) View.VISIBLE else View.GONE
+        btnPublishStory.isEnabled = !show
+        btnGallery.isEnabled = !show
+        btnCaptureStory.isEnabled = !show
+        btnSwitchCamera.isEnabled = !show
+    }
+
+    private fun handleAuthError() {
+        Toast.makeText(this, "Authentication required to create a story.", Toast.LENGTH_LONG).show()
+        finish()
+    }
 
     override fun onDestroy() {
         super.onDestroy()
-        if (cameraExecutor != null) {
-            cameraExecutor!!.shutdown()
-        }
-        if (cameraProvider != null) { // ★ إضافة إلغاء الربط بشكل صريح هنا
-            cameraProvider.unbindAll()
-        }
-    }
-
-    companion object {
-        private const val TAG = "CreateStoryActivity"
-
-        // PICK_MEDIA_REQUEST لم يعد مستخدماً مع ActivityResultLauncher الجديد
-        // private static final int PICK_MEDIA_REQUEST = 1;
-        private const val CAMERA_PERMISSION_REQUEST_CODE = 100
-        private const val STORAGE_PERMISSION_REQUEST_CODE = 101
+        cameraExecutor.shutdown()
+        cameraProvider?.unbindAll()
     }
 }

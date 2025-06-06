@@ -1,150 +1,143 @@
 package com.spidroid.starry.activities
 
-// استيراد Collectors
+import android.content.Intent
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObject
+import com.google.firebase.ktx.Firebase
+import com.spidroid.starry.adapters.UserAdapter
+import com.spidroid.starry.databinding.ActivityUserListBinding
+import com.spidroid.starry.models.UserModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import java.util.Locale
 
-class FollowersListActivity : AppCompatActivity(),
-    com.spidroid.starry.adapters.UserAdapter.OnUserClickListener {
-    private var db: FirebaseFirestore? = null
-    private var userId: kotlin.String? = null
-    private var listType: kotlin.String? = null // نوع القائمة التي سيتم عرضها
-    private var recyclerView: RecyclerView? = null
-    private var userAdapter: UserAdapter? = null
-    private var progressBar: ProgressBar? = null
-    private var tvEmptyState: TextView? = null
+class FollowersListActivity : AppCompatActivity(), UserAdapter.OnUserClickListener {
+
+    private lateinit var binding: ActivityUserListBinding
+    private val db: FirebaseFirestore by lazy { Firebase.firestore }
+
+    private var userId: String? = null
+    private var listType: String? = null // "followers" or "following"
+
+    private lateinit var userAdapter: UserAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_user_list)
+        binding = ActivityUserListBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        db = FirebaseFirestore.getInstance()
-        userId = getIntent().getStringExtra(FollowersListActivity.Companion.EXTRA_USER_ID)
-        listType = getIntent().getStringExtra(FollowersListActivity.Companion.EXTRA_LIST_TYPE)
+        userId = intent.getStringExtra(EXTRA_USER_ID)
+        listType = intent.getStringExtra(EXTRA_LIST_TYPE)
 
-        if (userId == null || listType == null) {
+        if (userId.isNullOrEmpty() || listType.isNullOrEmpty()) {
             Toast.makeText(this, "Invalid user or list type.", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        initializeViews()
         setupToolbar()
         setupRecyclerView()
-        fetchUsers()
-    }
-
-    private fun initializeViews() {
-        recyclerView = findViewById<RecyclerView>(R.id.user_list_recycler_view)
-        progressBar = findViewById<ProgressBar>(R.id.user_list_progress_bar)
-        tvEmptyState = findViewById<TextView>(R.id.user_list_empty_state)
+        fetchUserList()
     }
 
     private fun setupToolbar() {
-        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        java.util.Objects.requireNonNull<androidx.appcompat.app.ActionBar?>(getSupportActionBar())
-            .setDisplayHomeAsUpEnabled(true)
-        getSupportActionBar().setDisplayShowHomeEnabled(true)
-
-        if ("followers" == listType) {
-            getSupportActionBar().setTitle("Followers")
-        } else if ("following" == listType) {
-            getSupportActionBar().setTitle("Following")
+        setSupportActionBar(binding.toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = listType?.replaceFirstChar {
+            if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
         }
-        toolbar.setNavigationOnClickListener(android.view.View.OnClickListener { v: android.view.View? -> finish() })
+        binding.toolbar.setNavigationOnClickListener { finish() }
     }
 
     private fun setupRecyclerView() {
-        userAdapter = UserAdapter(this) // تهيئة المحول
-        recyclerView.setLayoutManager(LinearLayoutManager(this))
-        recyclerView.setAdapter(userAdapter)
+        userAdapter = UserAdapter(this)
+        binding.userListRecyclerView.apply {
+            layoutManager = LinearLayoutManager(this@FollowersListActivity)
+            adapter = userAdapter
+        }
     }
 
-    private fun fetchUsers() {
-        progressBar.setVisibility(android.view.View.VISIBLE)
-        db.collection("users").document(userId).get()
-            .addOnSuccessListener({ documentSnapshot ->
-                val user: UserModel? = documentSnapshot.toObject(UserModel::class.java)
-                if (user != null) {
-                    val userIdsToFetch: kotlin.collections.MutableList<kotlin.String?> =
-                        java.util.ArrayList<kotlin.String?>()
-                    if ("followers" == listType) {
-                        userIdsToFetch.addAll(user.getFollowers().keys)
-                    } else if ("following" == listType) {
-                        userIdsToFetch.addAll(user.getFollowing().keys)
-                    }
-
-                    if (userIdsToFetch.isEmpty()) {
-                        userAdapter.submitList(java.util.ArrayList<UserModel?>())
-                        tvEmptyState.setText("No " + listType + " found.")
-                        tvEmptyState.setVisibility(android.view.View.VISIBLE)
-                        progressBar.setVisibility(android.view.View.GONE)
-                        return@addOnSuccessListener
-                    }
-
-                    // Firestore whereIn supports up to 10 values.
-                    // For larger lists, you'd need to split into chunks and make multiple queries.
-                    val limitedUserIds = userIdsToFetch.stream().limit(10)
-                        .collect(java.util.stream.Collectors.toList())
-
-                    db.collection("users").whereIn("userId", limitedUserIds).get()
-                        .addOnSuccessListener({ querySnapshot ->
-                            val fetchedUsers: kotlin.collections.MutableList<UserModel?> =
-                                querySnapshot.toObjects(UserModel::class.java)
-                            userAdapter.submitList(fetchedUsers)
-                            if (fetchedUsers.isEmpty()) {
-                                tvEmptyState.setText("No " + listType + " found.")
-                                tvEmptyState.setVisibility(android.view.View.VISIBLE)
-                            } else {
-                                tvEmptyState.setVisibility(android.view.View.GONE)
-                            }
-                            progressBar.setVisibility(android.view.View.GONE)
-                        })
-                        .addOnFailureListener({ e ->
-                            android.util.Log.e(
-                                "FollowListActivity",
-                                "Error fetching users: " + e.getMessage()
-                            )
-                            Toast.makeText(
-                                this,
-                                "Failed to load users: " + e.getMessage(),
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            tvEmptyState.setText("Failed to load " + listType + ".")
-                            tvEmptyState.setVisibility(android.view.View.VISIBLE)
-                            progressBar.setVisibility(android.view.View.GONE)
-                        })
-                } else {
-                    Toast.makeText(this, "User profile not found.", Toast.LENGTH_SHORT).show()
-                    tvEmptyState.setText("User profile not found.")
-                    tvEmptyState.setVisibility(android.view.View.VISIBLE)
-                    progressBar.setVisibility(android.view.View.GONE)
+    private fun fetchUserList() {
+        showLoading(true)
+        lifecycleScope.launch {
+            try {
+                val userDoc = db.collection("users").document(userId!!).get().await()
+                val user = userDoc.toObject<UserModel>()
+                if (user == null) {
+                    showEmptyState("User profile not found.")
+                    return@launch
                 }
-            })
-            .addOnFailureListener({ e ->
-                android.util.Log.e(
-                    "FollowListActivity",
-                    "Error fetching user profile: " + e.getMessage()
-                )
-                Toast.makeText(
-                    this,
-                    "Failed to load user profile: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-                tvEmptyState.setText("Failed to load user profile.")
-                tvEmptyState.setVisibility(android.view.View.VISIBLE)
-                progressBar.setVisibility(android.view.View.GONE)
-            })
+
+                val idMap = if (listType == "followers") user.followers else user.following
+                val idsToFetch = idMap.keys.toList()
+
+                if (idsToFetch.isEmpty()) {
+                    showEmptyState("No $listType found.")
+                    return@launch
+                }
+
+                val fetchedUsers = fetchUsersInChunks(idsToFetch)
+                userAdapter.submitList(fetchedUsers)
+                showContent()
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching user list", e)
+                showEmptyState("Failed to load list.")
+            }
+        }
     }
+
+    private suspend fun fetchUsersInChunks(userIds: List<String>): List<UserModel> {
+        val allUsers = mutableListOf<UserModel>()
+        userIds.chunked(10).forEach { chunk ->
+            try {
+                val usersSnapshot = db.collection("users").whereIn("userId", chunk).get().await()
+                allUsers.addAll(usersSnapshot.toObjects(UserModel::class.java))
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching user chunk", e)
+            }
+        }
+        return allUsers
+    }
+
+    private fun showLoading(isLoading: Boolean) {
+        binding.userListProgressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
+        binding.userListRecyclerView.visibility = if (isLoading) View.GONE else View.VISIBLE
+        binding.userListEmptyState.visibility = View.GONE
+    }
+
+    private fun showEmptyState(message: String) {
+        binding.userListProgressBar.visibility = View.GONE
+        binding.userListRecyclerView.visibility = View.GONE
+        binding.userListEmptyState.visibility = View.VISIBLE
+        binding.userListEmptyState.text = message
+    }
+
+    private fun showContent() {
+        binding.userListProgressBar.visibility = View.GONE
+        binding.userListRecyclerView.visibility = View.VISIBLE
+        binding.userListEmptyState.visibility = View.GONE
+    }
+
 
     override fun onUserClick(user: UserModel) {
-        val intent: Intent = Intent(this, ProfileActivity::class.java)
-        intent.putExtra("userId", user.getUserId())
+        val intent = Intent(this, ProfileActivity::class.java).apply {
+            putExtra("userId", user.userId)
+        }
         startActivity(intent)
     }
 
     companion object {
-        const val EXTRA_USER_ID: kotlin.String = "user_id"
-        const val EXTRA_LIST_TYPE: kotlin.String = "list_type" // "followers" or "following"
+        private const val TAG = "FollowersListActivity"
+        const val EXTRA_USER_ID = "user_id"
+        const val EXTRA_LIST_TYPE = "list_type"
     }
 }

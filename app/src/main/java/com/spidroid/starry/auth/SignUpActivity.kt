@@ -13,6 +13,7 @@ import android.text.style.StyleSpan
 import android.util.Patterns
 import android.view.View
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -23,15 +24,19 @@ import androidx.core.text.inSpans
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.R
 import com.spidroid.starry.activities.MainActivity
 import com.spidroid.starry.models.UserModel
 
 class SignUpActivity : AppCompatActivity() {
 
-    private lateinit var auth: FirebaseAuth
-    private lateinit var db: FirebaseFirestore
+    private val auth: FirebaseAuth by lazy { Firebase.auth }
+    private val db: FirebaseFirestore by lazy { Firebase.firestore }
+
     private lateinit var usernameLayout: TextInputLayout
     private lateinit var emailLayout: TextInputLayout
     private lateinit var passwordLayout: TextInputLayout
@@ -47,10 +52,8 @@ class SignUpActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_signup)
 
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
-
         initializeViews()
+        setupListeners()
         setupProgressAnimator()
     }
 
@@ -64,20 +67,43 @@ class SignUpActivity : AppCompatActivity() {
         emailInput = findViewById(R.id.emailInput)
         passwordInput = findViewById(R.id.passwordInput)
         signUpButton = findViewById(R.id.signUpButton)
+
+        signUpButton.isEnabled = false // Initially disabled
+    }
+
+    private fun setupListeners() {
         val loginPrompt: TextView = findViewById(R.id.loginPrompt)
-        val termsCheckBox: android.widget.CheckBox = findViewById(R.id.termsCheckBox)
+        val termsCheckBox: CheckBox = findViewById(R.id.termsCheckBox)
         val termsText: TextView = findViewById(R.id.termsText)
 
         signUpButton.setOnClickListener { attemptSignUp() }
         loginPrompt.setOnClickListener { startLogin() }
 
-        addTextWatchers()
-        setupTermsText(termsText)
-
         termsCheckBox.setOnCheckedChangeListener { _, isChecked ->
-            signUpButton.isEnabled = isChecked
+            signUpButton.isEnabled = isChecked && isFormValid()
         }
-        signUpButton.isEnabled = false // الحالة الأولية للزر
+
+        val textWatcher = object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                // Enable button only if checkbox is also checked
+                signUpButton.isEnabled = termsCheckBox.isChecked && isFormValid()
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        }
+
+        usernameInput.addTextChangedListener(textWatcher)
+        emailInput.addTextChangedListener(textWatcher)
+        passwordInput.addTextChangedListener(textWatcher)
+
+        setupTermsText(termsText)
+    }
+
+    private fun isFormValid(): Boolean {
+        val username = usernameInput.text.toString().trim()
+        val email = emailInput.text.toString().trim()
+        val password = passwordInput.text.toString().trim()
+        return username.isNotBlank() && email.isNotBlank() && password.isNotBlank()
     }
 
     private fun setupProgressAnimator() {
@@ -90,29 +116,9 @@ class SignUpActivity : AppCompatActivity() {
         }
     }
 
-    private fun addTextWatchers() {
-        usernameInput.addTextChangedListener(createErrorClearingWatcher(usernameLayout))
-        emailInput.addTextChangedListener(createErrorClearingWatcher(emailLayout))
-        passwordInput.addTextChangedListener(createErrorClearingWatcher(passwordLayout))
-    }
-
-    private fun createErrorClearingWatcher(layout: TextInputLayout): TextWatcher {
-        return object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                layout.error = null
-            }
-        }
-    }
-
     private fun setupTermsText(termsText: TextView) {
-        val fullText = getString(R.string.terms_and_conditions_prompt) // "I agree to the Terms of Service and Privacy Policy"
-
-        // استخدام KTX لجعل الكود أنظف
         val spannable = buildSpannedString {
             append("I agree to the ")
-            // Terms of Service span
             inSpans(
                 StyleSpan(Typeface.BOLD),
                 ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.primary)),
@@ -121,11 +127,8 @@ class SignUpActivity : AppCompatActivity() {
                         showTermsBottomSheet("terms")
                     }
                 }
-            ) {
-                append("Terms of Service")
-            }
+            ) { append("Terms of Service") }
             append(" and ")
-            // Privacy Policy span
             inSpans(
                 StyleSpan(Typeface.BOLD),
                 ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.primary)),
@@ -134,69 +137,60 @@ class SignUpActivity : AppCompatActivity() {
                         showTermsBottomSheet("privacy")
                     }
                 }
-            ) {
-                append("Privacy Policy")
-            }
+            ) { append("Privacy Policy") }
         }
 
         termsText.text = spannable
-        termsText.movementMethod = LinkMovementMethod.getInstance() // لجعل الروابط قابلة للنقر
-        termsText.highlightColor = android.graphics.Color.TRANSPARENT // لإزالة لون التمييز عند النقر
+        termsText.movementMethod = LinkMovementMethod.getInstance()
+        termsText.highlightColor = android.graphics.Color.TRANSPARENT
     }
 
     private fun showTermsBottomSheet(termsType: String) {
-        val bottomSheet = TermsBottomSheetFragment.newInstance(termsType)
-        bottomSheet.show(supportFragmentManager, bottomSheet.tag)
+        TermsBottomSheetFragment.newInstance(termsType).show(supportFragmentManager, termsType)
     }
 
     private fun attemptSignUp() {
-        signUpButton.isEnabled = false
-        val username = usernameInput.text.toString().trim()
+        if (!validateInputFields()) return
+
+        showProgress(true)
         val email = emailInput.text.toString().trim()
         val password = passwordInput.text.toString().trim()
 
-        if (!validateSignUpForm(username, email, password)) {
-            signUpButton.isEnabled = true
-            return
-        }
-
-        showProgress(true)
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
+                    val username = usernameInput.text.toString().trim()
                     createUserProfile(username, email)
                 } else {
-                    signUpButton.isEnabled = true
                     showProgress(false)
                     handleSignUpError(task.exception)
                 }
             }
     }
 
-    private fun validateSignUpForm(username: String, email: String, password: String): Boolean {
+    private fun validateInputFields(): Boolean {
+        usernameLayout.error = null
+        emailLayout.error = null
+        passwordLayout.error = null
+
+        val username = usernameInput.text.toString().trim()
+        val email = emailInput.text.toString().trim()
+        val password = passwordInput.text.toString().trim()
+
         var isValid = true
 
-        if (username.isBlank()) {
-            usernameLayout.error = "Username required"
-            isValid = false
-        } else if (username.length < 3) {
-            usernameLayout.error = "Minimum 3 characters"
+        if (username.length < 3) {
+            usernameLayout.error = "Username must be at least 3 characters"
             isValid = false
         }
 
-        if (email.isBlank()) {
-            emailLayout.error = "Email required"
-            isValid = false
-        } else if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            emailLayout.error = "Valid email required"
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            emailLayout.error = "Please enter a valid email"
             isValid = false
         }
 
-        if (password.isBlank()) {
-            passwordLayout.error = "Password required"
-            isValid = false
-        } else if (password.length < 6) {
-            passwordLayout.error = "Minimum 6 characters"
+        if (password.length < 6) {
+            passwordLayout.error = "Password must be at least 6 characters"
             isValid = false
         }
 
@@ -206,47 +200,44 @@ class SignUpActivity : AppCompatActivity() {
     private fun createUserProfile(username: String, email: String) {
         val firebaseUser = auth.currentUser ?: run {
             showProgress(false)
-            signUpButton.isEnabled = true
-            Toast.makeText(this, "User creation failed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Authentication failed. Please try again.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val user = UserModel(firebaseUser.uid, username, email)
+        val user = UserModel(
+            userId = firebaseUser.uid,
+            username = username,
+            email = email,
+            displayName = username // Initially set displayName to username
+        )
 
-        db.collection("users")
-            .document(firebaseUser.uid)
-            .set(user)
+        db.collection("users").document(firebaseUser.uid).set(user)
             .addOnCompleteListener { task ->
                 showProgress(false)
-                signUpButton.isEnabled = true
-
                 if (task.isSuccessful) {
                     startMainActivity()
                 } else {
-                    Toast.makeText(
-                        this,
-                        "Failed to create profile: ${task.exception?.message}",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    Toast.makeText(this, "Failed to create profile: ${task.exception?.message}", Toast.LENGTH_LONG).show()
                 }
             }
     }
 
     private fun handleSignUpError(exception: Exception?) {
-        val errorMessage = exception?.message ?: "Registration failed"
+        val errorMessage = exception?.message ?: "Registration failed. Please try again."
         if (errorMessage.contains("email address is already in use", ignoreCase = true)) {
-            emailLayout.error = "Email already registered"
+            emailLayout.error = "This email is already registered"
+        } else {
+            Toast.makeText(this, errorMessage, Toast.LENGTH_LONG).show()
         }
-        Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show()
     }
 
     private fun showProgress(show: Boolean) {
         progressContainer.visibility = if (show) View.VISIBLE else View.GONE
+        signUpButton.isEnabled = !show
         if (show) {
             progressAnimator?.start()
         } else {
             progressAnimator?.cancel()
-            progressBar.setProgress(0f)
         }
     }
 
@@ -255,7 +246,7 @@ class SignUpActivity : AppCompatActivity() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         startActivity(intent)
-        finish() // استخدام finish() بدلاً من finishAffinity() في معظم الحالات
+        finish()
     }
 
     private fun startLogin() {
@@ -264,6 +255,6 @@ class SignUpActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        progressAnimator?.cancel() // التأكد من إلغاء الـ animator لتجنب تسريب الذاكرة
+        progressAnimator?.cancel()
     }
 }

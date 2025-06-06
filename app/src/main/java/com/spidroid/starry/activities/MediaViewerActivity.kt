@@ -1,223 +1,252 @@
 package com.spidroid.starry.activities
 
+import android.Manifest
 import android.app.Activity
 import android.app.DownloadManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
-import android.widget.ImageButton
-import android.widget.PopupMenu
-import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
-import androidx.media3.ui.PlayerView.ControllerVisibilityListener
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.drawable.DrawableTransitionOptions
-import com.github.chrisbanes.photoview.PhotoView
 import com.spidroid.starry.R
-import com.spidroid.starry.activities.MediaViewerActivity.MediaPagerAdapter.VideoViewHolder
+import com.spidroid.starry.databinding.ActivityMediaViewerBinding
+import com.spidroid.starry.databinding.MediaItemImageBinding
+import com.spidroid.starry.databinding.MediaItemVideoBinding
 import java.io.File
-import java.net.URLConnection
 import kotlin.math.max
 import kotlin.math.min
 
 class MediaViewerActivity : AppCompatActivity() {
-    private var viewPager: ViewPager2? = null
-    private var mediaUrls: ArrayList<String?>? = null
+
+    private lateinit var binding: ActivityMediaViewerBinding
+    private var mediaUrls: ArrayList<String> = arrayListOf()
     private var currentPosition = 0
-    private var btnMenu: ImageButton? = null
-    private val loadingProgressBar: ProgressBar? = null
+
+    private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_media_viewer)
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        binding = ActivityMediaViewerBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
-        // Initialize data
-        val intent = getIntent()
-        mediaUrls = intent.getStringArrayListExtra("media_urls")
-        currentPosition = intent.getIntExtra("position", 0)
+        initializePermissionLauncher()
 
-        if (mediaUrls == null || mediaUrls!!.isEmpty()) {
+        intent.getStringArrayListExtra(EXTRA_MEDIA_URLS)?.let {
+            mediaUrls.addAll(it)
+        }
+        currentPosition = intent.getIntExtra(EXTRA_POSITION, 0)
+
+        if (mediaUrls.isEmpty()) {
             Toast.makeText(this, "No media to display", Toast.LENGTH_SHORT).show()
             finish()
             return
         }
 
-        initializeViews()
         setupViewPager()
         setupButtonListeners()
     }
 
-    private fun initializeViews() {
-        viewPager = findViewById<ViewPager2?>(R.id.viewPager)
-        btnMenu = findViewById<ImageButton>(R.id.btnMenu)
-        findViewById<View?>(R.id.btnClose).setOnClickListener(View.OnClickListener { v: View? -> supportFinishAfterTransition() })
-        findViewById<View?>(R.id.btnShare).setOnClickListener(View.OnClickListener { v: View? -> shareCurrentMedia() })
+    private fun initializePermissionLauncher() {
+        requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                downloadCurrentMedia()
+            } else {
+                Toast.makeText(this, "Storage permission is required to download media.", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     private fun setupViewPager() {
         val adapter = MediaPagerAdapter()
-        viewPager!!.setAdapter(adapter)
-        viewPager!!.setCurrentItem(currentPosition, false)
-        viewPager!!.setOffscreenPageLimit(1)
-
-        viewPager!!.registerOnPageChangeCallback(
-            object : ViewPager2.OnPageChangeCallback() {
-                override fun onPageSelected(position: Int) {
-                    currentPosition = position
-                }
-            })
+        binding.viewPager.adapter = adapter
+        binding.viewPager.setCurrentItem(currentPosition, false)
+        binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                currentPosition = position
+            }
+        })
     }
 
     private fun setupButtonListeners() {
-        btnMenu!!.setOnClickListener(View.OnClickListener { v: View? -> showMenu() })
+        binding.btnClose.setOnClickListener { supportFinishAfterTransition() }
+        binding.btnShare.setOnClickListener { shareCurrentMedia() }
+        binding.btnMenu.setOnClickListener { showMenu(it) }
     }
 
-    private inner class MediaPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder?>() {
+    private fun showMenu(anchor: View) {
+        PopupMenu(this, anchor).apply {
+            menuInflater.inflate(R.menu.menu_media_download, menu)
+            setOnMenuItemClickListener { item ->
+                when (item.itemId) {
+                    R.id.action_download -> {
+                        checkStoragePermissionAndDownload()
+                        true
+                    }
+                    else -> false
+                }
+            }
+        }.show()
+    }
+
+    private fun checkStoragePermissionAndDownload() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // No permission needed for scoped storage on Android 10+
+            downloadCurrentMedia()
+        } else {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    downloadCurrentMedia()
+                }
+                else -> {
+                    requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+            }
+        }
+    }
+
+    private fun downloadCurrentMedia() {
+        val url = mediaUrls.getOrNull(currentPosition) ?: return
+        try {
+            val fileName = "Starry_${System.currentTimeMillis()}${getFileExtension(url)}"
+            val request = DownloadManager.Request(Uri.parse(url))
+                .setTitle(fileName)
+                .setDescription("Downloading...")
+                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+
+            val dm = getSystemService(DOWNLOAD_SERVICE) as? DownloadManager
+            dm?.enqueue(request)
+            Toast.makeText(this, "Download started...", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Failed to start download.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun shareCurrentMedia() {
+        val url = mediaUrls.getOrNull(currentPosition) ?: return
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = getMimeType(url) ?: "image/*" // Default to image if type is unknown
+            putExtra(Intent.EXTRA_STREAM, Uri.parse(url))
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share via"))
+    }
+
+    private fun getFileExtension(url: String?): String {
+        return MimeTypeMap.getFileExtensionFromUrl(url)?.let { ".$it" } ?: ".jpg"
+    }
+
+    private fun getMimeType(url: String?): String? {
+        return MimeTypeMap.getSingleton().getMimeTypeFromExtension(MimeTypeMap.getFileExtensionFromUrl(url))
+    }
+
+    override fun finish() {
+        super.finish()
+        overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+    }
+
+    private inner class MediaPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
         override fun getItemViewType(position: Int): Int {
-            return if (isVideo(mediaUrls!!.get(position)!!)) MediaPagerAdapter.Companion.TYPE_VIDEO else MediaPagerAdapter.Companion.TYPE_IMAGE
+            return if (mediaUrls[position].contains(".mp4", ignoreCase = true) || mediaUrls[position].contains(".mov", ignoreCase = true)) TYPE_VIDEO else TYPE_IMAGE
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
-            if (viewType == MediaPagerAdapter.Companion.TYPE_VIDEO) {
-                return VideoViewHolder(
-                    LayoutInflater.from(parent.getContext())
-                        .inflate(R.layout.media_item_video, parent, false)
-                )
+            val inflater = LayoutInflater.from(parent.context)
+            return if (viewType == TYPE_VIDEO) {
+                VideoViewHolder(MediaItemVideoBinding.inflate(inflater, parent, false))
+            } else {
+                ImageViewHolder(MediaItemImageBinding.inflate(inflater, parent, false))
             }
-            return ImageViewHolder(
-                LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.media_item_image, parent, false)
-            )
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-            val url = mediaUrls!!.get(position)
-            if (holder is VideoViewHolder) {
-                holder.bind(url)
-            } else if (holder is ImageViewHolder) {
-                holder.bind(url)
+            val url = mediaUrls[position]
+            when (holder) {
+                is VideoViewHolder -> holder.bind(url)
+                is ImageViewHolder -> holder.bind(url)
             }
         }
 
-        override fun getItemCount(): Int {
-            return mediaUrls!!.size
-        }
-
-        fun isVideo(url: String): Boolean {
-            try {
-                val uri = Uri.parse(url)
-                val mimeType = URLConnection.guessContentTypeFromName(uri.getLastPathSegment())
-                return mimeType != null && mimeType.startsWith("video/")
-            } catch (e: Exception) {
-                return url.matches(".*\\.(mp4|mov|mkv|webm|3gp|avi|m3u8)(\\?.*)?$".toRegex())
-            }
-        }
-
-        inner class ImageViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val photoView: PhotoView
-
-            init {
-                photoView = itemView.findViewById<PhotoView>(R.id.photoView)
-                photoView.setOnClickListener(View.OnClickListener { v: View? -> toggleControls() })
-            }
-
-            fun bind(url: String?) {
-                Glide.with(itemView)
-                    .load(url)
-                    .transition(DrawableTransitionOptions.withCrossFade())
-                    .error(R.drawable.ic_cover_placeholder)
-                    .into(photoView)
-            }
-        }
-
-        inner class VideoViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            private val playerView: PlayerView
-            private var player: ExoPlayer? = null
-            private val loadingProgressBar: ProgressBar
-
-            init {
-                playerView = itemView.findViewById<PlayerView>(R.id.playerView)
-                loadingProgressBar = itemView.findViewById<ProgressBar>(R.id.loadingProgressBar)
-
-                playerView.setControllerVisibilityListener(
-                    ControllerVisibilityListener { visibility: Int ->
-                        if (visibility == View.VISIBLE) showControls()
-                        else hideControls()
-                    })
-            }
-
-            fun bind(url: String?) {
-                initializePlayer()
-                loadingProgressBar.setVisibility(View.VISIBLE)
-
-                val mediaItem = MediaItem.fromUri(Uri.parse(url))
-                player!!.setMediaItem(mediaItem)
-                player!!.prepare()
-
-                player!!.addListener(
-                    object : Player.Listener {
-                        override fun onPlaybackStateChanged(state: Int) {
-                            if (state == Player.STATE_READY || state == Player.STATE_ENDED) {
-                                loadingProgressBar.setVisibility(View.GONE)
-                            } else if (state == Player.STATE_BUFFERING) {
-                                loadingProgressBar.setVisibility(View.VISIBLE)
-                            }
-                        }
-
-                        override fun onPlayerError(error: PlaybackException) {
-                            loadingProgressBar.setVisibility(View.GONE)
-                            Toast.makeText(
-                                itemView.getContext(),
-                                "Error playing video",
-                                Toast.LENGTH_SHORT
-                            )
-                                .show()
-                        }
-                    })
-
-                player!!.play()
-            }
-
-            private fun initializePlayer() {
-                if (player == null) {
-                    player = ExoPlayer.Builder(itemView.getContext()).build()
-                    player!!.setRepeatMode(Player.REPEAT_MODE_ONE)
-                    playerView.setPlayer(player)
-                }
-            }
-
-            fun releasePlayer() {
-                if (player != null) {
-                    player!!.stop()
-                    player!!.release()
-                    player = null
-                }
-            }
-        }
+        override fun getItemCount(): Int = mediaUrls.size
 
         override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
             super.onViewRecycled(holder)
             if (holder is VideoViewHolder) {
                 holder.releasePlayer()
+            }
+        }
+
+        inner class ImageViewHolder(private val binding: MediaItemImageBinding) : RecyclerView.ViewHolder(binding.root) {
+            init {
+                binding.photoView.setOnClickListener { toggleControls() }
+            }
+            fun bind(url: String) {
+                Glide.with(itemView)
+                    .load(url)
+                    .transition(DrawableTransitionOptions.withCrossFade())
+                    .error(R.drawable.ic_cover_placeholder)
+                    .into(binding.photoView)
+            }
+        }
+
+        inner class VideoViewHolder(private val binding: MediaItemVideoBinding) : RecyclerView.ViewHolder(binding.root) {
+            private var player: ExoPlayer? = null
+
+            fun bind(url: String) {
+                initializePlayer()
+                player?.setMediaItem(MediaItem.fromUri(url))
+                player?.prepare()
+                player?.play()
+            }
+
+            private fun initializePlayer() {
+                if (player == null) {
+                    player = ExoPlayer.Builder(itemView.context).build().also {
+                        binding.playerView.player = it
+                        it.repeatMode = Player.REPEAT_MODE_ONE
+                        it.addListener(object : Player.Listener {
+                            override fun onPlaybackStateChanged(state: Int) {
+                                binding.loadingProgressBar.visibility = if (state == Player.STATE_BUFFERING) View.VISIBLE else View.GONE
+                            }
+                            override fun onPlayerError(error: PlaybackException) {
+                                Toast.makeText(itemView.context, "Error playing video", Toast.LENGTH_SHORT).show()
+                            }
+                        })
+                    }
+                }
+            }
+
+            fun releasePlayer() {
+                player?.stop()
+                player?.release()
+                player = null
+                binding.playerView.player = null
             }
         }
 
@@ -228,122 +257,27 @@ class MediaViewerActivity : AppCompatActivity() {
     }
 
     private fun toggleControls() {
-        val controls = findViewById<View?>(R.id.topControls)
-        if (controls != null) {
-            controls.setVisibility(if (controls.getVisibility() == View.VISIBLE) View.GONE else View.VISIBLE)
-        }
-    }
-
-    private fun showControls() {
-        val controls = findViewById<View?>(R.id.topControls)
-        if (controls != null) {
-            controls.setVisibility(View.VISIBLE)
-        }
-    }
-
-    private fun hideControls() {
-        val controls = findViewById<View?>(R.id.topControls)
-        if (controls != null) {
-            controls.setVisibility(View.GONE)
-        }
-    }
-
-    private fun shareCurrentMedia() {
-        if (currentPosition < 0 || currentPosition >= mediaUrls!!.size) return
-
-        val url = mediaUrls!!.get(currentPosition)
-        val shareIntent = Intent(Intent.ACTION_SEND)
-        shareIntent.setType(getMimeType(url))
-        shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.parse(url))
-        startActivity(Intent.createChooser(shareIntent, "Share via"))
-    }
-
-    private fun downloadMedia(url: String?) {
-        val request = DownloadManager.Request(Uri.parse(url))
-        val dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-        val fileName = "Starry_" + System.currentTimeMillis() + getFileExtension(url)
-
-        request.setDestinationUri(Uri.fromFile(File(dir, fileName)))
-        request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-
-        val dm = getSystemService(DOWNLOAD_SERVICE) as DownloadManager?
-        if (dm != null) dm.enqueue(request)
-    }
-
-    private fun getFileExtension(url: String?): String {
-        val ext = MimeTypeMap.getFileExtensionFromUrl(url)
-        return if (ext != null && !ext.isEmpty()) "." + ext else ".mp4"
-    }
-
-    private fun getMimeType(url: String?): String {
-        val type =
-            MimeTypeMap.getSingleton()
-                .getMimeTypeFromExtension(MimeTypeMap.getFileExtensionFromUrl(url))
-        return if (type != null) type else "image/*"
-    }
-
-    private fun showMenu() {
-        val popup = PopupMenu(this, btnMenu)
-        popup.getMenuInflater().inflate(R.menu.menu_media_download, popup.getMenu())
-        popup.setOnMenuItemClickListener(
-            PopupMenu.OnMenuItemClickListener { item: MenuItem? ->
-                if (item!!.getItemId() == R.id.action_download) {
-                    downloadMedia(mediaUrls!!.get(currentPosition))
-                    return@setOnMenuItemClickListener true
-                }
-                false
-            })
-        popup.show()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (viewPager != null) {
-            val recyclerView = viewPager!!.getChildAt(0) as RecyclerView
-            for (i in 0..<recyclerView.getChildCount()) {
-                val holder =
-                    recyclerView.getChildViewHolder(recyclerView.getChildAt(i))
-                if (holder is VideoViewHolder) {
-                    holder.releasePlayer()
-                }
-            }
-        }
-    }
-
-    override fun finish() {
-        super.finish()
-        overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
+        binding.topControls.visibility = if (binding.topControls.visibility == View.VISIBLE) View.GONE else View.VISIBLE
     }
 
     companion object {
-        fun launch(activity: Activity, urls: ArrayList<String?>?, pos: Int, sharedView: View?) {
-            val intent = Intent(activity, MediaViewerActivity::class.java)
-            intent.putStringArrayListExtra("media_urls", urls)
-            intent.putExtra("position", pos)
+        private const val EXTRA_MEDIA_URLS = "media_urls"
+        private const val EXTRA_POSITION = "position"
+
+        @JvmStatic
+        fun launch(activity: Activity, urls: ArrayList<String?>, pos: Int, sharedView: View?) {
+            val intent = Intent(activity, MediaViewerActivity::class.java).apply {
+                putStringArrayListExtra(EXTRA_MEDIA_URLS, urls)
+                putExtra(EXTRA_POSITION, max(0, min(pos, urls.size - 1)))
+            }
 
             if (sharedView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val options =
-                    ActivityOptionsCompat.makeSceneTransitionAnimation(
-                        activity, sharedView, "media_transition"
-                    )
+                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(activity, sharedView, "media_transition")
                 ActivityCompat.startActivity(activity, intent, options.toBundle())
             } else {
                 activity.startActivity(intent)
                 activity.overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
             }
-        }
-
-        fun launchWithoutTransition(
-            activity: Activity, mediaUrls: ArrayList<String?>, position: Int
-        ) {
-            val intent = Intent(activity, MediaViewerActivity::class.java)
-            intent.putStringArrayListExtra("media_urls", mediaUrls)
-            intent.putExtra(
-                "position",
-                max(0.0, min(position.toDouble(), (mediaUrls.size - 1).toDouble())).toInt()
-            )
-            activity.startActivity(intent)
-            activity.overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
         }
     }
 }

@@ -1,196 +1,130 @@
 package com.spidroid.starry.viewmodels
 
 import android.util.Log
-import androidx.lifecycle.Observer
-import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.firestore.ktx.toObject
+import com.google.firebase.ktx.Firebase
+import com.spidroid.starry.models.StoryModel
+import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.repositories.UserRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import java.util.Date
-import java.util.stream.Collectors
-import kotlin.Boolean
-import kotlin.String
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
-import kotlin.collections.MutableList
-import kotlin.collections.MutableMap
-import kotlin.collections.MutableSet
-import kotlin.collections.setValue
-import kotlin.setValue
+
+// Sealed class to represent the different states of the Story Feed UI
+sealed class StoryFeedState {
+    object Loading : StoryFeedState()
+    data class Success(
+        val storyPreviews: List<StoryPreview>,
+        val hasMyActiveStory: Boolean
+    ) : StoryFeedState()
+    data class Error(val message: String) : StoryFeedState()
+}
+
+// Data class to hold combined data for the adapter
+data class StoryPreview(
+    val user: UserModel,
+    val hasUnseenStories: Boolean
+)
 
 class StoryViewModel : ViewModel() {
-    private val auth: FirebaseAuth
-    private val db: FirebaseFirestore
-    private val userRepository: UserRepository
 
-    // LiveData واحد لتمرير كل البيانات اللازمة للواجهة
-    private val _storyFeedState: MutableLiveData<StoryFeedState?> =
-        MutableLiveData<StoryFeedState?>()
-    val storyFeedState: LiveData<StoryFeedState?>
-        get() = _storyFeedState
+    private val auth = Firebase.auth
+    private val db = Firebase.firestore
+    private val userRepository = UserRepository()
 
-    // LiveData لبيانات المستخدم الحالي فقط
-    private val _currentUser: MutableLiveData<UserModel?> = MutableLiveData<UserModel?>()
-    val currentUser: LiveData<UserModel?>
-        get() = _currentUser
+    private val _storyFeedState = MutableStateFlow<StoryFeedState>(StoryFeedState.Loading)
+    val storyFeedState: StateFlow<StoryFeedState> = _storyFeedState
 
-
-    init {
-        auth = FirebaseAuth.getInstance()
-        db = FirebaseFirestore.getInstance()
-        userRepository = UserRepository()
-    }
-
-    // دالة واحدة لجلب كل ما يتعلق بالقصص
-    fun fetchStoriesForCurrentUserAndFollowing() {
-        val currentUserId: String? = auth.getUid()
-        if (currentUserId == null) {
-            _storyFeedState.setValue(
-                StoryFeedState(
-                    ArrayList<StoryModel?>(),
-                    false,
-                    HashSet<String?>()
-                )
-            )
-            return
-        }
-
-        // 1. جلب قائمة المتابَعين
-        db.collection("users").document(currentUserId).collection("following")
-            .get()
-            .addOnSuccessListener({ followingSnapshot ->
-                val userIdsToFetch: MutableList<String?> = ArrayList<String?>()
-                for (doc in followingSnapshot) {
-                    userIdsToFetch.add(doc.getId())
-                }
-                userIdsToFetch.add(currentUserId) // أضف المستخدم الحالي دائماً
-
-                // 2. جلب القصص لهؤلاء المستخدمين
-                // ملاحظة هامة: استعلام whereIn محدود بـ 10 أو 30 عنصر.
-                // في تطبيق حقيقي، ستحتاج إلى تقسيم الطلب إلى أجزاء أو استخدام بنية بيانات مختلفة.
-                if (userIdsToFetch.isEmpty()) {
-                    _storyFeedState.setValue(
-                        StoryFeedState(
-                            ArrayList<StoryModel?>(),
-                            false,
-                            HashSet<String?>()
-                        )
-                    )
-                    return@addOnSuccessListener
-                }
-                db.collection("stories")
-                    .whereIn("userId", userIdsToFetch)
-                    .whereGreaterThan("expiresAt", Date()) // جلب القصص النشطة فقط
-                    .orderBy("expiresAt", Query.Direction.DESCENDING)
-                    .get()
-                    .addOnSuccessListener({ storySnapshots ->
-                        val allStories: MutableList<StoryModel?> =
-                            storySnapshots.toObjects(StoryModel::class.java)
-                        // 3. فصل قصة المستخدم الحالي عن قصص الآخرين
-                        val hasMyStory = allStories.stream()
-                            .anyMatch { s: StoryModel? -> s.getUserId() == currentUserId }
-                        val otherStories: MutableList<StoryModel> = allStories.stream()
-                            .filter { s: StoryModel? -> s.getUserId() != currentUserId }
-                            .collect(Collectors.toList())
-
-                        // 4. جلب بيانات أصحاب القصص (الاسم والصورة) لإثرائها
-                        val authorIds = otherStories.stream()
-                            .map<String?> { obj: StoryModel? -> obj.getUserId() }
-                            .collect(Collectors.toSet())
-                        if (authorIds.isEmpty()) {
-                            // لا توجد قصص للآخرين، فقط أرسل حالة قصة المستخدم الحالي
-                            _storyFeedState.setValue(
-                                StoryFeedState(
-                                    ArrayList<StoryModel?>(),
-                                    hasMyStory,
-                                    HashSet<String?>()
-                                )
-                            )
-                        } else {
-                            // جلب بيانات المستخدمين
-                            db.collection("users").whereIn("userId", ArrayList<E?>(authorIds))
-                                .get()
-                                .addOnSuccessListener({ userSnapshots ->
-                                    // إنشاء Map لسهولة الوصول إلى بيانات المستخدم
-                                    val userMap: MutableMap<String?, UserModel?> =
-                                        HashMap<String?, UserModel?>()
-                                    for (user in userSnapshots.toObjects(UserModel::class.java)) {
-                                        userMap.put(user.getUserId(), user)
-                                    }
-
-                                    // إثراء كل قصة ببيانات صاحبها
-                                    for (story in otherStories) {
-                                        val author: UserModel? = userMap.get(story.getUserId())
-                                        if (author != null) {
-                                            // story.setAuthorDisplayName(author.getDisplayName()); // يجب إضافة هذه الحقول إلى StoryModel
-                                            // story.setAuthorAvatarUrl(author.getProfileImageUrl());
-                                        }
-                                    }
-
-                                    // 5. جلب القصص المشاهدة
-                                    val viewedStoryIds: MutableSet<String?> =
-                                        HashSet<String?>() // يجب جلبها من قاعدة البيانات
-                                    _storyFeedState.setValue(
-                                        StoryFeedState(
-                                            otherStories,
-                                            hasMyStory,
-                                            viewedStoryIds
-                                        )
-                                    )
-                                })
-                        }
-                    })
-                    .addOnFailureListener({ e ->
-                        Log.e(
-                            StoryViewModel.Companion.TAG,
-                            "Error fetching stories: ",
-                            e
-                        )
-                    })
-            })
-            .addOnFailureListener({ e ->
-                Log.e(
-                    StoryViewModel.Companion.TAG,
-                    "Error fetching following list: ",
-                    e
-                )
-            })
-    }
-
-    // دالة منفصلة لجلب المستخدم الحالي، لأنها قد تكون مطلوبة في أماكن أخرى
-    fun fetchCurrentUser() {
-        val currentUserId: String? = auth.getUid()
-        if (currentUserId != null) {
-            // استخدام المستودع Repository لجلب المستخدم، وهي ممارسة جيدة
-            // لكن لاحظ أن استخدام observeForever يتطلب إزالته في onCleared لتجنب تسريب الذاكرة
-            userRepository.getUserById(currentUserId).observeForever(Observer { user: UserModel? ->
-                _currentUser.postValue(user)
-            })
-        }
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // إزالة المراقب (observer) لتجنب تسريب الذاكرة
-        userRepository.getUserById(auth.getUid()).removeObserver(Observer { user: UserModel? -> })
-    }
-
-    // فئة داخلية لتغليف حالة واجهة المستخدم
-    class StoryFeedState(
-        stories: MutableList<StoryModel>?,
-        hasMyActiveStory: Boolean,
-        viewedStoryIds: MutableSet<String?>?
-    ) {
-        val stories: MutableList<StoryModel>?
-        val hasMyActiveStory: Boolean
-        val viewedStoryIds: MutableSet<String?>?
-
-        init {
-            this.stories = stories
-            this.hasMyActiveStory = hasMyActiveStory
-            this.viewedStoryIds = viewedStoryIds
-        }
-    }
+    private val _currentUser = MutableLiveData<UserModel?>()
+    val currentUser: LiveData<UserModel?> get() = _currentUser
 
     companion object {
         private const val TAG = "StoryViewModel"
+    }
+
+    init {
+        fetchCurrentUser()
+        fetchStoriesForCurrentUserAndFollowing()
+    }
+
+    fun fetchCurrentUser() {
+        auth.currentUser?.uid?.let { userId ->
+            userRepository.getUserById(userId).observeForever { user ->
+                _currentUser.postValue(user)
+            }
+        }
+    }
+
+    fun fetchStoriesForCurrentUserAndFollowing() {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            _storyFeedState.value = StoryFeedState.Error("User not authenticated")
+            return
+        }
+
+        viewModelScope.launch {
+            _storyFeedState.value = StoryFeedState.Loading
+            try {
+                // 1. Get the list of users the current user is following
+                val followingSnapshot = db.collection("users").document(currentUserId).get().await()
+                val followingMap = followingSnapshot.get("following") as? Map<String, Boolean> ?: emptyMap()
+                val followingIds = followingMap.keys.toMutableList()
+
+                // 2. Fetch active stories for the followed users
+                // Note: Firestore 'in' query is limited. For more than 10 users, you need to chunk the list.
+                val storyPreviews = if (followingIds.isNotEmpty()) {
+                    val storiesSnapshot = db.collection("stories")
+                        .whereIn("userId", followingIds)
+                        .whereGreaterThan("expiresAt", Date())
+                        .get()
+                        .await()
+
+                    // Group stories by userId
+                    val storiesByUserId = storiesSnapshot.documents.mapNotNull { it.toObject<StoryModel>() }
+                        .groupBy { it.userId }
+
+                    // Fetch user details for each user who has stories
+                    storiesByUserId.keys.mapNotNull { userId ->
+                        val userDoc = db.collection("users").document(userId!!).get().await()
+                        val user = userDoc.toObject<UserModel>()
+                        user?.let {
+                            // Check if at least one story is unseen
+                            val viewedStoriesSnapshot = db.collection("users").document(currentUserId)
+                                .collection("viewed_stories").get().await()
+                            val viewedStoryIds = viewedStoriesSnapshot.documents.map { it.id }.toSet()
+
+                            val hasUnseen = storiesByUserId[userId]?.any { !viewedStoryIds.contains(it.storyId) } == true
+                            StoryPreview(user = it, hasUnseenStories = hasUnseen)
+                        }
+                    }
+                } else {
+                    emptyList()
+                }
+
+                // 3. Check if the current user has an active story
+                val myStoriesSnapshot = db.collection("stories")
+                    .whereEqualTo("userId", currentUserId)
+                    .whereGreaterThan("expiresAt", Date())
+                    .limit(1)
+                    .get()
+                    .await()
+                val hasMyStory = !myStoriesSnapshot.isEmpty
+
+                // 4. Update the state with the final list
+                _storyFeedState.value = StoryFeedState.Success(storyPreviews, hasMyStory)
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching stories feed", e)
+                _storyFeedState.value = StoryFeedState.Error("Failed to load stories: ${e.message}")
+            }
+        }
     }
 }

@@ -1,161 +1,102 @@
 package com.spidroid.starry.adapters
 
+import android.content.Context
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import androidx.recyclerview.widget.DiffUtil
+import androidx.recyclerview.widget.ListAdapter
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.firebase.auth.FirebaseAuth
-import de.hdodenhof.circleimageview.CircleImageView
+import com.spidroid.starry.R
+import com.spidroid.starry.databinding.ItemUserSuggestionBinding
+import com.spidroid.starry.models.UserModel
 
-class UserSuggestionsAdapter
-    (activity: Activity) :
-    RecyclerView.Adapter<UserSuggestionsAdapter.UserSuggestionViewHolder?>() {
-    private val users: MutableList<UserModel> = ArrayList<UserModel>()
-    private val activity: Activity
-    private val db: FirebaseFirestore
-    private val auth: FirebaseAuth
-    private val currentUserId: String?
+class UserSuggestionsAdapter(
+    private val listener: OnUserSuggestionInteraction
+) : ListAdapter<UserModel, UserSuggestionsAdapter.UserSuggestionViewHolder>(DIFF_CALLBACK) {
 
-    init {
-        this.activity = activity
-        this.db = FirebaseFirestore.getInstance()
-        this.auth = FirebaseAuth.getInstance()
-        this.currentUserId =
-            if (auth.getCurrentUser() != null) auth.getCurrentUser().getUid() else null
+    // واجهة للتفاعل مع النقرات داخل هذا المحول
+    interface OnUserSuggestionInteraction {
+        fun onFollowSuggestionClicked(user: UserModel, position: Int)
+        fun onSuggestionUserClicked(user: UserModel)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserSuggestionViewHolder {
-        val view: View =
-            LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_user_suggestion, parent, false)
-        return UserSuggestionViewHolder(view)
+        val binding = ItemUserSuggestionBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return UserSuggestionViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: UserSuggestionViewHolder, position: Int) {
-        val user: UserModel = users.get(position)
-
-        holder.username.setText("@" + user.getUsername())
-        holder.displayName.setText(
-            if (user.getDisplayName() != null && !user.getDisplayName().isEmpty())
-                user.getDisplayName()
-            else
-                user.getUsername()
-        )
-
-        if (user.getBio() != null && !user.getBio().isEmpty()) {
-            holder.bio.setText(user.getBio())
-            holder.bio.setVisibility(View.VISIBLE)
-        } else {
-            holder.bio.setVisibility(View.GONE)
+        val user = getItem(position)
+        if (user != null) {
+            holder.bind(user)
         }
+    }
 
-        if (user.getProfileImageUrl() != null && !user.getProfileImageUrl().isEmpty()) {
-            Glide.with(holder.itemView.getContext())
-                .load(user.getProfileImageUrl())
+    inner class UserSuggestionViewHolder(private val binding: ItemUserSuggestionBinding) : RecyclerView.ViewHolder(binding.root) {
+
+        fun bind(user: UserModel) {
+            val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+
+            binding.displayName.text = user.displayName ?: user.username
+            binding.username.text = "@${user.username}"
+
+            if (!user.bio.isNullOrEmpty()) {
+                binding.tvBio.text = user.bio
+                binding.tvBio.visibility = View.VISIBLE
+            } else {
+                binding.tvBio.visibility = View.GONE
+            }
+
+            Glide.with(itemView.context)
+                .load(user.profileImageUrl)
                 .placeholder(R.drawable.ic_default_avatar)
                 .error(R.drawable.ic_default_avatar)
-                .into(holder.profileImage)
+                .into(binding.profileImage)
 
-            holder.profileImage.setOnClickListener(
-                View.OnClickListener { v: View? ->
-                    val urls = ArrayList<String?>()
-                    urls.add(user.getProfileImageUrl())
-                    MediaViewerActivity.Companion.launch(activity, urls, 0, holder.profileImage)
-                })
+            // إخفاء زر المتابعة إذا كان المستخدم المقترح هو المستخدم الحالي
+            if (currentUserId == user.userId) {
+                binding.followButton.visibility = View.GONE
+            } else {
+                binding.followButton.visibility = View.VISIBLE
+
+                // تحديث شكل الزر بناءً على ما إذا كان المستخدم الحالي يتابع هذا الشخص أم لا
+                // نفترض أن هذه المعلومة تأتي جاهزة مع كائن UserModel
+                val isFollowing = user.followers.containsKey(currentUserId)
+                if(isFollowing) {
+                    binding.followButton.setImageResource(R.drawable.ic_check)
+                } else {
+                    binding.followButton.setImageResource(R.drawable.ic_add)
+                }
+            }
+
+            binding.followButton.setOnClickListener {
+                if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                    listener.onFollowSuggestionClicked(getItem(bindingAdapterPosition), bindingAdapterPosition)
+                }
+            }
+
+            itemView.setOnClickListener {
+                if (bindingAdapterPosition != RecyclerView.NO_POSITION) {
+                    listener.onSuggestionUserClicked(getItem(bindingAdapterPosition))
+                }
+            }
         }
-
-        updateFollowButton(holder.followButton, user.getUserId())
-
-        holder.followButton.setOnClickListener(
-            View.OnClickListener { v: View? ->
-                toggleFollowStatus(
-                    user.getUserId(),
-                    holder.followButton
-                )
-            })
-
-        holder.itemView.setOnClickListener(
-            View.OnClickListener { v: View? ->
-                val intent: Intent = Intent(activity, ProfileActivity::class.java)
-                intent.putExtra("userId", user.getUserId())
-                activity.startActivity(intent)
-            })
     }
 
-    private fun updateFollowButton(followButton: ImageButton, userId: String?) {
-        if (currentUserId == null || currentUserId == userId) {
-            followButton.setVisibility(View.GONE)
-            return
-        }
+    companion object {
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<UserModel>() {
+            override fun areItemsTheSame(oldItem: UserModel, newItem: UserModel): Boolean {
+                return oldItem.userId == newItem.userId
+            }
 
-        db.collection("users")
-            .document(currentUserId)
-            .get()
-            .addOnSuccessListener(
-                { documentSnapshot ->
-                    val following =
-                        documentSnapshot.get("following")
-                    if (following != null && following.containsKey(userId)) {
-                        followButton.setImageResource(R.drawable.ic_check)
-                        followButton.setContentDescription(activity.getString(R.string.following))
-                    } else {
-                        followButton.setImageResource(R.drawable.ic_add)
-                        followButton.setContentDescription(activity.getString(R.string.follow))
-                    }
-                    followButton.setVisibility(View.VISIBLE)
-                })
-    }
-
-    private fun toggleFollowStatus(userId: String?, followButton: ImageButton) {
-        if (currentUserId == null) return
-
-        val currentUserRef: DocumentReference = db.collection("users").document(currentUserId)
-        val targetUserRef: DocumentReference = db.collection("users").document(userId)
-
-        currentUserRef
-            .get()
-            .addOnSuccessListener(
-                { documentSnapshot ->
-                    val following =
-                        documentSnapshot.get("following")
-                    val isFollowing = following != null && following.containsKey(userId)
-                    if (isFollowing) {
-                        currentUserRef.update("following." + userId, null)
-                        targetUserRef.update("followers." + currentUserId, null)
-                        followButton.setImageResource(R.drawable.ic_add)
-                        followButton.setContentDescription(activity.getString(R.string.follow))
-                    } else {
-                        currentUserRef.update("following." + userId, true)
-                        targetUserRef.update("followers." + currentUserId, true)
-                        followButton.setImageResource(R.drawable.ic_check)
-                        followButton.setContentDescription(activity.getString(R.string.following))
-                    }
-                })
-    }
-
-    val itemCount: Int
-        get() = users.size
-
-    fun setUsers(newUsers: MutableList<UserModel?>) {
-        users.clear()
-        users.addAll(newUsers)
-        notifyDataSetChanged()
-    }
-
-    internal class UserSuggestionViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var profileImage: CircleImageView
-        var username: TextView
-        var displayName: TextView
-        var bio: TextView
-        var followButton: ImageButton
-
-        init {
-            profileImage = itemView.findViewById<CircleImageView>(R.id.profileImage)
-            username = itemView.findViewById<TextView>(R.id.username)
-            displayName = itemView.findViewById<TextView>(R.id.displayName)
-            bio = itemView.findViewById<TextView>(R.id.tvBio)
-            followButton = itemView.findViewById<ImageButton>(R.id.followButton)
-
-            val screenWidth = itemView.getResources().getDisplayMetrics().widthPixels
-            val padding = (16 * itemView.getResources().getDisplayMetrics().density).toInt()
-            bio.setMaxWidth(screenWidth - padding * 2)
+            override fun areContentsTheSame(oldItem: UserModel, newItem: UserModel): Boolean {
+                return oldItem.displayName == newItem.displayName &&
+                        oldItem.followers.size == newItem.followers.size && // التحقق من عدد المتابعين كمؤشر للتغيير
+                        oldItem.profileImageUrl == newItem.profileImageUrl
+            }
         }
     }
 }

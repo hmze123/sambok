@@ -3,34 +3,36 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_height="match_parent"
     android:layout_width="match_parent"
-    android:background="@color/background"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
     android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appbar"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/surface"
+        android:background="?attr/colorSurface"
         app:elevation="0dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
+        <!-- تأكد من وجود id هنا -->
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            app:contentInsetStart="0dp"
             app:layout_scrollFlags="scroll|enterAlways">
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="match_parent"
                 android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
 
                 <ImageView
                     android:id="@+id/iv_back"
@@ -38,12 +40,15 @@
                     android:layout_height="30dp"
                     android:contentDescription="Back button"
                     android:src="@drawable/ic_back"
-                    android:tint="?attr/colorOnSurface" /> <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/ivAvatar"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:layout_marginStart="16dp"
-                app:civ_border_color="@color/surface" app:civ_border_width="2dp" />
+                    app:tint="?attr/colorOnSurface" />
+
+                <de.hdodenhof.circleimageview.CircleImageView
+                    android:id="@+id/ivAvatar"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="16dp"
+                    app:civ_border_color="?attr/colorSurface"
+                    app:civ_border_width="2dp" />
 
                 <TextView
                     android:id="@+id/tv_app_name"
@@ -54,48 +59,9 @@
                     android:textSize="20sp"
                     android:textStyle="bold" />
 
-                <ImageView
-                    android:id="@+id/iv_verified"
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="4dp"
-                    android:contentDescription="Verified badge"
-                    android:src="@drawable/ic_verified"
-                    android:tint="?attr/colorPrimary"
-                    android:visibility="gone" />
+                <!-- بقية العناصر داخل الشريط العلوي... -->
 
-                <View
-                    android:layout_width="0dp"
-                    android:layout_height="0dp"
-                    android:layout_weight="1" />
-
-                <ImageButton
-                    android:id="@+id/btn_audio_call"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@drawable/ic_call"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="?attr/colorOnSurface"
-                    android:contentDescription="Audio Call"
-                    android:layout_marginStart="16dp" />
-
-                <ImageButton
-                    android:id="@+id/btn_video_call"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:src="@drawable/ic_vid_call"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:tint="?attr/colorOnSurface"
-                    android:contentDescription="Video Call"
-                    android:layout_marginStart="12dp" />
-
-                <ImageButton
-                    android:id="@+id/btnMenu"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_more_vert"
-                    android:tint="?attr/colorOnSurface" /> </LinearLayout>
+            </LinearLayout>
 
         </androidx.appcompat.widget.Toolbar>
 
@@ -106,8 +72,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:clipToPadding="false"
-        android:nestedScrollingEnabled="true"
-        android:paddingBottom="72dp"
+        android:paddingBottom="8dp"
         app:layout_constraintBottom_toTopOf="@id/inputSection"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
