@@ -1,25 +1,29 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/adapters/BasePostViewHolder.kt
 package com.spidroid.starry.adapters
 
 import android.content.Context
+import android.text.Spannable
+import android.text.SpannableStringBuilder
+import android.text.TextPaint
 import android.text.format.DateUtils
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
+import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 import com.bumptech.glide.Glide
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.models.PostModel
-import com.spidroid.starry.models.UserModel // ✨ تم إضافة هذا الاستيراد
+import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.utils.PostInteractionHandler
-import java.util.Date
+import java.util.*
+import java.util.regex.Pattern
 
-/**
- * ViewHolder أساسي ومجرد يحتوي على المنطق المشترك لعرض المنشورات.
- * هذا يمنع تكرار الكود في الـ Adapters المختلفة التي قد تعرض منشورات.
- */
 abstract class BasePostViewHolder(
     private val binding: ViewBinding,
     private val listener: PostInteractionListener?,
@@ -27,16 +31,12 @@ abstract class BasePostViewHolder(
     private val currentUserId: String?
 ) : RecyclerView.ViewHolder(binding.root) {
 
-    // Handler متخصص للتعامل مع نقرات الإعجاب، المشاركة، الخ.
     protected val interactionHandler: PostInteractionHandler =
         PostInteractionHandler(binding.root, listener, context, currentUserId)
 
-    // دالة عامة لربط البيانات المشتركة
     open fun bindCommon(post: PostModel) {
-        // تأكد من أن الـ binding من النوع الصحيح قبل المتابعة
         val itemBinding = binding as? ItemPostBinding ?: return
 
-        // التحقق من صحة البيانات الأساسية لمنع توقف التطبيق
         if (post.authorId.isNullOrEmpty()) {
             Log.e("BasePostViewHolder", "Post with null or empty authorId. Hiding view. Post ID: ${post.postId}")
             itemView.visibility = View.GONE
@@ -44,58 +44,106 @@ abstract class BasePostViewHolder(
             return
         }
 
-        // إعادة إظهار الـ View وتعيين أبعاده في حال كان مخفياً
         itemView.visibility = View.VISIBLE
         itemView.layoutParams = RecyclerView.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        // ربط بيانات المؤلف
         itemBinding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
         itemBinding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
         itemBinding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
 
-        // عرض الوقت النسبي للمنشور
         itemBinding.tvTimestamp.text = formatTimestamp(post.createdAt)
 
-        // تحميل صورة المؤلف
         Glide.with(context)
             .load(post.authorAvatarUrl)
             .placeholder(R.drawable.ic_default_avatar)
             .error(R.drawable.ic_default_avatar)
             .into(itemBinding.ivAuthorAvatar)
 
-        // ربط المنشور مع معالج التفاعلات
         interactionHandler.bind(post)
 
-        // تعيين مستمعي النقرات على معلومات المؤلف
-        itemBinding.ivAuthorAvatar.setOnClickListener {
-            // ✨ تم إنشاء كائن UserModel من بيانات المؤلف وتمريره
-            val userModel = UserModel(
-                userId = post.authorId!!, // تم التحقق من عدم كونه null في بداية الدالة
-                username = post.authorUsername ?: "unknown", // توفير قيمة افتراضية
-                email = "", // توفير قيمة افتراضية (يمكن تعديلها لتناسب نموذجك)
-            ).apply {
-                displayName = post.authorDisplayName
-                profileImageUrl = post.authorAvatarUrl
-                isVerified = post.isAuthorVerified
-            }
-            listener?.onUserClicked(userModel)
+        val userModel = UserModel(
+            userId = post.authorId!!,
+            username = post.authorUsername ?: "unknown",
+            email = "",
+        ).apply {
+            displayName = post.authorDisplayName
+            profileImageUrl = post.authorAvatarUrl
+            isVerified = post.isAuthorVerified
         }
-        itemBinding.authorInfoLayout.setOnClickListener {
-            // ✨ تم إنشاء كائن UserModel من بيانات المؤلف وتمريره
-            val userModel = UserModel(
-                userId = post.authorId!!, // تم التحقق من عدم كونه null في بداية الدالة
-                username = post.authorUsername ?: "unknown", // توفير قيمة افتراضية
-                email = "", // توفير قيمة افتراضية
-            ).apply {
-                displayName = post.authorDisplayName
-                profileImageUrl = post.authorAvatarUrl
-                isVerified = post.isAuthorVerified
+
+        itemBinding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(userModel) }
+        itemBinding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(userModel) }
+
+        // --- منطق الترجمة الجديد ---
+        setupTranslation(itemBinding, post)
+    }
+
+    private fun setupTranslation(binding: ItemPostBinding, post: PostModel) {
+        val originalText = post.content ?: ""
+        val translateButton = binding.tvTranslate // استخدام المعرف الجديد
+
+        if (post.language != null && post.language != Locale.getDefault().language && originalText.isNotBlank()) {
+            translateButton.visibility = View.VISIBLE
+            if (post.isTranslated) {
+                setClickableSpannableText(binding.tvPostContent, post.translatedContent, listener)
+                translateButton.text = context.getString(R.string.show_original)
+                translateButton.setOnClickListener {
+                    post.isTranslated = false
+                    listener?.onShowOriginalClicked(post)
+                }
+            } else {
+                setClickableSpannableText(binding.tvPostContent, originalText, listener)
+                translateButton.text = context.getString(R.string.translate)
+                translateButton.setOnClickListener {
+                    listener?.onTranslateClicked(post)
+                }
             }
-            listener?.onUserClicked(userModel)
+        } else {
+            translateButton.visibility = View.GONE
+            setClickableSpannableText(binding.tvPostContent, originalText, listener)
         }
+    }
+
+    private fun setClickableSpannableText(textView: TextView, fullText: String?, listener: PostInteractionListener?) {
+        if (fullText.isNullOrEmpty()) {
+            textView.text = ""
+            return
+        }
+
+        val spannableString = SpannableStringBuilder(fullText)
+
+        val pattern = Pattern.compile("([@#])(\\w+)")
+        val matcher = pattern.matcher(fullText)
+
+        while (matcher.find()) {
+            val type = matcher.group(1)
+            val name = matcher.group(2)
+
+            if (name != null) {
+                val clickableSpan = object : ClickableSpan() {
+                    override fun onClick(widget: View) {
+                        if (type == "@") {
+                            Toast.makeText(context, "Mention: $name", Toast.LENGTH_SHORT).show()
+                        } else if (type == "#") {
+                            listener?.onHashtagClicked(name)
+                        }
+                    }
+
+                    override fun updateDrawState(ds: TextPaint) {
+                        super.updateDrawState(ds)
+                        ds.color = ContextCompat.getColor(context, R.color.link_color)
+                        ds.isUnderlineText = false
+                    }
+                }
+                spannableString.setSpan(clickableSpan, matcher.start(), matcher.end(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+
+        textView.text = spannableString
+        textView.movementMethod = LinkMovementMethod.getInstance()
     }
 
     private fun formatTimestamp(date: Date?): String {

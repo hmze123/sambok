@@ -1,10 +1,11 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/ComposePostActivity.kt
 package com.spidroid.starry.activities
 
 import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
+import android.text.Spannable
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.View
 import android.webkit.MimeTypeMap
@@ -46,7 +47,7 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
 
     private var currentUserModel: UserModel? = null
     private lateinit var mediaPreviewAdapter: MediaPreviewAdapter
-    private val selectedMediaUris = mutableListOf<MediaPreviewAdapter.MediaItem>() // ✨ تم تغيير النوع إلى MediaPreviewAdapter.MediaItem
+    private val selectedMediaUris = mutableListOf<MediaPreviewAdapter.MediaItem>()
 
     private val urlPattern: Pattern =
         Pattern.compile("https?://(www\\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\\.[a-zA-Z0-9()]{1,6}\\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)")
@@ -93,7 +94,7 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     currentUserModel = document.toObject(UserModel::class.java)
-                    updatePostButtonState() // Enable button if content exists
+                    updatePostButtonState()
                 } else {
                     handleUserLoadError("User profile not found.")
                 }
@@ -131,6 +132,25 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
             }
             override fun afterTextChanged(s: Editable?) {
                 updatePostButtonState()
+
+                // --- الكود الجديد لتلوين الإشارات والهاشتاجات ---
+                val text = s.toString()
+                // Pattern يبحث عن @username أو #hashtag
+                val pattern = Pattern.compile("([@#])(\\w+)")
+                val matcher = pattern.matcher(text)
+
+                // إزالة أي تلوين قديم قبل تطبيق الجديد لضمان عدم التداخل
+                val oldSpans = s?.getSpans(0, s.length, ForegroundColorSpan::class.java)
+                oldSpans?.forEach { s.removeSpan(it) }
+
+                while (matcher.find()) {
+                    s?.setSpan(
+                        ForegroundColorSpan(ContextCompat.getColor(this@ComposePostActivity, R.color.link_color)),
+                        matcher.start(),
+                        matcher.end(),
+                        Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                    )
+                }
             }
         })
 
@@ -141,13 +161,13 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
         return selectedMediaUris.any { item ->
             when (item) {
                 is MediaPreviewAdapter.MediaItem.New -> contentResolver.getType(item.uri)?.startsWith("video/") == true
-                is MediaPreviewAdapter.MediaItem.Existing -> item.url.contains(".mp4", ignoreCase = true) || item.url.contains(".mov", ignoreCase = true) // Basic check for existing
+                is MediaPreviewAdapter.MediaItem.Existing -> PostModel.VIDEO_EXTENSIONS.any { item.url.endsWith(it, true) }
             }
         }
     }
 
     private fun setupMediaPreviewRecyclerView() {
-        mediaPreviewAdapter = MediaPreviewAdapter(this) // Passing 'this' as OnMediaInteraction listener
+        mediaPreviewAdapter = MediaPreviewAdapter(this)
         binding.rvMediaPreview.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.rvMediaPreview.adapter = mediaPreviewAdapter
     }
@@ -162,11 +182,11 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
             val mimeType = contentResolver.getType(uri)
             if (mimeType?.startsWith("video/") == true && hasVideo()) {
                 Toast.makeText(this, R.string.single_video_allowed, Toast.LENGTH_LONG).show()
-                continue // Skip this video URI
+                continue
             }
-            selectedMediaUris.add(MediaPreviewAdapter.MediaItem.New(uri)) // تم تحويل Uri إلى MediaItem.New
+            selectedMediaUris.add(MediaPreviewAdapter.MediaItem.New(uri))
         }
-        mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList()) // تم تحديث القائمة باستخدام submitList
+        mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList())
         binding.rvMediaPreview.visibility = if (selectedMediaUris.isNotEmpty()) View.VISIBLE else View.GONE
         updatePostButtonState()
     }
@@ -174,7 +194,7 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
     override fun onMediaRemoved(item: MediaPreviewAdapter.MediaItem, position: Int) {
         if (position < selectedMediaUris.size) {
             selectedMediaUris.removeAt(position)
-            mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList()) // تم تحديث القائمة باستخدام submitList
+            mediaPreviewAdapter.submitList(selectedMediaUris.toMutableList())
             if (selectedMediaUris.isEmpty()) {
                 binding.rvMediaPreview.visibility = View.GONE
             }
@@ -183,16 +203,8 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
     }
 
     override fun onMediaClicked(item: MediaPreviewAdapter.MediaItem, position: Int) {
-        // يمكنك هنا فتح عارض الوسائط
-        val mediaUrl = when (item) {
-            is MediaPreviewAdapter.MediaItem.New -> item.uri.toString()
-            is MediaPreviewAdapter.MediaItem.Existing -> item.url
-        }
-        // مثال: يمكنك استخدام MediaViewerActivity إذا كانت تدعم عرض URI محلي
-        // أو تحتاج لتحويل URI إلى ملف مؤقت أو URL قابل للوصول
-        Toast.makeText(this, "Media clicked: $mediaUrl", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Media preview clicked.", Toast.LENGTH_SHORT).show()
     }
-
 
     private fun updateCharCount(count: Int) {
         binding.tvCharCount.text = getString(R.string.char_count_format, count, PostModel.MAX_CONTENT_LENGTH)
@@ -277,14 +289,15 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
     }
 
     private fun uploadMediaAndCreatePost(content: String) {
-        val uploadTasks = selectedMediaUris.map { mediaItem ->
-            val uri = (mediaItem as? MediaPreviewAdapter.MediaItem.New)?.uri ?: throw IllegalArgumentException("Invalid media item URI")
-            val userId = currentUserModel?.userId ?: "unknown_user"
-            val fileExtension = MimeTypeMap.getFileExtensionFromUrl(contentResolver.getType(uri)?.substringAfterLast('/')) ?: "jpg" // ✨ تم استخدام contentResolver.getType(uri) للحصول على MIME type
-            val ref = storage.reference.child("post_media/$userId/${UUID.randomUUID()}.$fileExtension")
-            ref.putFile(uri).continueWithTask { task ->
-                if (!task.isSuccessful) task.exception?.let { throw it }
-                ref.downloadUrl
+        val uploadTasks = selectedMediaUris.mapNotNull { mediaItem ->
+            (mediaItem as? MediaPreviewAdapter.MediaItem.New)?.uri?.let { uri ->
+                val userId = currentUserModel?.userId ?: "unknown_user"
+                val fileExtension = contentResolver.getType(uri)?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) } ?: "jpg"
+                val ref = storage.reference.child("post_media/$userId/${UUID.randomUUID()}.$fileExtension")
+                ref.putFile(uri).continueWithTask { task ->
+                    if (!task.isSuccessful) task.exception?.let { throw it }
+                    ref.downloadUrl
+                }
             }
         }
 
@@ -296,8 +309,26 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
         }
     }
 
+    // --- دالة جديدة لتحليل النص واستخراج الإشارات ---
+    private fun extractMentions(content: String): List<String> {
+        val mentions = mutableListOf<String>()
+        val pattern = Pattern.compile("@(\\w+)")
+        val matcher = pattern.matcher(content)
+        while (matcher.find()) {
+            matcher.group(1)?.let { mentions.add(it) }
+        }
+        return mentions
+    }
+
     private fun savePostToFirestore(content: String, mediaUrls: List<String>) {
         val user = currentUserModel ?: return
+
+        // --- استخراج الإشارات من المحتوى ---
+        val mentionedUsernames = extractMentions(content)
+
+        // TODO: في المستقبل، يجب تحويل أسماء المستخدمين إلى IDs هنا
+        // حاليًا، سنحفظ أسماء المستخدمين مباشرة كمثال
+        val mentionIds = mutableListOf<String>() // يجب ملء هذه القائمة بالـ IDs
 
         val post = PostModel(
             authorId = user.userId,
@@ -308,7 +339,8 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
             isAuthorVerified = user.isVerified,
             mediaUrls = mediaUrls.toMutableList(),
             linkPreviews = currentLinkPreview?.let { mutableListOf(it) } ?: mutableListOf(),
-            createdAt = Date() // Will be replaced by server timestamp
+            mentions = mentionIds, // حفظ قائمة الـ IDs
+            createdAt = Date()
         ).apply {
             contentType = if (mediaUrls.isNotEmpty()) {
                 if (hasVideo()) PostModel.TYPE_VIDEO else PostModel.TYPE_IMAGE
@@ -320,6 +352,7 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
         db.collection("posts").add(post)
             .addOnSuccessListener { docRef ->
                 docRef.update("postId", docRef.id, "createdAt", FieldValue.serverTimestamp())
+                // TODO: إرسال الإشعارات للمستخدمين في قائمة mentions
                 Toast.makeText(this, R.string.post_success, Toast.LENGTH_SHORT).show()
                 finish()
             }

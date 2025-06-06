@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/StoryViewerActivity.kt
 package com.spidroid.starry.activities
 
 import android.animation.Animator
@@ -34,7 +33,7 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityStoryViewerBinding
 import com.spidroid.starry.models.StoryModel
 import com.spidroid.starry.models.UserModel
-import java.util.Date
+import java.util.*
 
 class StoryViewerActivity : AppCompatActivity() {
 
@@ -46,11 +45,9 @@ class StoryViewerActivity : AppCompatActivity() {
     private var authorInfoListener: ListenerRegistration? = null
 
     private var player: ExoPlayer? = null
-    private val storyAdvanceHandler = Handler(Looper.getMainLooper())
     private var currentProgressAnimator: ValueAnimator? = null
 
     private val storiesForUser = mutableListOf<StoryModel>()
-    private var storyAuthor: UserModel? = null
     private var viewedUserId: String? = null
     private var currentStoryIndex = 0
 
@@ -80,19 +77,21 @@ class StoryViewerActivity : AppCompatActivity() {
     private fun loadAuthorInfoAndStories() {
         showLoading(true)
         authorInfoListener?.remove()
-        authorInfoListener = db.collection("users").document(viewedUserId!!).addSnapshotListener { snapshot, e ->
-            if (e != null || snapshot == null || !snapshot.exists()) {
-                Log.e(TAG, "Error loading author info or author does not exist.", e)
-                Toast.makeText(this, "Could not load user data.", Toast.LENGTH_SHORT).show()
-                finish()
-                return@addSnapshotListener
+        authorInfoListener = db.collection("users").document(viewedUserId!!)
+            .addSnapshotListener { snapshot, e ->
+                if (isFinishing || isDestroyed) return@addSnapshotListener
+                if (e != null || snapshot == null || !snapshot.exists()) {
+                    Log.e(TAG, "Error loading author info or author does not exist.", e)
+                    Toast.makeText(this, "Could not load user data.", Toast.LENGTH_SHORT).show()
+                    finish()
+                    return@addSnapshotListener
+                }
+                val storyAuthor = snapshot.toObject<UserModel>()
+                storyAuthor?.let {
+                    bindAuthorInfo(it)
+                    loadStoriesForUser()
+                }
             }
-            storyAuthor = snapshot.toObject<UserModel>()
-            storyAuthor?.let {
-                bindAuthorInfo(it)
-                loadStoriesForUser()
-            }
-        }
     }
 
     private fun bindAuthorInfo(author: UserModel) {
@@ -110,6 +109,7 @@ class StoryViewerActivity : AppCompatActivity() {
             .whereGreaterThan("expiresAt", Date())
             .orderBy("createdAt", Query.Direction.ASCENDING)
             .addSnapshotListener { querySnapshot, e ->
+                if (isFinishing || isDestroyed) return@addSnapshotListener
                 showLoading(false)
                 if (e != null || querySnapshot == null) {
                     Log.e(TAG, "Error fetching stories.", e)
@@ -118,7 +118,9 @@ class StoryViewerActivity : AppCompatActivity() {
                 }
 
                 storiesForUser.clear()
-                storiesForUser.addAll(querySnapshot.toObjects(StoryModel::class.java))
+                storiesForUser.addAll(querySnapshot.documents.mapNotNull { doc ->
+                    doc.toObject<StoryModel>()?.apply { storyId = doc.id }
+                })
 
                 if (storiesForUser.isEmpty()) {
                     Toast.makeText(this, "No active stories for this user.", Toast.LENGTH_SHORT).show()
@@ -142,7 +144,7 @@ class StoryViewerActivity : AppCompatActivity() {
                 max = 100
                 progress = 0
                 trackColor = ContextCompat.getColor(this@StoryViewerActivity, R.color.story_progress_inactive_track)
-                setIndicatorColor(ContextCompat.getColor(this@StoryViewerActivity, R.color.story_progress_inactive_segment))
+                setIndicatorColor(ContextCompat.getColor(this@StoryViewerActivity, R.color.story_progress_active))
             }
             binding.progressBarsContainer.addView(progressBar)
         }
@@ -179,7 +181,7 @@ class StoryViewerActivity : AppCompatActivity() {
                 .load(story.mediaUrl)
                 .into(binding.ivStoryMedia)
             binding.pbStoryItemLoading.visibility = View.GONE
-            startStoryTimer(story.duration.takeIf { it > 0 } ?: 5000L)
+            startStoryTimer(story.duration)
         }
 
         markStoryAsViewed(story.storyId)
@@ -194,19 +196,15 @@ class StoryViewerActivity : AppCompatActivity() {
 
     private fun startStoryTimer(durationMillis: Long) {
         val progressBar = binding.progressBarsContainer.getChildAt(currentStoryIndex) as? LinearProgressIndicator ?: return
-        currentProgressAnimator = ValueAnimator.ofInt(0, 100).apply {
-            duration = durationMillis
+        currentProgressAnimator = ValueAnimator.ofInt(progressBar.progress, 100).apply {
+            duration = durationMillis * (100 - progressBar.progress) / 100
             interpolator = LinearInterpolator()
             addUpdateListener {
                 progressBar.progress = it.animatedValue as Int
             }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
-                    if (currentStoryIndex == storiesForUser.size - 1) {
-                        finish()
-                    } else {
-                        showNextStorySegment()
-                    }
+                    showNextStorySegment()
                 }
             })
             start()
@@ -215,14 +213,14 @@ class StoryViewerActivity : AppCompatActivity() {
 
     private fun initializePlayer(story: StoryModel) {
         player = ExoPlayer.Builder(this).build().also {
-            binding.pvStoryVideo.player = it // ✨ تم تغيير playerView إلى pvStoryVideo
-            it.setMediaItem(MediaItem.fromUri(story.mediaUrl!!))
+            binding.pvStoryVideo.player = it
+            it.setMediaItem(MediaItem.fromUri(story.mediaUrl))
             it.playWhenReady = true
             it.addListener(object : Player.Listener {
                 override fun onPlaybackStateChanged(state: Int) {
                     if (state == Player.STATE_READY) {
                         binding.pbStoryItemLoading.visibility = View.GONE
-                        startStoryTimer(it.duration.takeIf { d -> d > 0 } ?: 5000L)
+                        startStoryTimer(it.duration.takeIf { d -> d > 0 } ?: StoryModel.DEFAULT_IMAGE_DURATION_MS)
                     }
                 }
                 override fun onPlayerError(error: PlaybackException) {
@@ -250,11 +248,10 @@ class StoryViewerActivity : AppCompatActivity() {
         }
     }
 
-    private fun markStoryAsViewed(storyId: String?) {
-        val storyIdToMark = storyId ?: return
+    private fun markStoryAsViewed(storyId: String) {
         val userId = auth.currentUser?.uid ?: return
-        db.collection("stories").document(storyIdToMark)
-            .update("viewers.$userId", true)
+        db.collection("users").document(userId)
+            .collection("viewed_stories").document(storyId).set(mapOf("viewedAt" to Date()))
             .addOnFailureListener { e -> Log.e(TAG, "Failed to mark story as viewed", e) }
     }
 
@@ -271,17 +268,13 @@ class StoryViewerActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         currentProgressAnimator?.pause()
-        releasePlayer()
+        player?.pause()
     }
 
     override fun onResume() {
         super.onResume()
-        if (player == null && storiesForUser.isNotEmpty()){
-            displayCurrentStory()
-        } else {
-            player?.play()
-        }
         currentProgressAnimator?.resume()
+        player?.play()
     }
 
     override fun onDestroy() {

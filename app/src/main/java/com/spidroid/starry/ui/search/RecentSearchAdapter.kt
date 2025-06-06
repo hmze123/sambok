@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/search/RecentSearchAdapter.kt
 package com.spidroid.starry.ui.search
 
 import android.view.LayoutInflater
@@ -14,9 +13,10 @@ import com.spidroid.starry.R
 class RecentSearchAdapter(
     private val listener: OnHistoryInteractionListener
 ) : ListAdapter<String, RecentSearchAdapter.ViewHolder>(DIFF_CALLBACK) {
+
     interface OnHistoryInteractionListener {
-        fun onTermClicked(term: String?)
-        fun onRemoveClicked(term: String?)
+        fun onTermClicked(term: String) // تم جعلها غير قابلة للـ null
+        fun onRemoveClicked(term: String) // تم جعلها غير قابلة للـ null
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -27,41 +27,34 @@ class RecentSearchAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val term = getItem(position)
-        holder.searchTerm.text = term
-        holder.itemView.setOnClickListener { v: View? ->
-            listener.onTermClicked(
-                term
-            )
-        }
-        holder.removeButton.setOnClickListener { v: View? ->
-            listener.onRemoveClicked(
-                term
-            )
-        }
+        // لا داعي للتحقق من term != null لأن ListAdapter يضمن ذلك
+        holder.bind(term, listener)
     }
 
-    // getItemCount لم يعد بحاجة إلى تجاوز صريح لأنه يتم توفيره بواسطة ListAdapter
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val searchTerm: TextView = itemView.findViewById(R.id.tv_search_term)
+        private val removeButton: ImageButton = itemView.findViewById(R.id.btn_remove_term)
 
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) { // ✨ تم تغيير 'internal' إلى 'class' (الذي يعني ضمنًا 'public')
-        var searchTerm: TextView
-        var removeButton: ImageButton
-
-        init {
-            searchTerm = itemView.findViewById(R.id.tv_search_term)
-            removeButton = itemView.findViewById(R.id.btn_remove_term)
+        fun bind(term: String, listener: OnHistoryInteractionListener) {
+            searchTerm.text = term
+            itemView.setOnClickListener {
+                listener.onTermClicked(term)
+            }
+            removeButton.setOnClickListener {
+                listener.onRemoveClicked(term)
+            }
         }
     }
 
     companion object {
-        private val DIFF_CALLBACK: DiffUtil.ItemCallback<String> =
-            object : DiffUtil.ItemCallback<String>() {
-                override fun areItemsTheSame(oldItem: String, newItem: String): Boolean {
-                    return oldItem == newItem
-                }
-
-                override fun areContentsTheSame(oldItem: String, newItem: String): Boolean {
-                    return oldItem == newItem
-                }
+        private val DIFF_CALLBACK = object : DiffUtil.ItemCallback<String>() {
+            override fun areItemsTheSame(oldItem: String, newItem: String): Boolean {
+                return oldItem == newItem
             }
+
+            override fun areContentsTheSame(oldItem: String, newItem: String): Boolean {
+                return oldItem == newItem
+            }
+        }
     }
 }

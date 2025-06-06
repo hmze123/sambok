@@ -102,7 +102,8 @@
 
         <TextView
             android:id="@+id/tvPostContent"
-            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             style="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnSurface"
@@ -112,13 +113,27 @@
             android:lineSpacingExtra="4sp"
             tools:text="This is the content of the post. It can be multiple lines long and an example."/>
 
+        <TextView
+            android:id="@+id/tvTranslate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textColor="?attr/colorPrimary"
+            android:background="?attr/selectableItemBackground"
+            android:padding="4dp"
+            android:text="@string/translate"
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/tvPostContent"
+            tools:visibility="visible" />
+
         <FrameLayout
             android:id="@+id/mediaContainer"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/tvPostContent"
+            app:layout_constraintTop_toBottomOf="@id/tvTranslate"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             tools:visibility="visible">

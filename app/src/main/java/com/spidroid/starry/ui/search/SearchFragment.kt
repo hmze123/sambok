@@ -1,9 +1,7 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/ui/search/SearchFragment.kt
 package com.spidroid.starry.ui.search
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -62,7 +60,7 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
         binding.rvResults.layoutManager = LinearLayoutManager(context)
         binding.rvResults.adapter = userResultAdapter
 
-        recentSearchAdapter = RecentSearchAdapter(this) // ✨ تم تعديل هذا السطر - المحول سيقوم بتهيئة قائمته بنفسه
+        recentSearchAdapter = RecentSearchAdapter(this)
         binding.rvRecentSearches.layoutManager = LinearLayoutManager(context)
         binding.rvRecentSearches.adapter = recentSearchAdapter
     }
@@ -74,7 +72,7 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
             if (query.isNotEmpty()) {
                 binding.ivClear.visibility = View.VISIBLE
                 searchJob = viewLifecycleOwner.lifecycleScope.launch {
-                    delay(400) // الانتظار قبل إرسال الطلب لتحسين الأداء
+                    delay(300) // الانتظار قبل إرسال الطلب لتحسين الأداء
                     viewModel.searchUsers(query)
                 }
             } else {
@@ -84,11 +82,14 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
         }
 
         binding.ivClear.setOnClickListener {
-            val currentText = binding.etSearch.text.toString().trim()
-            if (currentText.isNotEmpty()) {
-                searchHistoryManager.addSearchTerm(currentText) // حفظ مصطلح البحث عند مسحه
-            }
             binding.etSearch.text?.clear()
+        }
+
+        // إظهار سجل البحث عند التركيز على حقل الإدخال وهو فارغ
+        binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus && binding.etSearch.text.isNullOrEmpty()) {
+                viewModel.clearSearch() // استدعاء دالة ViewModel لإظهار الحالة الأولية
+            }
         }
     }
 
@@ -112,8 +113,8 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
                         userResultAdapter.submitList(state.users)
                     }
                     is SearchUiState.Empty -> {
-                        binding.tvEmptyState.visibility = View.VISIBLE
                         binding.tvEmptyState.text = "No results found"
+                        binding.tvEmptyState.visibility = View.VISIBLE
                     }
                     is SearchUiState.Error -> {
                         Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG)
@@ -126,42 +127,44 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
     }
 
     private fun showInitialState() {
-        val history = searchHistoryManager.searchHistory.filterNotNull() // ✨ تصفية القيم null
-        if (history.isEmpty()) {
-            binding.layoutRecentSearches.visibility = View.GONE
-        } else {
-            recentSearchAdapter.submitList(history) // ✨ استخدام submitList
+        // لا يتم عرض أي شيء في الحالة الأولية حتى يبدأ المستخدم في الكتابة أو التركيز
+        val history = searchHistoryManager.searchHistory.filterNotNull()
+        if (history.isNotEmpty()) {
+            recentSearchAdapter.submitList(history)
             binding.layoutRecentSearches.visibility = View.VISIBLE
+        } else {
+            binding.layoutRecentSearches.visibility = View.GONE
         }
         binding.rvResults.visibility = View.GONE
         binding.tvEmptyState.visibility = View.GONE
     }
 
     // --- OnHistoryInteractionListener Callbacks ---
-    override fun onTermClicked(term: String?) { // ✨ تم تعديل توقيع الدالة ليتوافق مع الواجهة
-        term?.let {
-            binding.etSearch.setText(it)
-            binding.etSearch.setSelection(it.length)
-            searchHistoryManager.addSearchTerm(it) // إعادة إضافة المصطلح إلى الأعلى عند النقر عليه
-        }
+    override fun onTermClicked(term: String) {
+        binding.etSearch.setText(term)
+        binding.etSearch.setSelection(term.length) // نقل المؤشر إلى النهاية
+        searchHistoryManager.addSearchTerm(term) // إعادة إضافة المصطلح إلى الأعلى عند النقر عليه
     }
 
-    override fun onRemoveClicked(term: String?) { // ✨ تم تعديل توقيع الدالة ليتوافق مع الواجهة
-        term?.let {
-            searchHistoryManager.removeSearchTerm(it)
-            showInitialState() // تحديث قائمة السجل بعد الإزالة
-        }
+    override fun onRemoveClicked(term: String) {
+        searchHistoryManager.removeSearchTerm(term)
+        showInitialState() // تحديث قائمة السجل بعد الإزالة
     }
 
     // --- OnUserInteractionListener Callbacks ---
     override fun onFollowClicked(user: UserModel, position: Int) {
         viewModel.toggleFollowStatus(user)
-        // تحديث الواجهة بشكل متفائل لتحسين التجربة
-        // (PostViewModel سيُحدّث القائمة إذا كانت هناك تغييرات في المتابعة تؤثر على العرض)
-        // userResultAdapter.notifyItemChanged(position) // يمكن إزالة هذا السطر إذا كان ViewModel يعيد القائمة المحدثة
+        // ViewModel الآن مسؤول عن تحديث الحالة، والواجهة ستتحدث تلقائيًا
+        // لا حاجة لـ notifyItemChanged(position)
     }
 
     override fun onUserClicked(user: UserModel) {
+        // حفظ مصطلح البحث الحالي قبل الانتقال
+        val currentQuery = binding.etSearch.text.toString().trim()
+        if (currentQuery.isNotEmpty()) {
+            searchHistoryManager.addSearchTerm(currentQuery)
+        }
+        // الانتقال إلى الملف الشخصي
         val intent = Intent(activity, ProfileActivity::class.java).apply {
             putExtra("userId", user.userId)
         }

@@ -25,7 +25,8 @@ interface PostInteractionListener {
 
     // تفاعلات الريأكشنات
     fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?)
-    fun onEmojiSelected(post: PostModel?, emojiUnicode: String?)
+    // تم تعديل هذه الدالة لتكون أكثر عمومية
+    fun onReactionSelected(post: PostModel?, emojiUnicode: String)
     fun onEmojiSummaryClicked(post: PostModel?)
 
     // تفاعلات أخرى

@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/viewmodels/PostViewModel.kt
 package com.spidroid.starry.viewmodels
 
 import android.util.Log
@@ -6,26 +5,40 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ktx.toObject
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.PostRepository
 import com.spidroid.starry.repositories.UserRepository
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+
+// تم حذف تعريف UiState من هنا
 
 class PostViewModel : ViewModel() {
 
     private val postRepository = PostRepository()
     private val userRepository = UserRepository()
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
+    private val db: FirebaseFirestore = FirebaseFirestore.getInstance() // تم إضافة هذا السطر
 
+    // For "For You" feed
     private val _posts = MutableLiveData<List<PostModel>>()
     private val _suggestions = MutableLiveData<List<UserModel>>()
     private val _error = MutableLiveData<String?>()
+
+    // For "Following" feed
+    private val _followingPosts = MutableLiveData<List<PostModel>>()
+    val followingPosts: LiveData<List<PostModel>> get() = _followingPosts
+
+    private val _followingState = MutableLiveData<UiState<Nothing>>()
+    val followingState: LiveData<UiState<Nothing>> get() = _followingState
+
     private val _currentUserData = MutableLiveData<UserModel?>()
+    val currentUserLiveData: LiveData<UserModel?> get() = _currentUserData
 
     private val _postUpdatedEvent = MutableLiveData<String?>()
     val postUpdatedEvent: LiveData<String?> get() = _postUpdatedEvent
@@ -34,7 +47,6 @@ class PostViewModel : ViewModel() {
     val postInteractionErrorEvent: LiveData<String?> get() = _postInteractionErrorEvent
 
     val errorLiveData: LiveData<String?> get() = _error
-    val currentUserLiveData: LiveData<UserModel?> get() = _currentUserData
 
     val combinedFeed = MediatorLiveData<List<Any>>().apply {
         addSource(_posts) { posts ->
@@ -56,7 +68,7 @@ class PostViewModel : ViewModel() {
     private fun combineFeeds(posts: List<PostModel>?, suggestions: List<UserModel>?): List<Any> {
         val combinedList = mutableListOf<Any>()
         posts?.let { combinedList.addAll(it) }
-        suggestions?.let { combinedList.addAll(it) }
+        suggestions?.let { if (it.isNotEmpty()) combinedList.add(it) }
         return combinedList
     }
 
@@ -99,6 +111,50 @@ class PostViewModel : ViewModel() {
                 _error.postValue(errorMsg)
                 Log.e(TAG, errorMsg, task.exception)
                 _posts.postValue(emptyList())
+            }
+        }
+    }
+
+    fun fetchFollowingPosts(limit: Int) {
+        _followingState.value = UiState.Loading
+        val currentUserId = auth.currentUser?.uid ?: run {
+            _followingState.value = UiState.Error("User not authenticated.")
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val userDoc = db.collection("users").document(currentUserId).get().await()
+                val followingIds = (userDoc.get("following") as? Map<String, Boolean>)?.keys?.toList()
+
+                if (followingIds.isNullOrEmpty()) {
+                    _followingPosts.postValue(emptyList())
+                    _followingState.value = UiState.Success
+                    return@launch
+                }
+
+                val postsList = mutableListOf<PostModel>()
+                // Fetch posts in chunks of 10
+                followingIds.chunked(10).forEach { chunk ->
+                    val snapshot = postRepository.getPostsForFollowing(chunk, limit).await()
+                    snapshot?.documents?.mapNotNullTo(postsList) { doc ->
+                        doc.toObject(PostModel::class.java)?.apply {
+                            postId = doc.id
+                            updateUserInteractions(this)
+                        }
+                    }
+                }
+
+                // Sort all fetched posts by date
+                postsList.sortByDescending { it.createdAt }
+
+                _followingPosts.postValue(postsList)
+                _followingState.value = UiState.Success
+
+            } catch (e: Exception) {
+                val errorMsg = "Failed to fetch following feed: ${e.message}"
+                Log.e(TAG, errorMsg, e)
+                _followingState.value = UiState.Error(errorMsg)
             }
         }
     }
@@ -161,24 +217,21 @@ class PostViewModel : ViewModel() {
         }
         postRepository.deletePost(safePostId)
             .addOnSuccessListener {
-                val currentPosts = _posts.value?.toMutableList()
-                currentPosts?.removeAll { it.postId == safePostId }
-                _posts.postValue(currentPosts)
-                _postUpdatedEvent.postValue(safePostId) // To notify UI about deletion
+                // Remove from both lists
+                _posts.value?.let { list -> _posts.postValue(list.filterNot { it.postId == safePostId }) }
+                _followingPosts.value?.let { list -> _followingPosts.postValue(list.filterNot { it.postId == safePostId }) }
+                _postUpdatedEvent.postValue(safePostId)
             }
             .addOnFailureListener { e -> handleInteractionError("deletePost", e.message) }
     }
 
-    // ✨ تم التأكد من هذه الدالة التي تستدعي suspend fun من PostRepository
     fun togglePostPinStatus(postToToggle: PostModel) {
         val authorId = postToToggle.authorId ?: return
         val postId = postToToggle.postId ?: return
         val newPinnedState = !postToToggle.isPinned
 
-        // يجب تشغيل suspend fun داخل coroutine scope
         viewModelScope.launch {
             try {
-                // Call the suspend function from the repository
                 postRepository.setPostPinnedStatus(postId, authorId, newPinnedState)
                 _postUpdatedEvent.postValue(postId)
             } catch (e: Exception) {
@@ -201,20 +254,38 @@ class PostViewModel : ViewModel() {
     }
 
     private fun updateLocalPostInteraction(postId: String, interactionType: String, newState: Boolean, countChange: Long) {
-        val currentPosts = _posts.value ?: return
-        val updatedPosts = currentPosts.map { post ->
-            if (post.postId == postId) {
-                when (interactionType) {
-                    "like" -> post.copy(isLiked = newState, likeCount = (post.likeCount + countChange).coerceAtLeast(0))
-                    "bookmark" -> post.copy(isBookmarked = newState, bookmarkCount = (post.bookmarkCount + countChange).coerceAtLeast(0))
-                    "repost" -> post.copy(isReposted = newState, repostCount = (post.repostCount + countChange).coerceAtLeast(0))
-                    else -> post
+        // Update the main feed (_posts)
+        _posts.value?.let { currentPosts ->
+            val updatedPosts = currentPosts.map { post ->
+                if (post.postId == postId) {
+                    updatePost(post, interactionType, newState, countChange)
+                } else {
+                    post
                 }
-            } else {
-                post
             }
+            _posts.postValue(updatedPosts)
         }
-        _posts.postValue(updatedPosts)
+
+        // Update the following feed (_followingPosts)
+        _followingPosts.value?.let { currentPosts ->
+            val updatedPosts = currentPosts.map { post ->
+                if (post.postId == postId) {
+                    updatePost(post, interactionType, newState, countChange)
+                } else {
+                    post
+                }
+            }
+            _followingPosts.postValue(updatedPosts)
+        }
+    }
+
+    private fun updatePost(post: PostModel, interactionType: String, newState: Boolean, countChange: Long) : PostModel {
+        return when (interactionType) {
+            "like" -> post.copy(isLiked = newState, likeCount = (post.likeCount + countChange).coerceAtLeast(0))
+            "bookmark" -> post.copy(isBookmarked = newState, bookmarkCount = (post.bookmarkCount + countChange).coerceAtLeast(0))
+            "repost" -> post.copy(isReposted = newState, repostCount = (post.repostCount + countChange).coerceAtLeast(0))
+            else -> post
+        }
     }
 
     private fun handleInteractionError(operation: String, errorMessage: String?) {

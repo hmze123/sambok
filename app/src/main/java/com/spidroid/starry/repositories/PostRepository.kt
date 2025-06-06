@@ -1,19 +1,13 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/repositories/PostRepository.kt
 package com.spidroid.starry.repositories
 
 import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.CollectionReference
-import com.google.firebase.firestore.DocumentReference
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.firestore.*
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
-import kotlinx.coroutines.tasks.await // ✨ إضافة هذا الاستيراد
+import kotlinx.coroutines.tasks.await
 
 
 class PostRepository {
@@ -25,6 +19,20 @@ class PostRepository {
     fun getPosts(limit: Int): Task<QuerySnapshot> {
         Log.d(TAG, "Executing Firestore query for main feed: orderBy 'createdAt' DESC, limit $limit")
         return postsCollection
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+    }
+
+    fun getPostsForFollowing(followingIds: List<String>, limit: Int): Task<QuerySnapshot> {
+        if (followingIds.isEmpty()) {
+            // إذا كان المستخدم لا يتابع أحدًا، أرجع مهمة فارغة وناجحة
+            return Tasks.forResult(null)
+        }
+        Log.d(TAG, "Executing Firestore query for following feed. Following count: ${followingIds.size}")
+        // جلب المنشورات حيث يكون authorId موجودًا في قائمة المتابعين
+        return postsCollection
+            .whereIn("authorId", followingIds)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .limit(limit.toLong())
             .get()
@@ -43,7 +51,12 @@ class PostRepository {
             val newLikeCount = if (newLikedState) currentLikes + 1 else (currentLikes - 1).coerceAtLeast(0)
 
             val likeUpdate = if (newLikedState) true else FieldValue.delete()
+            // إذا كان المستخدم يلغي الإعجاب، قم بإزالة تفاعله أيضًا
+            val reactionUpdate = if (newLikedState) "❤️" else FieldValue.delete()
+
+
             transaction.update(postRef, "likes.$currentUserId", likeUpdate)
+            transaction.update(postRef, "reactions.$currentUserId", reactionUpdate)
             transaction.update(postRef, "likeCount", newLikeCount)
 
             // Send notification only if someone else likes the post
@@ -61,6 +74,44 @@ class PostRepository {
                 transaction.set(notificationRef, notificationData)
             }
             null // Transaction must return null
+        }
+    }
+
+    fun addOrUpdateReaction(postId: String, reactingUserId: String, emoji: String, postAuthorId: String, reactorDetails: UserModel): Task<Void> {
+        val postRef = postsCollection.document(postId)
+
+        return db.runTransaction { transaction ->
+            val postSnapshot = transaction.get(postRef)
+            val likesMap = postSnapshot.get("likes") as? Map<String, Boolean> ?: emptyMap()
+
+            // تحقق إذا كان المستخدم قد قام بالإعجاب بالفعل
+            val wasAlreadyLiked = likesMap.containsKey(reactingUserId)
+
+            // إضافة التفاعل
+            transaction.update(postRef, "reactions.$reactingUserId", emoji)
+
+            // إذا لم يكن قد قام بالإعجاب مسبقًا، قم بتحديث الإعجاب والعدد
+            if (!wasAlreadyLiked) {
+                transaction.update(postRef, "likes.$reactingUserId", true)
+                transaction.update(postRef, "likeCount", FieldValue.increment(1))
+            }
+
+            // إرسال إشعار
+            if (reactingUserId != postAuthorId) {
+                val notificationRef = db.collection("users").document(postAuthorId).collection("notifications").document()
+                val notificationData = hashMapOf(
+                    "type" to "reaction",
+                    "fromUserId" to reactingUserId,
+                    "fromUsername" to reactorDetails.username,
+                    "fromUserAvatarUrl" to (reactorDetails.profileImageUrl ?: ""),
+                    "postId" to postId,
+                    "postContentPreview" to "reacted with $emoji",
+                    "timestamp" to FieldValue.serverTimestamp(),
+                    "read" to false
+                )
+                transaction.set(notificationRef, notificationData)
+            }
+            null
         }
     }
 
@@ -84,58 +135,25 @@ class PostRepository {
         return postRef.update(updateData)
     }
 
-    fun addOrUpdateReaction(postId: String, reactingUserId: String, emoji: String, postAuthorId: String, reactorDetails: UserModel): Task<Void> {
-        val postRef = postsCollection.document(postId)
-        val reactionUpdate = mapOf("reactions.$reactingUserId" to emoji)
-
-        // This part can also be a transaction if you want to ensure the notification is sent only if the reaction is updated.
-        postRef.update(reactionUpdate)
-
-        // Send notification logic
-        if (reactingUserId != postAuthorId) {
-            val notificationRef = db.collection("users").document(postAuthorId).collection("notifications").document()
-            val notificationData = hashMapOf(
-                "type" to "reaction",
-                "fromUserId" to reactingUserId,
-                "fromUsername" to reactorDetails.username,
-                "fromUserAvatarUrl" to (reactorDetails.profileImageUrl ?: ""),
-                "postId" to postId,
-                "postContentPreview" to "reacted with $emoji",
-                "timestamp" to FieldValue.serverTimestamp(),
-                "read" to false
-            )
-            return notificationRef.set(notificationData) // Returns the task for setting the notification
-        }
-
-        return Tasks.forResult(null) // Return a completed task if no notification is sent
-    }
-
-    // ✨ تم تحويل الدالة إلى suspend fun
     suspend fun setPostPinnedStatus(postIdToUpdate: String, authorId: String, newPinnedState: Boolean) {
-        // خطوة 1: جلب أي منشورات مثبتة حاليًا للمؤلف
-        // يجب أن يتم هذا داخل coroutine لأننا نستخدم await()
         val oldPinnedQuery = postsCollection
             .whereEqualTo("authorId", authorId)
             .whereEqualTo("isPinned", true)
 
-        val currentlyPinnedPostsSnapshot = oldPinnedQuery.get().await() // ✨ استخدام await() هنا
+        val currentlyPinnedPostsSnapshot = oldPinnedQuery.get().await()
 
-        // خطوة 2: تشغيل المعاملة
-        // db.runTransaction تُرجع Task<Void>، لذا يمكن انتظارها أيضًا
         db.runTransaction { transaction ->
             val postToUpdateRef = postsCollection.document(postIdToUpdate)
 
-            // إلغاء تثبيت أي منشورات أخرى كانت مثبتة
             for (oldPostDoc in currentlyPinnedPostsSnapshot.documents) {
                 if (oldPostDoc.id != postIdToUpdate) {
                     transaction.update(oldPostDoc.reference, "isPinned", false)
                 }
             }
 
-            // تثبيت أو إلغاء تثبيت المنشور الحالي
             transaction.update(postToUpdateRef, "isPinned", newPinnedState)
-            null // المعاملة يجب أن تُرجع null
-        }.await() // ✨ انتظار اكتمال المعاملة
+            null
+        }.await()
     }
 
 

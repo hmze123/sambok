@@ -46,7 +46,7 @@ data class PostModel(
     var isPinned: Boolean = false,
 
     var language: String? = null,
-
+    var mentions: MutableList<String> = mutableListOf(),
     // --- Local/UI-only properties ---
     @get:Exclude
     @set:Exclude
@@ -58,9 +58,18 @@ data class PostModel(
 
     @get:Exclude
     @set:Exclude
-    var isReposted: Boolean = false
+    var isReposted: Boolean = false,
 
-) : Parcelable {
+// --- الحقول الجديدة للترجمة ---
+    @get:Exclude
+    @set:Exclude
+    var translatedContent: String? = null,
+
+    @get:Exclude
+    @set:Exclude
+    var isTranslated: Boolean = false
+
+) : Parcelable { //...
 
     // Secondary constructor for convenience
     constructor(authorId: String, content: String) : this(

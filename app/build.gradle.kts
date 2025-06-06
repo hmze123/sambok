@@ -1,4 +1,3 @@
-// app/build.gradle.kts - هذا الملف في مجلد app الخاص بك
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -88,21 +87,19 @@ dependencies {
 
     // Firebase - استخدام الـ BOM لإدارة الإصدارات
     implementation(platform("com.google.firebase:firebase-bom:33.15.0"))
-    implementation("com.google.firebase:firebase-firestore-ktx:25.1.4")
-    implementation("com.google.firebase:firebase-analytics-ktx:22.4.0")
-    implementation("com.google.firebase:firebase-auth-ktx:23.2.1")
-    implementation("com.google.firebase:firebase-firestore-ktx:25.1.4")
-    implementation("com.google.firebase:firebase-storage-ktx:21.0.2")
-    // ✨ تم تصحيح App Check dependencies - إزالة -ktx
-    implementation("com.google.firebase:firebase-appcheck-playintegrity:18.0.0")
-    implementation("com.google.firebase:firebase-appcheck-debug:18.0.0")
+    implementation("com.google.firebase:firebase-analytics-ktx") // لا حاجة لتحديد الإصدار
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-storage-ktx")
+    // App Check dependencies
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.firebaseui:firebase-ui-storage:9.0.0")
-
+    implementation("com.google.mlkit:translate:17.0.2")
     // Kotlin stdlib and Coroutines
-    val kotlin_version = "2.1.21"
-    implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    // الإصدار يتم تحديده الآن من خلال plugin في الملف الرئيسي
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // Google Play Services
     implementation("com.google.android.gms:play-services-base:18.7.0")
@@ -125,9 +122,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$camerax_version")
     implementation("androidx.camera:camera-extensions:$camerax_version")
 
-    // Dagger (إذا كنت تستخدمه)
-    val dagger_version = "2.56.2"
-    implementation("com.google.dagger:dagger:$dagger_version")
-    annotationProcessor("com.google.dagger:dagger-compiler:$dagger_version")
+    // PrettyTime for relative time formatting
     implementation("org.ocpsoft.prettytime:prettytime:5.0.9.Final")
+
 }

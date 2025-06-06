@@ -1,78 +1,46 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/models/StoryModel.kt
 package com.spidroid.starry.models
 
+import android.os.Parcelable
 import com.google.firebase.firestore.Exclude
 import com.google.firebase.firestore.ServerTimestamp
+import kotlinx.parcelize.Parcelize
 import java.util.Date
-import java.util.Objects
-import java.util.UUID
 
-class StoryModel {
-    // --- Getters and Setters ---
+@Parcelize
+data class StoryModel(
     // --- الحقول الأساسية ---
-    var storyId: String? = null // ✨ تم تغيير هذا ليصبح قابلاً للـ null
-    var userId: String? = null
-    var mediaUrl: String? = null
-    var thumbnailUrl: String? = null
-    var mediaType: String? = null
-    var duration: Long = 0
+    @get:Exclude // Firestore should generate this ID, we set it manually after fetching
+    var storyId: String = "",
+    var userId: String = "",
+    var mediaUrl: String = "",
+    var thumbnailUrl: String? = null,
+    var mediaType: String = MEDIA_TYPE_IMAGE,
+    var duration: Long = 5000L, // Default duration 5 seconds for images
 
     @ServerTimestamp
-    var createdAt: Date? = null
-    var expiresAt: Date? = null
-    var viewers: MutableMap<String, Boolean> = mutableMapOf() // ✨ تم تغيير التهيئة إلى mutableMapOf() وإزالة Nullability في القيم
-
+    var createdAt: Date? = null,
+    var expiresAt: Date? = null,
+    var viewers: MutableMap<String, Boolean> = mutableMapOf(),
 
     // --- حقول بيانات المؤلف (لتحسين الأداء) ---
-    @Exclude // ✨ تم إزالة @get:Exclude المكرر
-    var authorUsername: String? = null
+    var authorUsername: String? = null,
+    var authorDisplayName: String? = null,
+    var authorAvatarUrl: String? = null,
+    var isAuthorVerified: Boolean = false
 
-    @Exclude // ✨ تم إزالة @get:Exclude المكرر
-    var authorDisplayName: String? = null
+) : Parcelable {
 
-    @Exclude // ✨ تم إزالة @get:Exclude المكرر
-    var authorAvatarUrl: String? = null
+    // مُنشئ فارغ مطلوب لـ Firestore
+    constructor() : this("", "", "", null, MEDIA_TYPE_IMAGE, 5000L, null, null, mutableMapOf())
 
-    // ** الدوال الجديدة التي تم إضافتها **
-    @Exclude // ✨ تم إزالة @get:Exclude المكرر
-    var isAuthorVerified: Boolean = false // ** تم إضافة هذا الحقل **
-
-
-    // --- المُنشئات ---
-    constructor()
-
-    constructor(
-        userId: String?,
-        mediaUrl: String?,
-        mediaType: String?,
-        duration: Long,
-        thumbnailUrl: String?
-    ) {
-        // ✨ لا يتم تعيين storyId هنا، بل يتم تركه لـ Firestore ليقوم بتعيينه
-        this.userId = userId
-        this.mediaUrl = mediaUrl
-        this.mediaType = mediaType
-        this.duration = duration
-        this.thumbnailUrl = thumbnailUrl
-        this.createdAt = Date()
-        this.expiresAt = Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)
-    }
-
-    // --- دوال مساعدة ---
-    override fun equals(o: Any?): Boolean {
-        if (this === o) return true
-        if (o == null || javaClass != o.javaClass) return false
-        val that = o as StoryModel
-        return storyId == that.storyId
-    }
-
-    override fun hashCode(): Int {
-        return Objects.hash(storyId)
-    }
+    // دالة مساعدة لتحديد ما إذا كانت القصة قد انتهت صلاحيتها
+    @get:Exclude
+    val isExpired: Boolean
+        get() = expiresAt?.before(Date()) ?: true
 
     companion object {
-        // --- الثوابت ---
         const val MEDIA_TYPE_IMAGE: String = "image"
         const val MEDIA_TYPE_VIDEO: String = "video"
+        const val DEFAULT_IMAGE_DURATION_MS: Long = 5000
     }
 }

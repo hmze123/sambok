@@ -83,6 +83,27 @@ class MessageAdapter(
 
     inner class SentTextViewHolder(private val binding: ItemMessageTextSentBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(message: ChatMessage) {
+            binding.executePendingBindings()
+            if (message.replyToId != null) {
+                binding.replyPreview.visibility = View.VISIBLE
+                binding.replyPreview.text = message.replyPreview ?: "Replying to a message"
+            } else {
+                binding.replyPreview.visibility = View.GONE
+            }
+            if (message.deleted) {
+                binding.textContent.text = context.getString(R.string.message_deleted) // يمكنك إضافة هذا النص في strings.xml
+                binding.textContent.setTypeface(null, android.graphics.Typeface.ITALIC)
+                binding.textContent.alpha = 0.7f
+                binding.root.setOnLongClickListener(null) // لا يمكن التفاعل مع الرسائل المحذوفة
+            } else {
+                binding.textContent.text = message.content
+                binding.textContent.setTypeface(null, android.graphics.Typeface.NORMAL)
+                binding.textContent.alpha = 1.0f
+                binding.root.setOnLongClickListener {
+                    listener.onMessageLongClick(message, bindingAdapterPosition)
+                    true
+                }
+            }
             binding.message = message
             binding.executePendingBindings() // تطبيق الربط فورًا
             binding.textTime.text = timeFormat.format(message.timestamp ?: Date())
@@ -99,6 +120,27 @@ class MessageAdapter(
 
     inner class ReceivedTextViewHolder(private val binding: ItemMessageTextReceivedBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(message: ChatMessage) {
+            binding.executePendingBindings()
+            if (message.replyToId != null) {
+                binding.replyPreview.visibility = View.VISIBLE
+                binding.replyPreview.text = message.replyPreview ?: "Replying to a message"
+            } else {
+                binding.replyPreview.visibility = View.GONE
+            }
+            if (message.deleted) {
+                binding.textContent.text = context.getString(R.string.message_deleted)
+                binding.textContent.setTypeface(null, android.graphics.Typeface.ITALIC)
+                binding.textContent.alpha = 0.7f
+                binding.root.setOnLongClickListener(null)
+            } else {
+                binding.textContent.text = message.content
+                binding.textContent.setTypeface(null, android.graphics.Typeface.NORMAL)
+                binding.textContent.alpha = 1.0f
+                binding.root.setOnLongClickListener {
+                    listener.onMessageLongClick(message, bindingAdapterPosition)
+                    true
+                }
+            }
             binding.message = message
             binding.executePendingBindings()
             binding.textSender.text = message.senderName ?: context.getString(R.string.unknown_user_display_name)
