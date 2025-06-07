@@ -176,9 +176,45 @@ class PostRepository {
         )
         return postsCollection.document(postId).update(updates)
     }
+    fun getPostsPaginated(limit: Int, lastPost: PostModel?): Task<QuerySnapshot> {
+        // بناء الاستعلام الأساسي
+        var query: Query = postsCollection
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
 
+        // إذا كان هناك منشور أخير (cursor)، ابدأ الجلب من بعده
+        if (lastPost != null) {
+            query = query.startAfter(lastPost.createdAt)
+        }
+
+        Log.d(TAG, "Executing paginated posts query. Starting after: ${lastPost?.createdAt}")
+        return query.get()
+    }
     fun submitReport(reportData: Map<String, Any>): Task<DocumentReference> {
         return db.collection("reports").add(reportData)
+    }
+    fun searchPostsByContent(query: String, limit: Int = 20): Task<QuerySnapshot> {
+        if (query.isBlank()) {
+            return Tasks.forResult(null)
+        }
+        return postsCollection
+            .whereGreaterThanOrEqualTo("content", query)
+            .whereLessThanOrEqualTo("content", query + '\uf8ff')
+            .orderBy("content")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+    }
+
+    fun searchPostsByHashtag(hashtag: String, limit: Int = 20): Task<QuerySnapshot> {
+        if (hashtag.isBlank()) {
+            return Tasks.forResult(null)
+        }
+        return postsCollection
+            .whereArrayContains("hashtags", hashtag.lowercase())
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
     }
 
     companion object {

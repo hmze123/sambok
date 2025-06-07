@@ -30,6 +30,9 @@ class PostViewModel : ViewModel() {
     private val _suggestions = MutableLiveData<List<UserModel>>()
     private val _error = MutableLiveData<String?>()
 
+    private var isFetchingPosts = false
+    private var lastVisiblePost: PostModel? = null
+
     // For "Following" feed
     private val _followingPosts = MutableLiveData<List<PostModel>>()
     val followingPosts: LiveData<List<PostModel>> get() = _followingPosts
@@ -89,9 +92,15 @@ class PostViewModel : ViewModel() {
         }
     }
 
-    fun fetchPosts(limit: Int) {
-        Log.d(TAG, "Attempting to fetch posts for main feed. Limit: $limit")
-        postRepository.getPosts(limit).addOnCompleteListener { task ->
+    fun fetchInitialPosts(limit: Int) {
+        if (isFetchingPosts) return
+        isFetchingPosts = true
+        Log.d(TAG, "Attempting to fetch initial posts. Limit: $limit")
+
+        // إعادة تعيين الحالة عند الجلب من البداية
+        lastVisiblePost = null
+
+        postRepository.getPostsPaginated(limit, null).addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 val postList = task.result?.mapNotNull { doc ->
                     doc.toObject(PostModel::class.java).apply {
@@ -99,19 +108,46 @@ class PostViewModel : ViewModel() {
                         updateUserInteractions(this)
                     }
                 }
-                if (postList != null) {
+                if (!postList.isNullOrEmpty()) {
+                    lastVisiblePost = postList.last() // تحديث المؤشر
                     _posts.postValue(postList)
-                    Log.d(TAG, "posts LiveData updated with ${postList.size} posts.")
-                    if (postList.isEmpty()) {
-                        _error.postValue("No posts found.")
-                    }
+                } else {
+                    _posts.postValue(emptyList())
                 }
             } else {
-                val errorMsg = "Failed to load posts: ${task.exception?.message ?: "Unknown error"}"
+                val errorMsg = "Failed to load initial posts: ${task.exception?.message ?: "Unknown error"}"
                 _error.postValue(errorMsg)
-                Log.e(TAG, errorMsg, task.exception)
-                _posts.postValue(emptyList())
             }
+            isFetchingPosts = false
+        }
+    }
+
+    // أضف هذه الدالة الجديدة
+    fun fetchMorePosts(limit: Int) {
+        if (isFetchingPosts || lastVisiblePost == null) return
+        isFetchingPosts = true
+        Log.d(TAG, "Attempting to fetch more posts.")
+
+        postRepository.getPostsPaginated(limit, lastVisiblePost).addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val newPosts = task.result?.mapNotNull { doc ->
+                    doc.toObject(PostModel::class.java).apply {
+                        postId = doc.id
+                        updateUserInteractions(this)
+                    }
+                }
+                if (!newPosts.isNullOrEmpty()) {
+                    lastVisiblePost = newPosts.last()
+                    val currentList = _posts.value ?: emptyList()
+                    _posts.postValue(currentList + newPosts) // إضافة المنشورات الجديدة للقائمة الحالية
+                } else {
+                    // لا يوجد المزيد من المنشورات، يمكن إيقاف محاولات الجلب
+                    lastVisiblePost = null
+                }
+            } else {
+                _error.postValue("Failed to load more posts: ${task.exception?.message}")
+            }
+            isFetchingPosts = false
         }
     }
 

@@ -322,13 +322,11 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
 
     private fun savePostToFirestore(content: String, mediaUrls: List<String>) {
         val user = currentUserModel ?: return
-
-        // --- استخراج الإشارات من المحتوى ---
         val mentionedUsernames = extractMentions(content)
+        val hashtags = extractHashtags(content) // --- السطر الجديد ---
 
-        // TODO: في المستقبل، يجب تحويل أسماء المستخدمين إلى IDs هنا
-        // حاليًا، سنحفظ أسماء المستخدمين مباشرة كمثال
-        val mentionIds = mutableListOf<String>() // يجب ملء هذه القائمة بالـ IDs
+        // TODO: تحويل أسماء المستخدمين إلى IDs
+        val mentionIds = mutableListOf<String>()
 
         val post = PostModel(
             authorId = user.userId,
@@ -339,7 +337,8 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
             isAuthorVerified = user.isVerified,
             mediaUrls = mediaUrls.toMutableList(),
             linkPreviews = currentLinkPreview?.let { mutableListOf(it) } ?: mutableListOf(),
-            mentions = mentionIds, // حفظ قائمة الـ IDs
+            hashtags = hashtags, // --- السطر الجديد ---
+            mentions = mentionIds,
             createdAt = Date()
         ).apply {
             contentType = if (mediaUrls.isNotEmpty()) {
@@ -366,6 +365,17 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
     private fun showProgress(show: Boolean) {
         binding.progressContainer.visibility = if (show) View.VISIBLE else View.GONE
         binding.btnPost.isEnabled = !show
+    }
+
+    private fun extractHashtags(content: String): List<String> {
+        val hashtags = mutableListOf<String>()
+        // Pattern للبحث عن #hashtag
+        val pattern = Pattern.compile("#(\\w+)")
+        val matcher = pattern.matcher(content)
+        while (matcher.find()) {
+            matcher.group(1)?.let { hashtags.add(it.lowercase()) }
+        }
+        return hashtags
     }
 
     private fun handleUploadFailure(e: Exception) {

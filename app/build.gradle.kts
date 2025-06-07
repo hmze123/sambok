@@ -93,6 +93,7 @@ dependencies {
     implementation("com.google.firebase:firebase-storage-ktx")
     // App Check dependencies
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
+    implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.firebaseui:firebase-ui-storage:9.0.0")
     implementation("com.google.mlkit:translate:17.0.2")

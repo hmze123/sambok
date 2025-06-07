@@ -16,6 +16,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.R
@@ -62,16 +63,36 @@ class ForYouFragment : Fragment(), PostInteractionListener {
 
     private fun setupRecyclerView() {
         postAdapter = PostAdapter(requireContext(), this)
-        binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        val layoutManager = LinearLayoutManager(requireContext())
+        binding.recyclerView.layoutManager = layoutManager
         binding.recyclerView.adapter = postAdapter
+
+        // --- الكود الجديد للتحميل اللامتناهي ---
+        binding.recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val visibleItemCount = layoutManager.childCount
+                val totalItemCount = layoutManager.itemCount
+                val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+
+                // إذا كان المستخدم قد وصل إلى ما قبل نهاية القائمة بـ 5 عناصر، ابدأ الجلب
+                if ((visibleItemCount + firstVisibleItemPosition) >= totalItemCount - 5 && firstVisibleItemPosition >= 0) {
+                    postViewModel.fetchMorePosts(10) // جلب 10 عناصر إضافية
+                }
+            }
+        })
     }
 
     private fun setupSwipeRefresh() {
         binding.swipeRefresh.setOnRefreshListener {
-            postViewModel.fetchPosts(15)
+            // عند السحب للتحديث، اجلب الدفعة الأولى من جديد
+            postViewModel.fetchInitialPosts(15)
             postViewModel.fetchUserSuggestions()
         }
     }
+
+
 
     private fun setupObservers() {
         postViewModel.combinedFeed.observe(viewLifecycleOwner) { items ->
@@ -108,11 +129,11 @@ class ForYouFragment : Fragment(), PostInteractionListener {
     private fun loadInitialData() {
         if (postAdapter.itemCount == 0) {
             binding.progressContainer.visibility = View.VISIBLE
-            postViewModel.fetchPosts(15)
+            // عند التحميل الأولي، اجلب الدفعة الأولى
+            postViewModel.fetchInitialPosts(15)
             postViewModel.fetchUserSuggestions()
         }
     }
-
     override fun onLikeClicked(post: PostModel?) {
         post?.let { postViewModel.toggleLike(it, !it.isLiked) }
     }

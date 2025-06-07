@@ -1,87 +1,72 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/viewmodels/SearchViewModel.kt
 package com.spidroid.starry.viewmodels
 
+import android.util.Log
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.ktx.Firebase
+import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
+import com.spidroid.starry.repositories.PostRepository
 import com.spidroid.starry.repositories.UserRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// Sealed class لتمثيل جميع حالات واجهة البحث الممكنة
-sealed class SearchUiState {
-    object Idle : SearchUiState() // الحالة الأولية، عند عدم وجود بحث
-    object Loading : SearchUiState() // حالة التحميل
-    data class Success(val users: List<UserModel>) : SearchUiState() // حالة النجاح مع قائمة المستخدمين
-    data class Error(val message: String) : SearchUiState() // حالة حدوث خطأ
-    object Empty : SearchUiState() // حالة عدم العثور على نتائج
-}
+// لا حاجة لتعريف UiState هنا، سنستخدم LiveData مباشرة للحالات
 
 class SearchViewModel : ViewModel() {
 
     private val userRepository = UserRepository()
+    private val postRepository = PostRepository()
     private val auth = Firebase.auth
 
-    // StateFlow لإدارة حالة الواجهة بشكل فعال
-    private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-    val uiState: StateFlow<SearchUiState> = _uiState
+    // LiveData لنتائج بحث المستخدمين
+    private val _userResults = MutableLiveData<List<UserModel>>()
+    val userResults: LiveData<List<UserModel>> = _userResults
 
-    private var lastQuery = ""
+    // LiveData لنتائج بحث المنشورات
+    private val _postResults = MutableLiveData<List<PostModel>>()
+    val postResults: LiveData<List<PostModel>> = _postResults
 
-    fun searchUsers(query: String) {
-        val trimmedQuery = query.trim()
-        if (trimmedQuery.isBlank()) {
-            _uiState.value = SearchUiState.Idle
+    // LiveData لحالة التحميل
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
+
+    private val _error = MutableLiveData<String?>()
+    val error: LiveData<String?> = _error
+
+    fun performSearch(query: String) {
+        if (query.isBlank()) {
+            _userResults.value = emptyList()
+            _postResults.value = emptyList()
             return
         }
 
-        lastQuery = trimmedQuery
-        _uiState.value = SearchUiState.Loading
+        _isLoading.value = true
 
         viewModelScope.launch {
             try {
-                // استخدام await() لجعل الكود يبدو متزامنًا وأكثر نظافة
-                val results = userRepository.searchUsers(trimmedQuery).await()
-                if (results.isNotEmpty()) {
-                    _uiState.value = SearchUiState.Success(results)
-                } else {
-                    _uiState.value = SearchUiState.Empty
-                }
+                // البحث عن المستخدمين والمنشورات في نفس الوقت
+                val usersTask = userRepository.searchUsers(query)
+                val postsTask = postRepository.searchPostsByContent(query)
+                // يمكن إضافة بحث الهاشتاجات هنا بنفس الطريقة
+
+                val users = usersTask.await()
+                val posts = postsTask.await()?.toObjects(PostModel::class.java)
+
+                _userResults.postValue(users)
+                _postResults.postValue(posts ?: emptyList())
+
             } catch (e: Exception) {
-                _uiState.value = SearchUiState.Error(e.message ?: "An unknown error occurred")
+                Log.e("SearchViewModel", "Search failed", e)
+                _error.postValue("Search failed: ${e.message}")
+            } finally {
+                _isLoading.postValue(false)
             }
         }
-    }
-
-    fun toggleFollowStatus(user: UserModel) {
-        val currentUserId = auth.currentUser?.uid ?: return
-        val targetUserId = user.userId ?: return
-
-        viewModelScope.launch {
-            try {
-                userRepository.toggleFollow(currentUserId, targetUserId).await()
-                // الواجهة يمكن تحديثها بشكل متفائل في الـ Fragment
-                // أو يمكننا إعادة تحميل البحث هنا إذا لزم الأمر
-            } catch (e: Exception) {
-                // يمكن عرض رسالة خطأ للمستخدم
-                _uiState.value = SearchUiState.Error("Failed to update follow status: ${e.message}")
-            }
-        }
-    }
-
-    fun retryLastSearch() {
-        if (lastQuery.isNotEmpty()) {
-            searchUsers(lastQuery)
-        }
-    }
-
-    // دالة لمسح البحث والعودة للحالة الأولية
-    fun clearSearch() {
-        lastQuery = ""
-        _uiState.value = SearchUiState.Idle
     }
 }

@@ -167,6 +167,19 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    fun castVote(chatId: String, messageId: String, optionIndex: Int) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                repository.recordVote(chatId, messageId, optionIndex, userId).await()
+                // الواجهة ستتحدث تلقائيًا بفضل المستمع الفوري
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Failed to cast vote", e)
+                _uiState.value = UiState.Error("Failed to vote: ${e.message}")
+            }
+        }
+    }
+
     fun deleteMessage(chatId: String, messageId: String) {
         viewModelScope.launch {
             try {

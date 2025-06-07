@@ -43,22 +43,49 @@ class PostDetailActivity : AppCompatActivity() {
         binding = ActivityPostDetailBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // استلام بيانات المنشور بطريقة آمنة
-        post = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val receivedPost = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getParcelableExtra(EXTRA_POST, PostModel::class.java)
         } else {
             @Suppress("DEPRECATION")
             intent.getParcelableExtra(EXTRA_POST)
         }
 
+        val postId = intent.getStringExtra("postId")
 
-        // التحقق من صحة بيانات المنشور
-        if (post?.postId.isNullOrEmpty()) {
-            Log.e(TAG, "Post or Post ID received is null or empty.")
+        if (receivedPost != null) {
+            this.post = receivedPost
+            initializeActivity()
+        } else if (!postId.isNullOrEmpty()) {
+            // إذا استقبلنا ID فقط، قم بجلبه من Firestore
+            fetchPostFromId(postId)
+        } else {
+            Log.e(TAG, "No Post data or Post ID received.")
             Toast.makeText(this, getString(R.string.error_post_data_missing), Toast.LENGTH_LONG).show()
             finish()
             return
         }
+    }
+
+    private fun fetchPostFromId(postId: String) {
+        // يمكنك إظهار مؤشر تحميل هنا
+        FirebaseFirestore.getInstance().collection("posts").document(postId).get()
+            .addOnSuccessListener { document ->
+                if (document.exists()) {
+                    this.post = document.toObject(PostModel::class.java)?.apply { this.postId = document.id }
+                    initializeActivity()
+                } else {
+                    Toast.makeText(this, "Post not found.", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "Error loading post: ${e.message}", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+    }
+
+    private fun initializeActivity() {
+        if (this.post == null) return
 
         currentUser = FirebaseAuth.getInstance().currentUser
         commentViewModel = ViewModelProvider(this)[CommentViewModel::class.java]

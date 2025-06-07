@@ -1,38 +1,22 @@
 package com.spidroid.starry.ui.search
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.widget.doOnTextChanged
+import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.snackbar.Snackbar
-import com.google.firebase.auth.FirebaseAuth
-import com.spidroid.starry.activities.ProfileActivity
+import com.google.android.material.tabs.TabLayoutMediator
 import com.spidroid.starry.databinding.FragmentSearchBinding
-import com.spidroid.starry.models.UserModel
-import com.spidroid.starry.utils.SearchHistoryManager
-import com.spidroid.starry.viewmodels.SearchUiState
 import com.spidroid.starry.viewmodels.SearchViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
 
-class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, RecentSearchAdapter.OnHistoryInteractionListener {
+class SearchFragment : Fragment() {
 
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
 
     private val viewModel: SearchViewModel by viewModels()
-    private lateinit var userResultAdapter: UserResultAdapter
-    private lateinit var recentSearchAdapter: RecentSearchAdapter
-    private lateinit var searchHistoryManager: SearchHistoryManager
-    private var searchJob: Job? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -45,139 +29,44 @@ class SearchFragment : Fragment(), UserResultAdapter.OnUserInteractionListener, 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        searchHistoryManager = SearchHistoryManager(requireContext())
-
-        setupRecyclerViews()
-        setupSearchInput()
-        observeViewModel()
-
-        showInitialState()
+        setupViewPager()
+        setupSearchView()
     }
 
-    private fun setupRecyclerViews() {
-        val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
-        userResultAdapter = UserResultAdapter(currentUserId, this)
-        binding.rvResults.layoutManager = LinearLayoutManager(context)
-        binding.rvResults.adapter = userResultAdapter
+    private fun setupViewPager() {
+        val adapter = SearchStateAdapter(this)
+        binding.viewPagerSearch.adapter = adapter
 
-        recentSearchAdapter = RecentSearchAdapter(this)
-        binding.rvRecentSearches.layoutManager = LinearLayoutManager(context)
-        binding.rvRecentSearches.adapter = recentSearchAdapter
+        TabLayoutMediator(binding.tabLayoutSearch, binding.viewPagerSearch) { tab, position ->
+            tab.text = when (position) {
+                0 -> "Users"
+                1 -> "Posts"
+                2 -> "Hashtags"
+                else -> null
+            }
+        }.attach()
     }
 
-    private fun setupSearchInput() {
-        binding.etSearch.doOnTextChanged { text, _, _, _ ->
-            searchJob?.cancel() // إلغاء عملية البحث السابقة
-            val query = text.toString().trim()
-            if (query.isNotEmpty()) {
-                binding.ivClear.visibility = View.VISIBLE
-                searchJob = viewLifecycleOwner.lifecycleScope.launch {
-                    delay(300) // الانتظار قبل إرسال الطلب لتحسين الأداء
-                    viewModel.searchUsers(query)
+    private fun setupSearchView() {
+        binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            // يتم استدعاؤه عند الضغط على زر البحث
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                if (!query.isNullOrBlank()) {
+                    viewModel.performSearch(query)
                 }
-            } else {
-                binding.ivClear.visibility = View.GONE
-                viewModel.clearSearch()
+                binding.searchView.clearFocus() // إخفاء لوحة المفاتيح
+                return true
             }
-        }
 
-        binding.ivClear.setOnClickListener {
-            binding.etSearch.text?.clear()
-        }
-
-        // إظهار سجل البحث عند التركيز على حقل الإدخال وهو فارغ
-        binding.etSearch.setOnFocusChangeListener { _, hasFocus ->
-            if (hasFocus && binding.etSearch.text.isNullOrEmpty()) {
-                viewModel.clearSearch() // استدعاء دالة ViewModel لإظهار الحالة الأولية
+            // يتم استدعاؤه مع كل تغيير في النص (لن نستخدمه حاليًا لتجنب كثرة الطلبات)
+            override fun onQueryTextChange(newText: String?): Boolean {
+                return false
             }
-        }
-    }
-
-    private fun observeViewModel() {
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.uiState.collectLatest { state ->
-                // إخفاء جميع الحالات مبدئيًا
-                binding.layoutRecentSearches.visibility = View.GONE
-                binding.rvResults.visibility = View.GONE
-                binding.tvEmptyState.visibility = View.GONE
-                // يمكنك إضافة مؤشر تحميل هنا
-                // binding.progressBar.visibility = View.GONE
-
-                when (state) {
-                    is SearchUiState.Idle -> showInitialState()
-                    is SearchUiState.Loading -> {
-                        // binding.progressBar.visibility = View.VISIBLE
-                    }
-                    is SearchUiState.Success -> {
-                        binding.rvResults.visibility = View.VISIBLE
-                        userResultAdapter.submitList(state.users)
-                    }
-                    is SearchUiState.Empty -> {
-                        binding.tvEmptyState.text = "No results found"
-                        binding.tvEmptyState.visibility = View.VISIBLE
-                    }
-                    is SearchUiState.Error -> {
-                        Snackbar.make(binding.root, state.message, Snackbar.LENGTH_LONG)
-                            .setAction("Retry") { viewModel.retryLastSearch() }
-                            .show()
-                    }
-                }
-            }
-        }
-    }
-
-    private fun showInitialState() {
-        // لا يتم عرض أي شيء في الحالة الأولية حتى يبدأ المستخدم في الكتابة أو التركيز
-        val history = searchHistoryManager.searchHistory.filterNotNull()
-        if (history.isNotEmpty()) {
-            recentSearchAdapter.submitList(history)
-            binding.layoutRecentSearches.visibility = View.VISIBLE
-        } else {
-            binding.layoutRecentSearches.visibility = View.GONE
-        }
-        binding.rvResults.visibility = View.GONE
-        binding.tvEmptyState.visibility = View.GONE
-    }
-
-    // --- OnHistoryInteractionListener Callbacks ---
-    override fun onTermClicked(term: String) {
-        binding.etSearch.setText(term)
-        binding.etSearch.setSelection(term.length) // نقل المؤشر إلى النهاية
-        searchHistoryManager.addSearchTerm(term) // إعادة إضافة المصطلح إلى الأعلى عند النقر عليه
-    }
-
-    override fun onRemoveClicked(term: String) {
-        searchHistoryManager.removeSearchTerm(term)
-        showInitialState() // تحديث قائمة السجل بعد الإزالة
-    }
-
-    // --- OnUserInteractionListener Callbacks ---
-    override fun onFollowClicked(user: UserModel, position: Int) {
-        viewModel.toggleFollowStatus(user)
-        // ViewModel الآن مسؤول عن تحديث الحالة، والواجهة ستتحدث تلقائيًا
-        // لا حاجة لـ notifyItemChanged(position)
-    }
-
-    override fun onUserClicked(user: UserModel) {
-        // حفظ مصطلح البحث الحالي قبل الانتقال
-        val currentQuery = binding.etSearch.text.toString().trim()
-        if (currentQuery.isNotEmpty()) {
-            searchHistoryManager.addSearchTerm(currentQuery)
-        }
-        // الانتقال إلى الملف الشخصي
-        val intent = Intent(activity, ProfileActivity::class.java).apply {
-            putExtra("userId", user.userId)
-        }
-        startActivity(intent)
-    }
-
-    override fun onMoreClicked(user: UserModel, anchor: View) {
-        // يمكن تنفيذ قائمة خيارات هنا (مثل الإبلاغ عن مستخدم)
+        })
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        searchJob?.cancel()
         _binding = null
     }
 }

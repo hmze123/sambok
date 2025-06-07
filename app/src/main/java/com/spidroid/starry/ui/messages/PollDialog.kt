@@ -5,24 +5,27 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.Toast
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.spidroid.starry.R
+import com.spidroid.starry.models.ChatMessage
 
 class PollDialog : BottomSheetDialogFragment() {
+
+    // واجهة لإعادة بيانات الاستطلاع إلى الـ Activity
     interface OnPollCreatedListener {
-        fun onPollCreated(question: String?, options: MutableList<String?>?)
+        fun onPollCreated(poll: ChatMessage.Poll)
     }
 
     private var listener: OnPollCreatedListener? = null
-    private var optionsContainer: LinearLayout? = null
-    private var optionCount = 2
+    private lateinit var optionsContainer: LinearLayout
+    private lateinit var pollQuestionEditText: TextInputEditText
+    private val optionEditTexts = mutableListOf<TextInputEditText>()
 
-    fun setOnPollCreatedListener(listener: OnPollCreatedListener?) {
+    fun setOnPollCreatedListener(listener: OnPollCreatedListener) {
         this.listener = listener
     }
 
@@ -30,74 +33,62 @@ class PollDialog : BottomSheetDialogFragment() {
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val view = inflater.inflate(R.layout.dialog_poll, container, false)
-        setupPollCreation(view)
+        setupViews(view)
         return view
     }
 
-    private fun setupPollCreation(view: View) {
-        optionsContainer = view.findViewById<LinearLayout>(R.id.options_container)
-        val pollQuestion = view.findViewById<EditText>(R.id.poll_question)
-        val addOption = view.findViewById<Button>(R.id.add_option)
-        val btnCancel = view.findViewById<Button>(R.id.btn_cancel)
-        val btnCreate = view.findViewById<Button>(R.id.btn_create)
+    private fun setupViews(view: View) {
+        optionsContainer = view.findViewById(R.id.options_container)
+        pollQuestionEditText = view.findViewById(R.id.poll_question)
 
-        addOption.setOnClickListener(View.OnClickListener { v: View? -> addNewOptionField() })
-        btnCancel.setOnClickListener(View.OnClickListener { v: View? -> dismiss() })
-        btnCreate.setOnClickListener(View.OnClickListener { v: View? -> createPoll(pollQuestion) })
+        // إضافة حقلي الخيارات الأوليين إلى القائمة
+        optionEditTexts.add(view.findViewById(R.id.option_1))
+        optionEditTexts.add(view.findViewById(R.id.option_2))
+
+        val addOptionButton: Button = view.findViewById(R.id.add_option)
+        val btnCancel: Button = view.findViewById(R.id.btn_cancel)
+        val btnCreate: Button = view.findViewById(R.id.btn_create)
+
+        addOptionButton.setOnClickListener { addNewOptionField() }
+        btnCancel.setOnClickListener { dismiss() }
+        btnCreate.setOnClickListener { createPoll() }
     }
 
     private fun addNewOptionField() {
-        if (optionCount >= 6) return  // Limit to 6 options
+        if (optionEditTexts.size >= 4) { // الحد الأقصى 4 خيارات
+            Toast.makeText(context, "Maximum of 4 options allowed.", Toast.LENGTH_SHORT).show()
+            return
+        }
 
+        // إنشاء حقل إدخال جديد ديناميكيًا
+        val newOptionLayout = LayoutInflater.from(context).inflate(R.layout.item_poll_option_input, optionsContainer, false) as TextInputLayout
+        val newOptionEditText = newOptionLayout.findViewById<TextInputEditText>(R.id.poll_option_input)
+        newOptionLayout.hint = "Option ${optionEditTexts.size + 1}"
 
-        val inputLayout = TextInputLayout(requireContext())
-        inputLayout.setLayoutParams(
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-        inputLayout.setHint("Option " + (optionCount + 1))
-
-        val editText = TextInputEditText(inputLayout.getContext())
-        editText.setLayoutParams(
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        )
-        inputLayout.addView(editText)
-
-        optionsContainer!!.addView(inputLayout)
-        optionCount++
+        optionsContainer.addView(newOptionLayout)
+        optionEditTexts.add(newOptionEditText)
     }
 
-    private fun createPoll(questionEditText: EditText) {
-        val question = questionEditText.getText().toString().trim { it <= ' ' }
-        val options: MutableList<String?> = ArrayList<String?>()
-
-        // Collect options from all input fields
-        for (i in 0..<optionsContainer!!.getChildCount()) {
-            val inputLayout = optionsContainer!!.getChildAt(i) as TextInputLayout
-            val editText = inputLayout.getChildAt(0) as EditText
-            val option = editText.getText().toString().trim { it <= ' ' }
-            if (!option.isEmpty()) {
-                options.add(option)
-            }
-        }
-
-        if (question.isEmpty()) {
-            questionEditText.setError("Please enter a question")
+    private fun createPoll() {
+        val question = pollQuestionEditText.text.toString().trim()
+        if (question.isBlank()) {
+            pollQuestionEditText.error = "Question cannot be empty"
             return
         }
+
+        val options = optionEditTexts
+            .map { it.text.toString().trim() }
+            .filter { it.isNotBlank() }
 
         if (options.size < 2) {
-            Toast.makeText(requireContext(), "At least 2 options required", Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(context, "At least 2 options are required.", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (listener != null) {
-            listener!!.onPollCreated(question, options)
-        }
+        val pollOptions = options.map { ChatMessage.PollOption(text = it) }
+        val poll = ChatMessage.Poll(question = question, options = pollOptions.toMutableList())
+
+        listener?.onPollCreated(poll)
         dismiss()
     }
 }

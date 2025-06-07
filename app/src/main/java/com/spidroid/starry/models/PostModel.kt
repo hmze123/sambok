@@ -47,6 +47,8 @@ data class PostModel(
 
     var language: String? = null,
     var mentions: MutableList<String> = mutableListOf(),
+    var hashtags: List<String> = listOf(),
+
     // --- Local/UI-only properties ---
     @get:Exclude
     @set:Exclude

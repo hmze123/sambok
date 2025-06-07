@@ -75,6 +75,34 @@ class ChatRepository {
         )
         return messageRef.update(updates)
     }
+    fun recordVote(chatId: String, messageId: String, optionIndex: Int, userId: String): Task<Void> {
+        val messageRef = db.collection("chats").document(chatId)
+            .collection("messages").document(messageId)
+
+        return db.runTransaction { transaction ->
+            val snapshot = transaction.get(messageRef)
+            val poll = snapshot.toObject(ChatMessage::class.java)?.poll ?: return@runTransaction null
+
+            // التحقق إذا كان المستخدم قد صوّت بالفعل
+            if (poll.voters.containsKey(userId)) {
+                throw FirebaseFirestoreException("User has already voted.", FirebaseFirestoreException.Code.ALREADY_EXISTS)
+            }
+
+            // التحقق من أن الخيار موجود
+            if (optionIndex < 0 || optionIndex >= poll.options.size) {
+                throw FirebaseFirestoreException("Invalid option index.", FirebaseFirestoreException.Code.INVALID_ARGUMENT)
+            }
+
+            // تحديث عدد الأصوات للخيار المحدد
+            val newVoteCount = poll.options[optionIndex].votes + 1
+            transaction.update(messageRef, "poll.options.$optionIndex.votes", newVoteCount)
+
+            // إضافة المستخدم إلى قائمة المصوتين
+            transaction.update(messageRef, "poll.voters.$userId", optionIndex)
+
+            null
+        }
+    }
 
     // Function to "soft delete" a message
     fun deleteMessage(chatId: String, messageId: String): Task<Void> {

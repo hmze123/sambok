@@ -15,7 +15,8 @@
     <string name="authentication_required_error">Authentication is required to proceed.</string>
     <string name="message_deleted">This message was deleted</string>
     <string name="failed_to_load_profile">Failed to load profile: %1$s</string>
-
+    <string name="default_notification_channel_id" translatable="false">starry_fcm_channel</string>
+    <string name="default_notification_channel_name">General Notifications</string>
     <string name="no_reactions_yet">No reactions yet.</string>
     <string name="title_home">Home</string>
     <string name="title_messages">Messages</string>
