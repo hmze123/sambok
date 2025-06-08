@@ -40,6 +40,12 @@
             android:icon="@drawable/ic_social_connections"
             android:summary="Manage social connections" />
 
+        <Preference
+            android:key="bookmarks"
+            android:title="Bookmarks"
+            android:icon="@drawable/ic_bookmark_outline"
+            android:summary="View your saved posts"/>
+
     </PreferenceCategory>
 
     <PreferenceCategory

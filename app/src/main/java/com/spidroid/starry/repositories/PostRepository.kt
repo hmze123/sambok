@@ -205,7 +205,13 @@ class PostRepository {
             .limit(limit.toLong())
             .get()
     }
-
+    fun getBookmarkedPosts(userId: String, limit: Int = 30): Task<QuerySnapshot> {
+        return postsCollection
+            .whereEqualTo("bookmarks.$userId", true) // البحث عن المنشورات التي تحتوي على ID المستخدم في خريطة الحفظ
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .limit(limit.toLong())
+            .get()
+    }
     fun searchPostsByHashtag(hashtag: String, limit: Int = 20): Task<QuerySnapshot> {
         if (hashtag.isBlank()) {
             return Tasks.forResult(null)

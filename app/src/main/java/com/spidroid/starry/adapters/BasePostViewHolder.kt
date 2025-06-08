@@ -10,6 +10,7 @@ import android.text.style.ClickableSpan
 import android.util.Log
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -21,7 +22,8 @@ import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.utils.PostInteractionHandler
-import java.util.*
+import java.util.Date
+import java.util.Locale
 import java.util.regex.Pattern
 
 abstract class BasePostViewHolder(
@@ -53,7 +55,6 @@ abstract class BasePostViewHolder(
         itemBinding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
         itemBinding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
         itemBinding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
-
         itemBinding.tvTimestamp.text = formatTimestamp(post.createdAt)
 
         Glide.with(context)
@@ -77,13 +78,45 @@ abstract class BasePostViewHolder(
         itemBinding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(userModel) }
         itemBinding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(userModel) }
 
-        // --- منطق الترجمة الجديد ---
+        // Bind different content types
+        bindQuotedPost(itemBinding, post)
         setupTranslation(itemBinding, post)
+    }
+
+    private fun bindQuotedPost(binding: ItemPostBinding, post: PostModel) {
+        val quotedPostContainer = binding.layoutQuotedPost.root
+        val quotedPostData = post.quotedPost
+
+        if (quotedPostData != null) {
+            quotedPostContainer.visibility = View.VISIBLE
+
+            val quotedAuthorAvatar: ImageView = quotedPostContainer.findViewById(R.id.iv_quoted_author_avatar)
+            val quotedAuthorName: TextView = quotedPostContainer.findViewById(R.id.tv_quoted_author_name)
+            val quotedVerifiedBadge: ImageView = quotedPostContainer.findViewById(R.id.iv_quoted_verified)
+            val quotedContent: TextView = quotedPostContainer.findViewById(R.id.tv_quoted_content)
+
+            quotedAuthorName.text = quotedPostData.authorDisplayName ?: quotedPostData.authorUsername
+            quotedContent.text = quotedPostData.content
+            quotedVerifiedBadge.visibility = if (quotedPostData.isAuthorVerified) View.VISIBLE else View.GONE
+
+            Glide.with(context)
+                .load(quotedPostData.authorAvatarUrl)
+                .placeholder(R.drawable.ic_default_avatar)
+                .into(quotedAuthorAvatar)
+
+            quotedPostContainer.setOnClickListener {
+                Toast.makeText(context, "Navigate to quoted post: ${quotedPostData.postId}", Toast.LENGTH_SHORT).show()
+                // TODO: Implement navigation to the quoted post detail
+            }
+
+        } else {
+            quotedPostContainer.visibility = View.GONE
+        }
     }
 
     private fun setupTranslation(binding: ItemPostBinding, post: PostModel) {
         val originalText = post.content ?: ""
-        val translateButton = binding.tvTranslate // استخدام المعرف الجديد
+        val translateButton = binding.tvTranslate
 
         if (post.language != null && post.language != Locale.getDefault().language && originalText.isNotBlank()) {
             translateButton.visibility = View.VISIBLE
@@ -114,7 +147,6 @@ abstract class BasePostViewHolder(
         }
 
         val spannableString = SpannableStringBuilder(fullText)
-
         val pattern = Pattern.compile("([@#])(\\w+)")
         val matcher = pattern.matcher(fullText)
 

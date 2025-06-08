@@ -8,7 +8,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.activities.ProfileActivity
 import com.spidroid.starry.adapters.UserAdapter
 import com.spidroid.starry.databinding.FragmentSearchResultListBinding

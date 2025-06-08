@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.os.bundleOf
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -51,10 +50,7 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         observeViewModel()
-
-        userId?.let {
-            profileViewModel.fetchMediaForUser(it)
-        }
+        userId?.let { profileViewModel.fetchMediaForUser(it) }
     }
 
     private fun setupRecyclerView() {
@@ -69,7 +65,7 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
                 binding.tvEmptyPosts.visibility = View.GONE
                 binding.recyclerView.visibility = View.GONE
                 when (state) {
-                    is ProfileMediaState.Loading -> { /* Handle loading state */ }
+                    is ProfileMediaState.Loading -> { /* ... */ }
                     is ProfileMediaState.Success -> {
                         binding.recyclerView.visibility = View.VISIBLE
                         val allMediaUrls = state.mediaPosts.flatMap { it.mediaUrls }
@@ -88,13 +84,13 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) {
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
         val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
-        MediaViewerActivity.launch(requireActivity(), urls, position, null)
+        MediaViewerActivity.launch(requireActivity(), urls, position, sharedView)
     }
 
     override fun onVideoPlayClicked(videoUrl: String?) {
-        videoUrl?.let { onMediaClicked(mutableListOf(it), 0) }
+        videoUrl?.let { onMediaClicked(mutableListOf(it), 0, binding.root) }
     }
 
     override fun onDestroyView() {
@@ -110,7 +106,7 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    // --- الدوال الأخرى للـ Listener التي لا نحتاجها هنا ---
+    // --- بقية دوال الواجهة تبقى فارغة ---
     override fun onLikeClicked(post: PostModel?) {}
     override fun onCommentClicked(post: PostModel?) {}
     override fun onRepostClicked(post: PostModel?) {}
@@ -124,6 +120,7 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
     override fun onEditPostPrivacy(post: PostModel?) {}
     override fun onReportPost(post: PostModel?) {}
     override fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?) {}
+    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) {}
     override fun onEmojiSummaryClicked(post: PostModel?) {}
     override fun onHashtagClicked(hashtag: String?) {}
     override fun onPostLongClicked(post: PostModel?) {}
@@ -134,10 +131,4 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
     override fun onModeratePost(post: PostModel?) {}
     override fun onUserClicked(user: UserModel?) {}
     override fun onFollowClicked(user: UserModel?) {}
-
-    // --- الدالة التي تم إصلاحها ---
-    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) {
-        // لا يوجد منطق هنا حاليًا لأن هذه الواجهة لا تفتح منتقي التفاعلات
-        // لكن يجب تعريفها لتتوافق مع الواجهة
-    }
 }

@@ -21,6 +21,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_quote_repost"
+        android:title="إعادة النشر مع تعليق"
+        android:icon="@drawable/ic_repost_outline"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_save_post"
         android:title="حفظ المنشور"
         android:icon="@drawable/ic_bookmark_outline"

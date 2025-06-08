@@ -97,6 +97,7 @@ dependencies {
     implementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.firebaseui:firebase-ui-storage:9.0.0")
     implementation("com.google.mlkit:translate:17.0.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     // Kotlin stdlib and Coroutines
     // الإصدار يتم تحديده الآن من خلال plugin في الملف الرئيسي
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")

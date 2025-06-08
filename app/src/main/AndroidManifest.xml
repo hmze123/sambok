@@ -125,6 +125,10 @@
             android:name=".activities.FollowingListActivity"
             android:exported="false"
             android:theme="@style/Theme.Starry" />
+        <activity
+            android:name=".activities.BookmarksActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Starry" />
 
         <meta-data
             android:name="com.google.android.gms.version"

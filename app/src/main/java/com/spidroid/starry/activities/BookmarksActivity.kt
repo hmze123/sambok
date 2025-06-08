@@ -61,7 +61,18 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
         loadCurrentUser()
     }
 
+    private fun setupUI() {
+        setupMediaPreviewRecyclerView()
+        setupListeners()
+        binding.btnPost.isEnabled = false
+
+        if (postToQuote != null) {
+            showQuotedPostPreview(postToQuote!!)
+        }
+    }
+
     private fun showQuotedPostPreview(post: PostModel) {
+        // الوصول إلى الـ views من خلال كائن الربط الخاص بالـ include
         val quotedBinding = binding.layoutQuotedPost
         quotedBinding.root.visibility = View.VISIBLE
         quotedBinding.tvQuotedAuthorName.text = post.authorDisplayName ?: post.authorUsername
@@ -106,16 +117,12 @@ class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInte
         }.addOnCompleteListener { showProgress(false) }
     }
 
-    // --- بقية الدوال تبقى كما هي ---
-    // (InitializeFirebase, initializeMediaPicker, setupUI, etc.)
-
     private fun initializeFirebase() { /* ... */ }
     private fun initializeMediaPicker() { /* ... */ }
-    private fun setupUI() { /* ... */ }
     private fun loadCurrentUser() { /* ... */ }
     private fun handleUserLoadError(errorMessage: String) { /* ... */ }
     private fun setupListeners() { /* ... */ }
-    private fun hasVideo(): Boolean { /* ... */ return false }
+    private fun hasVideo(): Boolean { return false }
     private fun setupMediaPreviewRecyclerView() { /* ... */ }
     private fun handleMediaSelection(uris: List<Uri>) { /* ... */ }
     override fun onMediaRemoved(item: MediaPreviewAdapter.MediaItem, position: Int) { /* ... */ }

@@ -11,12 +11,8 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.PostRepository
 import com.spidroid.starry.repositories.UserRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
-// لا حاجة لتعريف UiState هنا، سنستخدم LiveData مباشرة للحالات
 
 class SearchViewModel : ViewModel() {
 
@@ -53,8 +49,8 @@ class SearchViewModel : ViewModel() {
                 // البحث عن المستخدمين والمنشورات في نفس الوقت
                 val usersTask = userRepository.searchUsers(query)
                 val postsTask = postRepository.searchPostsByContent(query)
-                // يمكن إضافة بحث الهاشتاجات هنا بنفس الطريقة
 
+                // انتظار نتائج المهمتين
                 val users = usersTask.await()
                 val posts = postsTask.await()?.toObjects(PostModel::class.java)
 

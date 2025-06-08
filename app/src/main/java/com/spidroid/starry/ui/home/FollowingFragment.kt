@@ -10,6 +10,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.spidroid.starry.activities.MediaViewerActivity
 import com.spidroid.starry.activities.PostDetailActivity
 import com.spidroid.starry.activities.ProfileActivity
 import com.spidroid.starry.adapters.PostAdapter
@@ -83,7 +84,6 @@ class FollowingFragment : Fragment(), PostInteractionListener {
                     binding.progressContainer.visibility = View.GONE
                     binding.swipeRefresh.isRefreshing = false
                 }
-                // يجب أن تكون الـ when شاملة
                 else -> {
                     binding.progressContainer.visibility = View.GONE
                     binding.swipeRefresh.isRefreshing = false
@@ -92,19 +92,15 @@ class FollowingFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    // --- تطبيق دوال PostInteractionListener ---
-
-    override fun onLikeClicked(post: PostModel?) {
-        post?.let { postViewModel.toggleLike(it, !it.isLiked) }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 
-    override fun onBookmarkClicked(post: PostModel?) {
-        post?.postId?.let { postViewModel.toggleBookmark(it, !post.isBookmarked) }
-    }
-
-    override fun onRepostClicked(post: PostModel?) {
-        post?.postId?.let { postViewModel.toggleRepost(it, !post.isReposted) }
-    }
+    // --- تطبيق دوال الواجهة بالشكل الصحيح ---
+    override fun onLikeClicked(post: PostModel?) { post?.let { postViewModel.toggleLike(it, !it.isLiked) } }
+    override fun onBookmarkClicked(post: PostModel?) { post?.postId?.let { postViewModel.toggleBookmark(it, !post.isBookmarked) } }
+    override fun onRepostClicked(post: PostModel?) { post?.postId?.let { postViewModel.toggleRepost(it, !post.isReposted) } }
 
     override fun onCommentClicked(post: PostModel?) {
         post?.let {
@@ -112,17 +108,6 @@ class FollowingFragment : Fragment(), PostInteractionListener {
                 putExtra(PostDetailActivity.EXTRA_POST, it)
             }
             startActivity(intent)
-        }
-    }
-
-    override fun onDeletePost(post: PostModel?) {
-        post?.postId?.let {
-            AlertDialog.Builder(requireContext())
-                .setTitle("Delete Post")
-                .setMessage("Are you sure?")
-                .setPositiveButton("Delete") { _, _ -> postViewModel.deletePost(it) }
-                .setNegativeButton("Cancel", null)
-                .show()
         }
     }
 
@@ -134,25 +119,25 @@ class FollowingFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    // --- الدالة التي تم إصلاحها ---
-    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) {
-        val safePost = post ?: return
-        postViewModel.handleEmojiSelection(safePost, emojiUnicode)
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
+        val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
+        MediaViewerActivity.launch(requireActivity(), urls, position, sharedView)
     }
 
-    // --- بقية الدوال الغير مستخدمة في هذا السياق ---
+    // --- بقية دوال الواجهة (يمكن تركها فارغة أو تنفيذها حسب الحاجة) ---
     override fun onMenuClicked(post: PostModel?, anchorView: View?) { /* ... */ }
     override fun onTogglePinPostClicked(post: PostModel?) { /* ... */ }
     override fun onEditPost(post: PostModel?) { /* ... */ }
+    override fun onDeletePost(post: PostModel?) { /* ... */ }
     override fun onCopyLink(post: PostModel?) { /* ... */ }
     override fun onSharePost(post: PostModel?) { /* ... */ }
     override fun onEditPostPrivacy(post: PostModel?) { /* ... */ }
     override fun onReportPost(post: PostModel?) { /* ... */ }
     override fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?) { /* ... */ }
+    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) { /* ... */ }
     override fun onEmojiSummaryClicked(post: PostModel?) { /* ... */ }
     override fun onHashtagClicked(hashtag: String?) { /* ... */ }
     override fun onPostLongClicked(post: PostModel?) { /* ... */ }
-    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int) { /* ... */ }
     override fun onVideoPlayClicked(videoUrl: String?) { /* ... */ }
     override fun onLayoutClicked(post: PostModel?) { onCommentClicked(post) }
     override fun onSeeMoreClicked(post: PostModel?) { /* ... */ }
@@ -160,10 +145,4 @@ class FollowingFragment : Fragment(), PostInteractionListener {
     override fun onShowOriginalClicked(post: PostModel?) { /* ... */ }
     override fun onModeratePost(post: PostModel?) { /* ... */ }
     override fun onFollowClicked(user: UserModel?) { /* ... */ }
-
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
-    }
 }

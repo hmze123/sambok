@@ -102,8 +102,7 @@
 
         <TextView
             android:id="@+id/tvPostContent"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp" android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             style="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnSurface"
@@ -149,14 +148,25 @@
         </FrameLayout>
 
         <include
+            android:id="@+id/layoutQuotedPost"
+            layout="@layout/item_quoted_post"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toBottomOf="@id/mediaContainer"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            tools:visibility="visible" />
+
+        <include
             android:id="@+id/layoutLinkPreview"
             layout="@layout/item_link_preview"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:visibility="gone"
-            app:layout_constraintTop_toBottomOf="@id/mediaContainer"
-            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/layoutQuotedPost" app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout

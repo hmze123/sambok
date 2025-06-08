@@ -16,7 +16,9 @@ class SearchFragment : Fragment() {
     private var _binding: FragmentSearchBinding? = null
     private val binding get() = _binding!!
 
+    // استخدام by viewModels لربط الـ ViewModel بدورة حياة الـ Fragment
     private val viewModel: SearchViewModel by viewModels()
+    private lateinit var searchStateAdapter: SearchStateAdapter
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -29,14 +31,15 @@ class SearchFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        setupViewPager()
+        setupViewPagerAndTabs()
         setupSearchView()
     }
 
-    private fun setupViewPager() {
-        val adapter = SearchStateAdapter(this)
-        binding.viewPagerSearch.adapter = adapter
+    private fun setupViewPagerAndTabs() {
+        searchStateAdapter = SearchStateAdapter(this)
+        binding.viewPagerSearch.adapter = searchStateAdapter
 
+        // ربط الـ TabLayout مع الـ ViewPager2
         TabLayoutMediator(binding.tabLayoutSearch, binding.viewPagerSearch) { tab, position ->
             tab.text = when (position) {
                 0 -> "Users"
@@ -49,18 +52,23 @@ class SearchFragment : Fragment() {
 
     private fun setupSearchView() {
         binding.searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
-            // يتم استدعاؤه عند الضغط على زر البحث
+
+            // يتم استدعاؤه عند الضغط على زر البحث في لوحة المفاتيح
             override fun onQueryTextSubmit(query: String?): Boolean {
                 if (!query.isNullOrBlank()) {
                     viewModel.performSearch(query)
                 }
-                binding.searchView.clearFocus() // إخفاء لوحة المفاتيح
+                binding.searchView.clearFocus() // إخفاء لوحة المفاتيح بعد البحث
                 return true
             }
 
-            // يتم استدعاؤه مع كل تغيير في النص (لن نستخدمه حاليًا لتجنب كثرة الطلبات)
+            // يتم استدعاؤه مع كل تغيير في النص
             override fun onQueryTextChange(newText: String?): Boolean {
-                return false
+                // إذا أردت بحثًا فوريًا، يمكنك تفعيل هذا الجزء
+                // if (!newText.isNullOrBlank()) {
+                //     viewModel.performSearch(newText)
+                // }
+                return true
             }
         })
     }

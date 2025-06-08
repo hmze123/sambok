@@ -153,6 +153,7 @@ class SettingsActivity : AppCompatActivity() {
                 return true
             }
             when (preference.key) {
+                "bookmarks" -> startActivity(Intent(requireContext(), BookmarksActivity::class.java)) // --- السطر الجديد ---
                 "email_verification" -> sendVerificationEmail()
                 "change_password" -> showChangePasswordDialog()
                 "logout" -> showLogoutConfirmation()

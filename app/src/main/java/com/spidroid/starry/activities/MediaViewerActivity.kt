@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/MediaViewerActivity.kt
 package com.spidroid.starry.activities
 
 import android.Manifest
@@ -23,6 +22,7 @@ import androidx.appcompat.widget.PopupMenu
 import androidx.core.app.ActivityCompat
 import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -35,7 +35,6 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityMediaViewerBinding
 import com.spidroid.starry.databinding.MediaItemImageBinding
 import com.spidroid.starry.databinding.MediaItemVideoBinding
-import java.io.File
 import kotlin.math.max
 import kotlin.math.min
 
@@ -48,14 +47,16 @@ class MediaViewerActivity : AppCompatActivity() {
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // --- تفعيل تأثيرات الانتقال قبل أي شيء آخر ---
+        supportPostponeEnterTransition()
         super.onCreate(savedInstanceState)
+
         binding = ActivityMediaViewerBinding.inflate(layoutInflater)
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
 
         initializePermissionLauncher()
 
-        // تأكد من تصفية القيم null إذا كان EXTRA_MEDIA_URLS قد يحتوي عليها
         intent.getStringArrayListExtra(EXTRA_MEDIA_URLS)?.let {
             mediaUrls.addAll(it.filterNotNull())
         }
@@ -85,21 +86,21 @@ class MediaViewerActivity : AppCompatActivity() {
         val adapter = MediaPagerAdapter()
         binding.viewPager.adapter = adapter
         binding.viewPager.setCurrentItem(currentPosition, false)
+
+        // --- بدء الانتقال بعد تجهيز الواجهة ---
+        ViewCompat.setTransitionName(binding.viewPager, mediaUrls[currentPosition])
+        supportStartPostponedEnterTransition()
+
         binding.viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 currentPosition = position
-                // عند تغيير الصفحة، تأكد من تحرير اللاعب السابق إذا كان فيديو
-                val currentHolder = (binding.viewPager.adapter as? MediaPagerAdapter)?.getCurrentViewHolder(position)
-                if (currentHolder is MediaPagerAdapter.VideoViewHolder) {
-                    currentHolder.player?.play()
-                }
-                // وإيقاف اللاعب في الصفحة السابقة
-                for (i in 0 until (binding.viewPager.adapter?.itemCount ?: 0)) {
+                val adapter = binding.viewPager.adapter as? MediaPagerAdapter
+                // إيقاف جميع الفيديوهات الأخرى عند التمرير
+                for (i in 0 until (adapter?.itemCount ?: 0)) {
                     if (i != position) {
-                        val holder = (binding.viewPager.adapter as? MediaPagerAdapter)?.getCurrentViewHolder(i)
+                        val holder = adapter?.findViewHolder(i)
                         if (holder is MediaPagerAdapter.VideoViewHolder) {
                             holder.player?.pause()
-                            holder.player?.seekTo(0) // إعادة تعيين الفيديو إلى البداية
                         }
                     }
                 }
@@ -130,14 +131,10 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private fun checkStoragePermissionAndDownload() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            // No permission needed for scoped storage on Android 10+
             downloadCurrentMedia()
         } else {
             when {
-                ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) == PackageManager.PERMISSION_GRANTED -> {
+                ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED -> {
                     downloadCurrentMedia()
                 }
                 else -> {
@@ -168,7 +165,7 @@ class MediaViewerActivity : AppCompatActivity() {
     private fun shareCurrentMedia() {
         val url = mediaUrls.getOrNull(currentPosition) ?: return
         val shareIntent = Intent(Intent.ACTION_SEND).apply {
-            type = getMimeType(url) ?: "image/*" // Default to image if type is unknown
+            type = getMimeType(url) ?: "image/*"
             putExtra(Intent.EXTRA_STREAM, Uri.parse(url))
         }
         startActivity(Intent.createChooser(shareIntent, "Share via"))
@@ -189,13 +186,16 @@ class MediaViewerActivity : AppCompatActivity() {
 
     private inner class MediaPagerAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-        private val viewHolders = mutableMapOf<Int, RecyclerView.ViewHolder>() // لتتبع الـ ViewHolders النشطة
+        private val viewHolders = mutableMapOf<Int, RecyclerView.ViewHolder>()
 
-        private val TYPE_IMAGE = 1 // ✨ تم تغيير 'const val' إلى 'val'
-        private val TYPE_VIDEO = 2 // ✨ تم تغيير 'const val' إلى 'val'
+        private val TYPE_IMAGE = 1
+        private val TYPE_VIDEO = 2
+
+        fun findViewHolder(position: Int): RecyclerView.ViewHolder? = viewHolders[position]
 
         override fun getItemViewType(position: Int): Int {
-            return if (mediaUrls[position].contains(".mp4", ignoreCase = true) || mediaUrls[position].contains(".mov", ignoreCase = true)) TYPE_VIDEO else TYPE_IMAGE
+            val url = mediaUrls[position]
+            return if (url.contains(".mp4", ignoreCase = true) || url.contains(".mov", ignoreCase = true)) TYPE_VIDEO else TYPE_IMAGE
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
@@ -208,8 +208,8 @@ class MediaViewerActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+            viewHolders[position] = holder
             val url = mediaUrls[position]
-            viewHolders[position] = holder // حفظ الـ ViewHolder النشط
             when (holder) {
                 is VideoViewHolder -> holder.bind(url)
                 is ImageViewHolder -> holder.bind(url)
@@ -219,24 +219,19 @@ class MediaViewerActivity : AppCompatActivity() {
         override fun getItemCount(): Int = mediaUrls.size
 
         override fun onViewRecycled(holder: RecyclerView.ViewHolder) {
-            super.onViewRecycled(holder)
             if (holder is VideoViewHolder) {
                 holder.releasePlayer()
             }
-            viewHolders.values.remove(holder) // إزالة الـ ViewHolder المعاد تدويره
+            viewHolders.values.remove(holder)
+            super.onViewRecycled(holder)
         }
-
-        // دالة مساعدة للحصول على الـ ViewHolder الحالي
-        fun getCurrentViewHolder(position: Int): RecyclerView.ViewHolder? {
-            return viewHolders[position]
-        }
-
 
         inner class ImageViewHolder(private val binding: MediaItemImageBinding) : RecyclerView.ViewHolder(binding.root) {
             init {
                 binding.photoView.setOnClickListener { toggleControls() }
             }
             fun bind(url: String) {
+                ViewCompat.setTransitionName(binding.photoView, url)
                 Glide.with(itemView)
                     .load(url)
                     .transition(DrawableTransitionOptions.withCrossFade())
@@ -247,18 +242,14 @@ class MediaViewerActivity : AppCompatActivity() {
 
         inner class VideoViewHolder(private val binding: MediaItemVideoBinding) : RecyclerView.ViewHolder(binding.root) {
             var player: ExoPlayer? = null
-
             init {
                 binding.playerView.setOnClickListener { toggleControls() }
             }
-
             fun bind(url: String) {
                 initializePlayer()
                 player?.setMediaItem(MediaItem.fromUri(url))
                 player?.prepare()
-                //player?.play()
             }
-
             private fun initializePlayer() {
                 if (player == null) {
                     player = ExoPlayer.Builder(itemView.context).build().also {
@@ -275,12 +266,9 @@ class MediaViewerActivity : AppCompatActivity() {
                     }
                 }
             }
-
             fun releasePlayer() {
-                player?.stop()
                 player?.release()
                 player = null
-                binding.playerView.player = null
             }
         }
     }
@@ -292,30 +280,29 @@ class MediaViewerActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         val adapter = binding.viewPager.adapter as? MediaPagerAdapter
-        for (i in 0 until (adapter?.itemCount ?: 0)) {
-            val holder = adapter?.getCurrentViewHolder(i)
-            if (holder is MediaPagerAdapter.VideoViewHolder) {
-                holder.player?.pause()
-            }
+        val holder = adapter?.findViewHolder(currentPosition)
+        if (holder is MediaPagerAdapter.VideoViewHolder) {
+            holder.player?.pause()
         }
     }
 
     override fun onResume() {
         super.onResume()
         val adapter = binding.viewPager.adapter as? MediaPagerAdapter
-        val currentHolder = adapter?.getCurrentViewHolder(binding.viewPager.currentItem)
-        if (currentHolder is MediaPagerAdapter.VideoViewHolder) {
-            currentHolder.player?.play()
+        val holder = adapter?.findViewHolder(currentPosition)
+        if (holder is MediaPagerAdapter.VideoViewHolder) {
+            holder.player?.play()
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         val adapter = binding.viewPager.adapter as? MediaPagerAdapter
-        for (i in 0 until (adapter?.itemCount ?: 0)) {
-            val holder = adapter?.getCurrentViewHolder(i)
-            if (holder is MediaPagerAdapter.VideoViewHolder) {
-                holder.releasePlayer()
+        for (i in 0 until mediaUrls.size) {
+            adapter?.findViewHolder(i)?.let {
+                if (it is MediaPagerAdapter.VideoViewHolder) {
+                    it.releasePlayer()
+                }
             }
         }
     }
@@ -325,15 +312,19 @@ class MediaViewerActivity : AppCompatActivity() {
         private const val EXTRA_POSITION = "position"
 
         @JvmStatic
-        fun launch(activity: Activity, urls: ArrayList<String?>, pos: Int, sharedView: View?) {
+        fun launch(activity: Activity, urls: ArrayList<String>, pos: Int, sharedView: View?) {
             val intent = Intent(activity, MediaViewerActivity::class.java).apply {
                 putStringArrayListExtra(EXTRA_MEDIA_URLS, urls)
                 putExtra(EXTRA_POSITION, max(0, min(pos, urls.size - 1)))
             }
 
-            if (sharedView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(activity, sharedView, "media_transition")
-                ActivityCompat.startActivity(activity, intent, options.toBundle())
+            if (sharedView != null) {
+                val options = ActivityOptionsCompat.makeSceneTransitionAnimation(
+                    activity,
+                    sharedView,
+                    ViewCompat.getTransitionName(sharedView) ?: ""
+                )
+                activity.startActivity(intent, options.toBundle())
             } else {
                 activity.startActivity(intent)
                 activity.overridePendingTransition(R.anim.fade_in, R.anim.fade_out)
