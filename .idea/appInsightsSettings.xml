@@ -10,9 +10,9 @@
               <option name="connection">
                 <ConnectionSetting>
                   <option name="appId" value="com.spidroid.starry" />
-                  <option name="mobileSdkAppId" value="1:33028588720:android:cb68229c9be07bc6f16775" />
-                  <option name="projectId" value="starry-app-8d8cb" />
-                  <option name="projectNumber" value="33028588720" />
+                  <option name="mobileSdkAppId" value="1:880668644702:android:b03408519ed0afb948ebcf" />
+                  <option name="projectId" value="starry-app-new" />
+                  <option name="projectNumber" value="880668644702" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />

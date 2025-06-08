@@ -20,7 +20,7 @@ data class UserModel(
     var profileImageUrl: String? = null,
     var coverImageUrl: String? = null,
     var bio: String? = null,
-
+    var managedPages: MutableMap<String, Boolean> = mutableMapOf(),
     // Timestamps
     @ServerTimestamp var createdAt: Date? = null,
     @ServerTimestamp var lastLogin: Date? = null,

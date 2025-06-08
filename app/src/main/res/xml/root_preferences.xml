@@ -39,12 +39,20 @@
             android:title="Connected Accounts"
             android:icon="@drawable/ic_social_connections"
             android:summary="Manage social connections" />
+        <Preference
+            android:key="create_page"
+            android:title="Create New Page"
+            android:icon="@drawable/ic_group_add"
+            android:summary="Start a page for your business or community"/>
 
         <Preference
             android:key="bookmarks"
             android:title="Bookmarks"
             android:icon="@drawable/ic_bookmark_outline"
             android:summary="View your saved posts"/>
+
+
+
 
     </PreferenceCategory>
 

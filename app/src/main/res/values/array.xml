@@ -1,0 +1,10 @@
+<resources>
+    <string-array name="page_categories">
+        <item>Business</item>
+        <item>Creator or Public Figure</item>
+        <item>Community or Fan Group</item>
+        <item>Brand or Product</item>
+        <item>Organization</item>
+        <item>Other</item>
+    </string-array>
+</resources>

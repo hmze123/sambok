@@ -41,6 +41,7 @@ class SettingsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivitySettingsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        supportFragmentManager.beginTransaction().replace(android.R.id.content, SettingsFragment()).commit()
 
         setSupportActionBar(binding.toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -73,7 +74,8 @@ class SettingsActivity : AppCompatActivity() {
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.root_preferences, rootKey)
-
+            findPreference<Preference>("bookmarks")?.onPreferenceClickListener = this
+            findPreference<Preference>("create_page")?.onPreferenceClickListener = this
             currentUser = auth.currentUser
             userViewModel = ViewModelProvider(requireActivity()).get(UserViewModel::class.java)
 
@@ -152,6 +154,7 @@ class SettingsActivity : AppCompatActivity() {
                 Toast.makeText(context, "Please log in.", Toast.LENGTH_SHORT).show()
                 return true
             }
+
             when (preference.key) {
                 "bookmarks" -> startActivity(Intent(requireContext(), BookmarksActivity::class.java)) // --- السطر الجديد ---
                 "email_verification" -> sendVerificationEmail()
@@ -166,6 +169,10 @@ class SettingsActivity : AppCompatActivity() {
                 "notify_messages" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
                 "notify_comments" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
                 "notify_reposts" -> Toast.makeText(context, "Notification settings coming soon!", Toast.LENGTH_SHORT).show()
+                "create_page" -> {
+                    startActivity(Intent(requireContext(), CreatePageActivity::class.java))
+                    true
+                }
                 // Handle other clicks...
             }
             return true
