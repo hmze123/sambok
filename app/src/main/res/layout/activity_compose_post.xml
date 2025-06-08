@@ -28,7 +28,7 @@
                     android:layout_width="48dp"
                     android:src="@drawable/ic_close"
                     android:background="@drawable/circle_background"
-                    app:tint="@color/text_secondary"
+                    app:tint="?attr/colorOnSurfaceVariant"
                     android:id="@+id/btnClose" />
 
                 <TextView
@@ -36,7 +36,7 @@
                     android:layout_width="0dp"
                     android:gravity="center"
                     android:textSize="20sp"
-                    android:textColor="@color/text_primary"
+                    android:textColor="?attr/colorOnSurface"
                     android:layout_weight="1"
                     android:text="New Post"
                     android:textStyle="bold" />
@@ -49,19 +49,28 @@
                     android:textColor="@android:color/white"
                     android:id="@+id/btnPost"
                     android:text="Post" />
-
             </LinearLayout>
 
             <EditText
+                android:id="@+id/etContent"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
                 android:hint="What's happening?"
                 android:minHeight="150dp"
                 android:textSize="16sp"
-                android:textColor="@color/text_primary"
-                android:maxLength="280" android:layout_marginTop="16dp"
-                android:inputType="textMultiLine|textCapSentences"
-                android:id="@+id/etContent" />
+                android:textColor="?attr/colorOnSurface"
+                android:maxLength="280"
+                android:layout_marginTop="16dp"
+                android:inputType="textMultiLine|textCapSentences" />
+
+            <include
+                android:id="@+id/layoutQuotedPost"
+                layout="@layout/item_quoted_post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvMediaPreview"
@@ -72,6 +81,7 @@
                 android:clipToPadding="false"
                 app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                 tools:listitem="@layout/item_media_preview" />
+
             <include
                 android:id="@+id/layoutLinkPreview"
                 layout="@layout/layout_link_preview"
@@ -79,11 +89,12 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:visibility="gone" />
+
             <TextView
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
                 android:textAlignment="textEnd"
-                android:textColor="@color/text_secondary"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:layout_marginTop="8dp"
                 android:id="@+id/tvCharCount"
                 android:text="0/280" />
@@ -110,28 +121,15 @@
                     app:tint="@color/twitter_primary"
                     android:layout_marginStart="8dp"
                     android:id="@+id/btnAddVideo" />
-
             </LinearLayout>
-
         </LinearLayout>
-
     </ScrollView>
-
-    <androidx.cardview.widget.CardView
-        android:layout_height="80dp"
-        android:layout_width="80dp"
-        android:visibility="gone"
-        app:cardBackgroundColor="#80000000"
-        app:cardCornerRadius="16dp"
+    <include
         android:id="@+id/progressContainer"
-        android:layout_gravity="center">
-
-        <com.spidroid.starry.auth.CircularProgressBar
-            android:layout_height="40dp"
-            android:layout_width="40dp"
-            android:id="@+id/circularProgressBar"
-            android:layout_gravity="center" />
-
-    </androidx.cardview.widget.CardView>
-
+        layout="@layout/progress_container"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_gravity="center"
+        android:visibility="gone"
+        tools:visibility="visible" />
 </FrameLayout>

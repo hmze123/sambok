@@ -10,6 +10,7 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
+import com.spidroid.starry.activities.ComposePostActivity
 import com.spidroid.starry.activities.MediaViewerActivity
 import com.spidroid.starry.adapters.PostInteractionListener
 import com.spidroid.starry.adapters.PostMediaAdapter
@@ -50,7 +51,10 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         observeViewModel()
-        userId?.let { profileViewModel.fetchMediaForUser(it) }
+
+        userId?.let {
+            profileViewModel.fetchMediaForUser(it)
+        }
     }
 
     private fun setupRecyclerView() {
@@ -65,7 +69,7 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
                 binding.tvEmptyPosts.visibility = View.GONE
                 binding.recyclerView.visibility = View.GONE
                 when (state) {
-                    is ProfileMediaState.Loading -> { /* ... */ }
+                    is ProfileMediaState.Loading -> { /* Handle loading state */ }
                     is ProfileMediaState.Success -> {
                         binding.recyclerView.visibility = View.VISIBLE
                         val allMediaUrls = state.mediaPosts.flatMap { it.mediaUrls }
@@ -84,15 +88,6 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
-        val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
-        MediaViewerActivity.launch(requireActivity(), urls, position, sharedView)
-    }
-
-    override fun onVideoPlayClicked(videoUrl: String?) {
-        videoUrl?.let { onMediaClicked(mutableListOf(it), 0, binding.root) }
-    }
-
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
@@ -106,10 +101,22 @@ class ProfileMediaFragment : Fragment(), PostInteractionListener {
         }
     }
 
-    // --- بقية دوال الواجهة تبقى فارغة ---
+    // --- تطبيق جميع دوال الواجهة ---
+
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
+        val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
+        MediaViewerActivity.launch(requireActivity(), urls, position, sharedView)
+    }
+
+    override fun onVideoPlayClicked(videoUrl: String?) {
+        videoUrl?.let { onMediaClicked(mutableListOf(it), 0, binding.root) }
+    }
+
+    // --- بقية الدوال مع ترك جسمها فارغًا لأنها غير مستخدمة هنا ---
     override fun onLikeClicked(post: PostModel?) {}
     override fun onCommentClicked(post: PostModel?) {}
     override fun onRepostClicked(post: PostModel?) {}
+    override fun onQuoteRepostClicked(post: PostModel?) {}
     override fun onBookmarkClicked(post: PostModel?) {}
     override fun onMenuClicked(post: PostModel?, anchorView: View?) {}
     override fun onTogglePinPostClicked(post: PostModel?) {}

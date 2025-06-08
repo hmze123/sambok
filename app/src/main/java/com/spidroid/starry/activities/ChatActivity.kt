@@ -5,7 +5,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -30,13 +29,13 @@ import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.ui.messages.*
 import com.spidroid.starry.viewmodels.ChatViewModel
 import com.spidroid.starry.viewmodels.UiState
+import java.util.*
 
-// --- السطر الذي تم تعديله ---
 class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMenuListener, PollDialog.OnPollCreatedListener {
 
     private lateinit var binding: ActivityChatBinding
-    private val auth: FirebaseAuth by lazy { Firebase.auth }
     private val viewModel: ChatViewModel by viewModels()
+    private val auth: FirebaseAuth by lazy { Firebase.auth }
 
     private var currentUserId: String? = null
     private var chatId: String? = null
@@ -85,21 +84,56 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
         viewModel.listenForMessages(chatId!!)
     }
 
+    private fun handleAuthError() {
+        Toast.makeText(this, getString(R.string.authentication_required_error), Toast.LENGTH_LONG).show()
+        finish()
+    }
+
+    private fun setupUI() {
+        setupRecyclerView()
+        setupInputLayout()
+        setupAppBar()
+    }
+
+    private fun setupRecyclerView() {
+        messageAdapter = MessageAdapter(currentUserId!!, this, this)
+        binding.recyclerView.apply {
+            layoutManager = LinearLayoutManager(this@ChatActivity).apply { stackFromEnd = true }
+            adapter = messageAdapter
+            setPadding(0, 0, 0, 16)
+            clipToPadding = false
+        }
+    }
+
+    private fun setupAppBar() {
+        binding.toolbar.setNavigationOnClickListener { finish() }
+    }
+
     private fun observeViewModel() {
         viewModel.currentUserModel.observe(this) { user ->
-            if (user == null) { Toast.makeText(this, "Failed to load your user data.", Toast.LENGTH_LONG).show() }
+            if (user == null && auth.currentUser != null) {
+                Toast.makeText(this, "Failed to load your user data.", Toast.LENGTH_LONG).show()
+            }
             this.currentUserModel = user
             updateSendButtonState()
         }
+
         viewModel.messages.observe(this) { messages ->
             messageAdapter.submitList(messages) { scrollToBottom() }
         }
+
         viewModel.chatPartner.observe(this) { user ->
             user?.let { bindUserHeader(it) }
         }
+
         viewModel.groupDetails.observe(this) { chat ->
             chat?.let { bindGroupHeader(it) }
         }
+
+        viewModel.typingPartner.observe(this) { user ->
+            binding.tvTypingIndicator.visibility = if (user != null) View.VISIBLE else View.GONE
+        }
+
         viewModel.uiState.observe(this) { state ->
             when (state) {
                 is UiState.Loading -> showProgress(true)
@@ -111,32 +145,10 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
                     showProgress(false)
                     clearInput()
                 }
-                else -> { /* No-op */ }
+                is UiState.SuccessWithData -> {
+                    showProgress(false)
+                }
             }
-        }
-        viewModel.typingPartner.observe(this) { user ->
-            binding.tvTypingIndicator.visibility = if (user != null) View.VISIBLE else View.GONE
-        }
-    }
-
-    private fun setupUI() {
-        setupRecyclerView()
-        setupInputLayout()
-        setupAppBar()
-    }
-
-    private fun handleAuthError() {
-        Toast.makeText(this, getString(R.string.authentication_required_error), Toast.LENGTH_LONG).show()
-        finish()
-    }
-
-    private fun setupRecyclerView() {
-        messageAdapter = MessageAdapter(currentUserId!!, this, this)
-        binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@ChatActivity).apply { stackFromEnd = true }
-            adapter = messageAdapter
-            setPadding(0, 0, 0, 16)
-            clipToPadding = false
         }
     }
 
@@ -170,7 +182,6 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
     private fun sendMessage() {
         val messageText = binding.inputSection.postInput.text.toString().trim()
         val mediaUri = currentMediaUri
-
         if (messageText.isEmpty() && mediaUri == null) return
 
         val user = currentUserModel
@@ -204,7 +215,35 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
         pollDialog.show(supportFragmentManager, "PollDialog")
     }
 
-    // --- تطبيق دوال الواجهات ---
+    private fun showEditMessageDialog(message: ChatMessage) {
+        val container = android.widget.FrameLayout(this).apply {
+            val padding = (20 * resources.displayMetrics.density).toInt()
+            setPadding(padding, 0, padding, 0)
+        }
+        val editText = EditText(this).apply {
+            setText(message.content)
+            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        }
+        container.addView(editText)
+
+        AlertDialog.Builder(this)
+            .setTitle("Edit Message")
+            .setView(container)
+            .setPositiveButton("Save") { _, _ ->
+                val newContent = editText.text.toString().trim()
+                if (newContent.isNotEmpty() && newContent != message.content) {
+                    if (message.messageId.isNullOrEmpty() || chatId.isNullOrEmpty()) {
+                        Toast.makeText(this, "Cannot edit this message.", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    viewModel.editMessage(chatId!!, message.messageId!!, newContent)
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // --- Implement all listener methods ---
 
     override fun onPollCreated(poll: ChatMessage.Poll) {
         val user = currentUserModel ?: return
@@ -216,10 +255,6 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
             poll = poll
         )
         viewModel.sendMessage(chatId!!, message, null)
-    }
-
-    override fun onPollVote(messageId: String, optionIndex: Int) {
-        viewModel.castVote(chatId!!, messageId, optionIndex)
     }
 
     override fun onMessageLongClick(message: ChatMessage, position: Int) {
@@ -238,7 +273,10 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
             .setTitle("Delete Message")
             .setMessage("Are you sure you want to delete this message? This cannot be undone.")
             .setPositiveButton("Delete for Everyone") { _, _ ->
-                if (chatId.isNullOrEmpty() || message.messageId.isNullOrEmpty()) { return@setPositiveButton }
+                if (chatId.isNullOrEmpty() || message.messageId.isNullOrEmpty()) {
+                    Toast.makeText(this, "Error deleting message.", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
                 viewModel.deleteMessage(chatId!!, message.messageId!!)
             }
             .setNegativeButton("Cancel", null)
@@ -246,7 +284,7 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
     }
 
     override fun onEditMessage(message: ChatMessage) { showEditMessageDialog(message) }
-    override fun onReportMessage(message: ChatMessage) { /* ... */ }
+    override fun onReportMessage(message: ChatMessage) { Toast.makeText(this, "Report feature coming soon!", Toast.LENGTH_SHORT).show() }
     override fun onReplyToMessage(message: ChatMessage) {
         messageToReply = message
         binding.inputSection.replyPreviewContainer.visibility = View.VISIBLE
@@ -256,27 +294,84 @@ class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMe
         val imm = getSystemService(INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
         imm?.showSoftInput(binding.inputSection.postInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
-    override fun onTranslateMessage(message: ChatMessage) { /* ... */ }
-    override fun onMediaClick(mediaUrl: String, position: Int) { /* ... */ }
-    override fun onReplyClick(messageId: String) { /* ... */ }
-    override fun onFileClick(fileUrl: String) { /* ... */ }
+    override fun onTranslateMessage(message: ChatMessage) { Toast.makeText(this, "Translate feature coming soon!", Toast.LENGTH_SHORT).show() }
+    override fun onMediaClick(mediaUrl: String, position: Int) {
+        val intent = Intent(this, MediaViewerActivity::class.java).apply {
+            putStringArrayListExtra("media_urls", arrayListOf(mediaUrl))
+            putExtra("position", 0)
+        }
+        startActivity(intent)
+    }
+    override fun onReplyClick(messageId: String) { /* Not implemented yet */ }
+    override fun onPollVote(messageId: String, optionIndex: Int) {
+        viewModel.castVote(chatId!!, messageId, optionIndex)
+    }
+    override fun onFileClick(fileUrl: String) { /* Not implemented yet */ }
 
-    // ... (بقية الدوال المساعدة تبقى كما هي)
-    private fun showEditMessageDialog(message: ChatMessage) { /* ... */ }
-    private fun setupAppBar() { /* ... */ }
-    private fun bindGroupHeader(chat: Chat) { /* ... */ }
-    private fun bindUserHeader(user: UserModel) { /* ... */ }
-    private fun updateSendButtonState() { /* ... */ }
-    private fun clearInput() { /* ... */ }
+    // --- Helper functions ---
+
+    private fun bindGroupHeader(chat: Chat) {
+        binding.tvAppName.text = chat.groupName ?: "Group"
+        Glide.with(this).load(chat.groupImage).placeholder(R.drawable.ic_default_group).into(binding.ivAvatar)
+        binding.ivVerified.visibility = View.GONE
+    }
+
+    private fun bindUserHeader(user: UserModel) {
+        binding.tvAppName.text = user.displayName ?: user.username
+        Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
+        binding.ivVerified.isVisible = user.isVerified
+    }
+
+    private fun updateSendButtonState() {
+        val hasText = binding.inputSection.postInput.text.trim().isNotEmpty()
+        val hasMedia = currentMediaUri != null
+        val canSend = (hasText || hasMedia) && currentUserModel != null
+        binding.inputSection.btnSend.isEnabled = canSend
+        binding.inputSection.btnSend.isVisible = canSend
+        binding.inputSection.btnRecord.isVisible = !canSend
+    }
+
+    private fun clearInput() {
+        binding.inputSection.postInput.text.clear()
+        clearMediaPreview()
+        cancelReply()
+    }
+
     private fun cancelReply() {
         messageToReply = null
         binding.inputSection.replyPreviewContainer.visibility = View.GONE
     }
-    private fun showMediaPreview(uri: Uri) { /* ... */ }
-    private fun clearMediaPreview() { /* ... */ }
-    private fun toggleMediaOptions() { /* ... */ }
-    private fun showProgress(show: Boolean) { /* ... */ }
-    private fun scrollToBottom() { /* ... */ }
+
+    private fun showMediaPreview(uri: Uri) {
+        val mediaPreviewBinding = binding.inputSection.mediaPreview
+        mediaPreviewBinding.root.visibility = View.VISIBLE
+        Glide.with(this).load(uri).into(mediaPreviewBinding.ivMedia)
+        mediaPreviewBinding.btnRemove.setOnClickListener { clearMediaPreview() }
+        updateSendButtonState()
+    }
+
+    private fun clearMediaPreview() {
+        binding.inputSection.mediaPreview.root.visibility = View.GONE
+        currentMediaUri = null
+        updateSendButtonState()
+    }
+
+    private fun toggleMediaOptions() {
+        binding.inputSection.bottomToolbar.isVisible = !binding.inputSection.bottomToolbar.isVisible
+    }
+
+    private fun showProgress(show: Boolean) {
+        binding.inputSection.progressBar.isVisible = show
+        binding.inputSection.btnSend.isEnabled = !show
+    }
+
+    private fun scrollToBottom() {
+        if (messageAdapter.itemCount > 0) {
+            binding.recyclerView.post {
+                binding.recyclerView.smoothScrollToPosition(messageAdapter.itemCount - 1)
+            }
+        }
+    }
 
     override fun onDestroy() {
         super.onDestroy()

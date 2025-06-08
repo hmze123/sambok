@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.spidroid.starry.activities.ComposePostActivity
 import com.spidroid.starry.activities.MediaViewerActivity
 import com.spidroid.starry.activities.PostDetailActivity
 import com.spidroid.starry.activities.ProfileActivity
@@ -20,13 +21,18 @@ import com.spidroid.starry.viewmodels.PostViewModel
 import com.spidroid.starry.viewmodels.SearchViewModel
 
 class PostsSearchFragment : Fragment(), PostInteractionListener {
+
     private var _binding: FragmentSearchResultListBinding? = null
     private val binding get() = _binding!!
+
     private val viewModel: SearchViewModel by activityViewModels()
     private val postInteractionViewModel: PostViewModel by activityViewModels()
     private lateinit var postAdapter: PostAdapter
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
         _binding = FragmentSearchResultListBinding.inflate(inflater, container, false)
         return binding.root
     }
@@ -62,19 +68,12 @@ class PostsSearchFragment : Fragment(), PostInteractionListener {
         _binding = null
     }
 
-    // --- الدالة التي تم إصلاحها ---
-    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
-        val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
-        // بما أننا في قائمة بحث، سنفتح عارض الصور بدون أنيميشن معقد
-        val intent = Intent(activity, MediaViewerActivity::class.java).apply {
-            putStringArrayListExtra("media_urls", urls)
-            putExtra("position", position)
-        }
-        startActivity(intent)
+    // --- تطبيق جميع دوال الواجهة ---
+
+    override fun onLikeClicked(post: PostModel?) {
+        post?.let { postInteractionViewModel.toggleLike(it, !it.isLiked) }
     }
 
-    // --- بقية دوال الواجهة ---
-    override fun onLikeClicked(post: PostModel?) { post?.let { postInteractionViewModel.toggleLike(it, !it.isLiked) } }
     override fun onCommentClicked(post: PostModel?) {
         post?.let {
             val intent = Intent(activity, PostDetailActivity::class.java).apply {
@@ -83,6 +82,7 @@ class PostsSearchFragment : Fragment(), PostInteractionListener {
             startActivity(intent)
         }
     }
+
     override fun onUserClicked(user: UserModel?) {
         user?.userId?.let {
             val intent = Intent(activity, ProfileActivity::class.java).apply {
@@ -91,26 +91,40 @@ class PostsSearchFragment : Fragment(), PostInteractionListener {
             startActivity(intent)
         }
     }
-    override fun onRepostClicked(post: PostModel?) { /* ... */ }
-    override fun onBookmarkClicked(post: PostModel?) { /* ... */ }
-    override fun onMenuClicked(post: PostModel?, anchorView: View?) { /* ... */ }
-    override fun onTogglePinPostClicked(post: PostModel?) { /* ... */ }
-    override fun onEditPost(post: PostModel?) { /* ... */ }
-    override fun onDeletePost(post: PostModel?) { /* ... */ }
-    override fun onCopyLink(post: PostModel?) { /* ... */ }
-    override fun onSharePost(post: PostModel?) { /* ... */ }
-    override fun onEditPostPrivacy(post: PostModel?) { /* ... */ }
-    override fun onReportPost(post: PostModel?) { /* ... */ }
-    override fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?) { /* ... */ }
-    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) { /* ... */ }
-    override fun onEmojiSummaryClicked(post: PostModel?) { /* ... */ }
-    override fun onHashtagClicked(hashtag: String?) { /* ... */ }
-    override fun onPostLongClicked(post: PostModel?) { /* ... */ }
-    override fun onVideoPlayClicked(videoUrl: String?) { /* ... */ }
+
+    override fun onMediaClicked(mediaUrls: MutableList<String?>?, position: Int, sharedView: View) {
+        val urls = mediaUrls?.filterNotNull()?.let { ArrayList(it) } ?: return
+        MediaViewerActivity.launch(requireActivity(), urls, position, sharedView)
+    }
+
+    override fun onQuoteRepostClicked(post: PostModel?) {
+        val intent = Intent(activity, ComposePostActivity::class.java).apply {
+            putExtra(ComposePostActivity.EXTRA_QUOTE_POST, post)
+        }
+        startActivity(intent)
+    }
+
+    // --- بقية الدوال التي لا نحتاج لمنطق خاص بها في هذه الواجهة ---
+    override fun onRepostClicked(post: PostModel?) {}
+    override fun onBookmarkClicked(post: PostModel?) {}
+    override fun onMenuClicked(post: PostModel?, anchorView: View?) {}
+    override fun onTogglePinPostClicked(post: PostModel?) {}
+    override fun onEditPost(post: PostModel?) {}
+    override fun onDeletePost(post: PostModel?) {}
+    override fun onCopyLink(post: PostModel?) {}
+    override fun onSharePost(post: PostModel?) {}
+    override fun onEditPostPrivacy(post: PostModel?) {}
+    override fun onReportPost(post: PostModel?) {}
+    override fun onLikeButtonLongClicked(post: PostModel?, anchorView: View?) {}
+    override fun onReactionSelected(post: PostModel?, emojiUnicode: String) {}
+    override fun onEmojiSummaryClicked(post: PostModel?) {}
+    override fun onHashtagClicked(hashtag: String?) {}
+    override fun onPostLongClicked(post: PostModel?) {}
+    override fun onVideoPlayClicked(videoUrl: String?) {}
     override fun onLayoutClicked(post: PostModel?) { onCommentClicked(post) }
-    override fun onSeeMoreClicked(post: PostModel?) { /* ... */ }
-    override fun onTranslateClicked(post: PostModel?) { /* ... */ }
-    override fun onShowOriginalClicked(post: PostModel?) { /* ... */ }
-    override fun onModeratePost(post: PostModel?) { /* ... */ }
-    override fun onFollowClicked(user: UserModel?) { /* ... */ }
+    override fun onSeeMoreClicked(post: PostModel?) {}
+    override fun onTranslateClicked(post: PostModel?) {}
+    override fun onShowOriginalClicked(post: PostModel?) {}
+    override fun onModeratePost(post: PostModel?) {}
+    override fun onFollowClicked(user: UserModel?) {}
 }
