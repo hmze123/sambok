@@ -11,6 +11,9 @@ import java.util.Date
 @IgnoreExtraProperties
 @Parcelize
 data class PostModel(
+    // ... الحقول الحالية
+    val communityId: String? = null,
+    val communityName: String? = null,
     var postId: String? = null,
     var authorId: String? = null,
     var authorUsername: String? = null,

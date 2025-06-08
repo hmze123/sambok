@@ -1,5 +1,7 @@
 package com.spidroid.starry.repositories
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
@@ -76,10 +78,29 @@ class PostRepository {
             null // Transaction must return null
         }
     }
+    suspend fun createPost(
+        authorId: String,
+        text: String?,
+        mediaUris: List<Uri>,
+        context: Context,
+        communityId: String? = null, // الحقل المضاف
+        communityName: String? = null // الحقل المضاف
+    ): PostModel {
+        // ... منطقك الحالي لرفع الصور ...
+
+        val post = PostModel(
+            // ... الحقول الحالية ...
+            communityId = communityId, // احفظه هنا
+            communityName = communityName // وهنا
+        )
+
+        // ... احفظ المنشور في Firestore
+        return post
+    }
+
 
     fun addOrUpdateReaction(postId: String, reactingUserId: String, emoji: String, postAuthorId: String, reactorDetails: UserModel): Task<Void> {
         val postRef = postsCollection.document(postId)
-
         return db.runTransaction { transaction ->
             val postSnapshot = transaction.get(postRef)
             val likesMap = postSnapshot.get("likes") as? Map<String, Boolean> ?: emptyMap()

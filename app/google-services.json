@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "33028588720",
-    "project_id": "starry-app-8d8cb",
-    "storage_bucket": "starry-app-8d8cb.firebasestorage.app"
+    "project_number": "880668644702",
+    "project_id": "starry-app-new",
+    "storage_bucket": "starry-app-new.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:33028588720:android:cb68229c9be07bc6f16775",
+        "mobilesdk_app_id": "1:880668644702:android:b03408519ed0afb948ebcf",
         "android_client_info": {
           "package_name": "com.spidroid.starry"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAEY-mfNUQ0WFbCBi9pD7gRCjsjOdtoP40"
+          "current_key": "AIzaSyBoAT3ftKG4lcEsRb-MuRnTedtytR9Vb3M"
         }
       ],
       "services": {

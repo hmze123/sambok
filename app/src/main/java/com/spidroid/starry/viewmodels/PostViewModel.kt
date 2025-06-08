@@ -1,10 +1,13 @@
 package com.spidroid.starry.viewmodels
 
+import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.liveData
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -13,6 +16,7 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.PostRepository
 import com.spidroid.starry.repositories.UserRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -151,6 +155,33 @@ class PostViewModel : ViewModel() {
         }
     }
 
+    fun createPost(
+        text: String,
+        mediaUris: List<Uri>,
+        context: Context,
+        communityId: String? = null,
+        communityName: String? = null
+    ) = liveData(Dispatchers.IO) {
+        emit(UiState.Loading)
+        try {
+            // <-- إصلاح: تم نقل المنطق بالكامل إلى liveData builder وهو يعمل على كوروتين
+            val authorId = FirebaseAuth.getInstance().currentUser?.uid ?: run {
+                emit(UiState.Error("User not logged in"))
+                return@liveData
+            }
+            val newPost = postRepository.createPost(
+                authorId,
+                text,
+                mediaUris,
+                context,
+                communityId,
+                communityName
+            )
+            emit(UiState.SuccessWithData(newPost))
+        } catch (e: Exception) {
+            emit(UiState.Error(e.message.toString()))
+        }
+    }
     fun fetchFollowingPosts(limit: Int) {
         _followingState.value = UiState.Loading
         val currentUserId = auth.currentUser?.uid ?: run {
