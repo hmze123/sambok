@@ -19,7 +19,6 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:src="@drawable/ic_default_avatar"
-            app:civ_border_color="@color/surface"
             app:civ_border_width="2dp" />
 
         <ImageView
@@ -29,7 +28,6 @@
             android:layout_gravity="bottom|end"
             android:layout_marginBottom="-4dp"
             android:layout_marginEnd="-4dp"
-            android:background="@drawable/circle_background_red"
             android:contentDescription="Add Story"
             android:src="@drawable/ic_add"
             android:visibility="gone"
@@ -44,8 +42,6 @@
         android:layout_marginTop="4dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:textColor="@color/text_primary"
-        android:textSize="12sp"
-        tools:text="Your Story" />
+        android:textSize="12sp" />
 
 </LinearLayout>

@@ -12,8 +12,15 @@
         <item name="colorSecondaryContainer">@color/m3_secondaryContainer</item>
         <item name="colorOnSecondaryContainer">@color/m3_onSecondaryContainer</item>
 
+        <item name="colorTertiary">@color/m3_tertiary</item>
+        <item name="colorOnTertiary">@color/m3_onTertiary</item>
+        <item name="colorTertiaryContainer">@color/m3_tertiaryContainer</item>
+        <item name="colorOnTertiaryContainer">@color/m3_onTertiaryContainer</item>
+
         <item name="colorError">@color/m3_error</item>
         <item name="colorOnError">@color/m3_onError</item>
+        <item name="colorErrorContainer">@color/m3_errorContainer</item>
+        <item name="colorOnErrorContainer">@color/m3_onErrorContainer</item>
 
         <item name="android:colorBackground">@color/m3_background</item>
         <item name="colorOnBackground">@color/m3_onBackground</item>
@@ -22,13 +29,21 @@
         <item name="colorOnSurface">@color/m3_onSurface</item>
         <item name="colorSurfaceVariant">@color/m3_surfaceVariant</item>
         <item name="colorOnSurfaceVariant">@color/m3_onSurfaceVariant</item>
+
+        <item name="colorSurfaceContainerLowest">@color/m3_surfaceContainerLowest</item>
+        <item name="colorSurfaceContainerLow">@color/m3_surfaceContainerLow</item>
+        <item name="colorSurfaceContainer">@color/m3_surfaceContainer</item>
+        <item name="colorSurfaceContainerHigh">@color/m3_surfaceContainerHigh</item>
         <item name="colorSurfaceContainerHighest">@color/m3_surfaceContainerHighest</item>
 
         <item name="colorOutline">@color/m3_outline</item>
+        <item name="colorOutlineVariant">@color/m3_outlineVariant</item>
 
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item> <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">true</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
         <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
         <item name="android:windowBackground">@color/m3_background</item>
@@ -54,7 +69,7 @@
         <item name="colorSurface">@color/twitter_surface</item>
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="android:colorBackground">@color/twitter_background</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
     </style>
 
     <style name="FullScreenTheme" parent="Theme.Material3.DayNight.NoActionBar">
@@ -78,11 +93,37 @@
         <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
     </style>
 
+    <style name="Widget.Starry.SearchBar" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxStrokeColor">@color/m3_searchbar_stroke_color_selector</item> <item name="hintTextColor">?attr/colorOnSurfaceVariant</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.SmallComponent</item>
+        <item name="startIconDrawable">@drawable/ic_search</item>
+        <item name="startIconTint">?attr/colorOnSurfaceVariant</item>
+        <item name="endIconMode">clear_text</item>
+        <item name="endIconTint">?attr/colorOnSurfaceVariant</item>
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+    </style>
+
+    <style name="PollOptionButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">?attr/listPreferredItemHeightSmall</item>
+        <item name="strokeColor">?attr/colorOutline</item>
+        <item name="shapeAppearance">@style/ShapeAppearance.Material3.SmallComponent</item>
+        <item name="android:textColor">?attr/colorPrimary</item>
+        <item name="android:textAppearance">?attr/textAppearanceBodyLarge</item>
+    </style>
+
+    <style name="MessageTimeText">
+        <item name="android:textAppearance">?attr/textAppearanceLabelSmall</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+
     <style name="App.BottomNavigationView.ActiveIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
         <item name="android:width">64dp</item>
         <item name="android:height">32dp</item>
         <item name="marginHorizontal">8dp</item>
         <item name="shapeAppearance">@style/ShapeAppearance.Material3.Corner.Full</item>
         <item name="android:color">?attr/colorSecondaryContainer</item> </style>
+
 
 </resources>

@@ -33,7 +33,7 @@
         android:text="لا توجد منشورات بعد!"
         android:textSize="20sp"
         android:textStyle="bold"
-        android:textColor="@color/text_primary"
+
         android:gravity="center"
         android:padding="16dp" />
 
@@ -43,7 +43,6 @@
             android:layout_height="wrap_content"
             android:text="تابع بعض المستخدمين لرؤية منشوراتهم هنا."
             android:textSize="16sp"
-            android:textColor="@color/text_secondary"
             android:gravity="center"
             android:paddingHorizontal="16dp"
             android:layout_marginTop="8dp" />

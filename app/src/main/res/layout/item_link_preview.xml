@@ -7,7 +7,7 @@
      android:layout_width="match_parent"
      app:strokeColor="@color/nav_background_stroke"
      app:strokeWidth="0.5dp"
-     app:cardBackgroundColor="@color/twitter_surface"
+
      android:layout_marginTop="8dp"
      app:cardCornerRadius="8dp"
      android:id="@+id/layoutLinkPreview">

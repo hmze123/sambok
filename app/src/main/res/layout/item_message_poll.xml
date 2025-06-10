@@ -1,132 +1,78 @@
 <?xml version="1.0" encoding="utf-8"?>
-<layout
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto" >
+<layout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <data
-         android:layout_height="wrap_content"
-         android:layout_width="wrap_content">
-
-        <variable
-             android:layout_height="wrap_content"
-             android:layout_width="wrap_content"
-             name="message"
-             type="com.spidroid.starry.models.ChatMessage" />
-
+    <data>
+        <variable name="message" type="com.spidroid.starry.models.ChatMessage" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:padding="8dp">
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp">
 
         <com.google.android.material.card.MaterialCardView
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             app:cardElevation="2dp"
-             app:cardCornerRadius="12dp">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:padding="16dp"
-                 android:orientation="vertical">
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:textSize="16sp"
-                     android:paddingBottom="8dp"
-                     android:id="@+id/pollQuestion"
-                     android:textStyle="bold" />
+                    android:id="@+id/pollQuestion"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="8dp"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
                 <LinearLayout
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:divider="@drawable/divider_poll"
-                     android:orientation="vertical"
-                     android:showDividers="middle"
-                     android:id="@+id/optionsContainer">
-
-                    <LinearLayout
-                         android:layout_height="wrap_content"
-                         android:layout_width="match_parent"
-                         android:orientation="vertical">
-
-                        <Button
-                             android:layout_height="wrap_content"
-                             android:layout_width="match_parent"
-                             style="@style/PollOptionButton"
-                             android:id="@+id/option1Button" />
-
-                        <ProgressBar
-                             android:layout_height="4dp"
-                             android:layout_width="match_parent"
-                             android:visibility="gone"
-                             android:max="100"
-                             android:progressTint="@color/poll_progress"
-                             style="?android:attr/progressBarStyleHorizontal"
-                             android:id="@+id/option1Progress" />
-
-                    </LinearLayout>
-
-                    <LinearLayout
-                         android:layout_height="wrap_content"
-                         android:layout_width="match_parent"
-                         android:orientation="vertical">
-
-                        <Button
-                             android:layout_height="wrap_content"
-                             android:layout_width="match_parent"
-                             style="@style/PollOptionButton"
-                             android:id="@+id/option2Button" />
-
-                        <ProgressBar
-                             android:layout_height="4dp"
-                             android:layout_width="match_parent"
-                             android:visibility="gone"
-                             android:max="100"
-                             android:progressTint="@color/poll_progress"
-                             style="?android:attr/progressBarStyleHorizontal"
-                             android:id="@+id/option2Progress" />
-
-                    </LinearLayout>
+                    android:id="@+id/optionsContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:divider="@drawable/divider_poll"
+                    android:orientation="vertical"
+                    android:showDividers="middle">
 
                 </LinearLayout>
 
                 <LinearLayout
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:paddingTop="8dp">
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="8dp">
 
                     <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="wrap_content"
-                         android:textSize="12sp"
-                         android:id="@+id/pollTotalVotes" />
+                        android:id="@+id/pollTotalVotes"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp" />
 
                     <TextView
-                         android:layout_height="wrap_content"
-                         android:layout_width="wrap_content"
-                         android:textSize="12sp"
-                         android:id="@+id/pollTime" />
+                        android:id="@+id/pollTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp" />
 
                 </LinearLayout>
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:visibility="gone"
-                     android:textSize="12sp"
-                     android:textColor="@color/poll_expired"
-                     android:id="@+id/pollExpired"
-                     android:text="Poll expired"
-                     android:paddingTop="4dp" />
+                    android:id="@+id/pollExpired"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingTop="4dp"
+                    android:text="Poll expired"
+                    android:textColor="?attr/colorError"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
         </com.google.android.material.card.MaterialCardView>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
 </layout>

@@ -22,7 +22,9 @@
     <string name="title_messages">Messages</string>
     <string name="title_notifications">Notifications</string>
     <string name="title_search">Search</string>
-
+    <string name="share_profile">Share Profile</string>
+    <string name="add_friends">Add Friends</string>
+    <string name="tab_saved">Saved</string>
     <string name="cant_add_images_to_video_post">Cannot add images to video posts</string>
     <string name="cant_mix_video_images">Cannot mix videos with images</string>
     <string name="char_limit_exceeded">Exceeds character limit</string>

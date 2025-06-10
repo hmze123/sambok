@@ -4,9 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-        <variable
-            name="message"
-            type="com.spidroid.starry.models.ChatMessage" />
+        <variable name="message" type="com.spidroid.starry.models.ChatMessage" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -20,8 +18,9 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="60dp"
             android:layout_marginEnd="16dp"
-            app:cardBackgroundColor="@color/sent_message_bg"
+            app:cardBackgroundColor="?attr/colorPrimary"
             app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -36,7 +35,7 @@
                     android:id="@+id/poll_question"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/sent_message_text"
+                    android:textColor="?attr/colorOnPrimary"
                     android:textStyle="bold"
                     android:textSize="16sp"
                     android:text="@{message.poll.question}"
@@ -54,7 +53,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:textColor="@color/message_time"
+                    android:textColor="?attr/colorOnPrimary"
                     android:textSize="12sp"
                     tools:text="24 votes"/>
 
@@ -73,6 +72,7 @@
             <TextView
                 android:id="@+id/textTime"
                 style="@style/MessageTimeText"
+                android:textColor="?attr/colorOnSurfaceVariant"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 tools:text="10:30 AM"/>
@@ -82,6 +82,7 @@
                 android:layout_width="14dp"
                 android:layout_height="14dp"
                 android:layout_marginStart="4dp"
+                app:tint="?attr/colorPrimary"
                 app:srcCompat="@drawable/ic_sent"/>
         </LinearLayout>
 

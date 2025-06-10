@@ -4,9 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <data>
-        <variable
-            name="message"
-            type="com.spidroid.starry.models.ChatMessage" />
+        <variable name="message" type="com.spidroid.starry.models.ChatMessage" />
     </data>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -19,7 +17,7 @@
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:layout_marginStart="8dp"
-            android:src="@drawable/ic_default_avatar"
+            android:src="@drawable/ic_anonymous"
             app:layout_constraintBottom_toBottomOf="@id/cardView"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -29,8 +27,9 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
             android:layout_marginEnd="60dp"
-            app:cardBackgroundColor="@color/received_message_bg"
+            app:cardBackgroundColor="?attr/colorSurfaceVariant"
             app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
             app:layout_constraintStart_toEndOf="@id/avatar"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent">
@@ -55,7 +54,7 @@
                     android:id="@+id/poll_question"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textColor="@color/received_message_text"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textStyle="bold"
                     android:textSize="16sp"
                     android:text="@{message.poll.question}"
@@ -73,7 +72,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:textColor="@color/message_time"
+                    android:textColor="?attr/colorOnSurfaceVariant"
                     android:textSize="12sp"
                     tools:text="24 votes"/>
 
