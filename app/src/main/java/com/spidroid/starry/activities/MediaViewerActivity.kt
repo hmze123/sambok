@@ -37,7 +37,9 @@ import com.spidroid.starry.databinding.MediaItemImageBinding
 import com.spidroid.starry.databinding.MediaItemVideoBinding
 import kotlin.math.max
 import kotlin.math.min
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MediaViewerActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMediaViewerBinding

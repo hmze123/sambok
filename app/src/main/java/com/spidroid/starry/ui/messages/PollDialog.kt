@@ -12,7 +12,9 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.spidroid.starry.R
 import com.spidroid.starry.models.ChatMessage
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PollDialog : BottomSheetDialogFragment() {
 
     // واجهة لإعادة بيانات الاستطلاع إلى الـ Activity

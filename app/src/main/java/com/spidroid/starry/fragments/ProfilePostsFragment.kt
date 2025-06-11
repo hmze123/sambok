@@ -30,7 +30,9 @@ import com.spidroid.starry.viewmodels.ProfilePostState
 import com.spidroid.starry.viewmodels.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ProfilePostsFragment : Fragment(), PostInteractionListener {
 
     private var _binding: FragmentProfilePostsBinding? = null

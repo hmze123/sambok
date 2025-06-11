@@ -14,7 +14,9 @@ import com.spidroid.starry.databinding.FragmentProfilePostsBinding
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.PageViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PagePostsFragment : Fragment(), PostInteractionListener {
 
     private var _binding: FragmentProfilePostsBinding? = null

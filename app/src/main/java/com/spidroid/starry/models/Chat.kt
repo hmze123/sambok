@@ -11,7 +11,7 @@ import java.util.Date
 @Parcelize
 data class Chat(
     var id: String? = null,
-    var participants: MutableList<String> = mutableListOf(),
+    val participants: List<String> = listOf(),
     var lastMessage: String? = null,
     var lastMessageType: String? = null,
     var lastMessageSender: String? = null,

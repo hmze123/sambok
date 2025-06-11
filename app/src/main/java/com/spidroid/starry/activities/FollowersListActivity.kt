@@ -19,7 +19,9 @@ import com.spidroid.starry.models.UserModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class FollowersListActivity : AppCompatActivity(), UserAdapter.OnUserClickListener {
 
     private lateinit var binding: ActivityUserListBinding

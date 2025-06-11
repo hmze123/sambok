@@ -24,7 +24,9 @@ import com.spidroid.starry.utils.PostInteractionHandler
 import de.hdodenhof.circleimageview.CircleImageView
 import java.io.Serializable
 import kotlin.math.min
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ReactionsListDialogFragment : BottomSheetDialogFragment() {
     private lateinit var recyclerView: RecyclerView
     private lateinit var adapter: ReactionUserAdapter

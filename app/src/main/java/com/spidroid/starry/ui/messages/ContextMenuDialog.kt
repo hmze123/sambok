@@ -15,7 +15,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.R // ✨ تم إضافة هذا الاستيراد
 import com.spidroid.starry.models.ChatMessage
 
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ContextMenuDialog : BottomSheetDialogFragment() {
     private var message: ChatMessage? = null
     private var listener: MessageContextMenuListener? = null

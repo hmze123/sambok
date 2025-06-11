@@ -25,7 +25,9 @@ import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.ui.common.ReactionPickerFragment
 import com.spidroid.starry.viewmodels.PostViewModel
 import com.spidroid.starry.viewmodels.UiState
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class FollowingFragment : Fragment(), PostInteractionListener {
 
     private var _binding: FragmentFeedBinding? = null

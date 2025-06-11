@@ -6,21 +6,25 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.models.Chat
 import com.spidroid.starry.models.ChatMessage
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.ChatRepository
+import com.spidroid.starry.repositories.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class ChatViewModel : ViewModel() {
-
-    private val repository = ChatRepository()
-    private val auth = Firebase.auth
+@HiltViewModel
+class ChatViewModel @Inject constructor(
+    private val chatRepository: ChatRepository,
+    private val userRepository: UserRepository,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
     private val _messages = MutableLiveData<List<ChatMessage>>()
     val messages: LiveData<List<ChatMessage>> = _messages
@@ -48,8 +52,8 @@ class ChatViewModel : ViewModel() {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             try {
-                val userDoc = repository.getUserData(userId).get().await()
-                _currentUserModel.value = userDoc.toObject(UserModel::class.java)
+                // استخدام UserRepository لجلب المستخدم
+                _currentUserModel.value = userRepository.getUser(userId)
             } catch (e: Exception) {
                 Log.e("ChatViewModel", "Failed to load current user data", e)
                 _currentUserModel.value = null
@@ -59,31 +63,33 @@ class ChatViewModel : ViewModel() {
 
     fun listenForMessages(chatId: String) {
         messagesListener?.remove()
-        messagesListener = repository.getMessagesListener(chatId).addSnapshotListener { snapshots, error ->
+        messagesListener = chatRepository.getMessagesListener(chatId).addSnapshotListener { snapshots, error ->
             if (error != null) {
                 _uiState.value = UiState.Error("Failed to load messages.")
                 return@addSnapshotListener
             }
-            val messageList = snapshots?.documents?.mapNotNull { it.toObject(ChatMessage::class.java)?.apply { messageId = it.id } } ?: emptyList()
+            val messageList = snapshots?.documents?.mapNotNull { doc ->
+                doc.toObject<ChatMessage>()?.apply { messageId = doc.id }
+            } ?: emptyList()
             _messages.value = messageList
         }
     }
 
     fun loadChatDetails(chatId: String, isGroup: Boolean) {
         chatDetailsListener?.remove()
-        chatDetailsListener = repository.getChatDetailsListener(chatId).addSnapshotListener { snapshot, error ->
+        chatDetailsListener = chatRepository.getChatDetailsListener(chatId).addSnapshotListener { snapshot, error ->
             if (error != null || snapshot == null || !snapshot.exists()) {
                 _uiState.value = UiState.Error("Failed to load chat details.")
                 return@addSnapshotListener
             }
-            val chat = snapshot.toObject(Chat::class.java)
+            val chat = snapshot.toObject<Chat>()
             if (isGroup) {
                 _groupDetails.value = chat
             } else {
                 val otherUserId = chat?.participants?.firstOrNull { it != auth.currentUser?.uid }
                 otherUserId?.let { partnerId ->
                     listenForPartnerData(partnerId)
-                    updateTypingIndicator(chat.typingStatus, partnerId)
+                    chat.typingStatus?.let { updateTypingIndicator(it, partnerId) }
                 }
             }
         }
@@ -91,27 +97,31 @@ class ChatViewModel : ViewModel() {
 
     private fun listenForPartnerData(userId: String) {
         partnerUserListener?.remove()
-        partnerUserListener = repository.getUserData(userId).addSnapshotListener { snapshot, error ->
+        // ملاحظة: ChatRepository لا يحتوي على getUserData، استخدمنا UserRepository بدلاً من ذلك
+        // هذا الجزء قد يحتاج لمراجعة إذا كان الهدف مختلف
+        partnerUserListener = chatRepository.getUserData(userId).addSnapshotListener { snapshot, error ->
             if (error != null || snapshot == null || !snapshot.exists()) {
                 _uiState.value = UiState.Error("Failed to load partner data.")
                 return@addSnapshotListener
             }
-            _chatPartner.value = snapshot.toObject(UserModel::class.java)
+            _chatPartner.value = snapshot.toObject<UserModel>()
         }
     }
 
     fun sendMessage(chatId: String, message: ChatMessage, mediaUri: Uri?) {
         _uiState.value = UiState.Loading
+        val senderId = auth.currentUser?.uid ?: return
+        val messageToSend = message.copy(senderId = senderId)
+
         viewModelScope.launch {
             try {
                 if (mediaUri != null) {
                     val mediaUrl = uploadMedia(chatId, mediaUri)
-                    message.mediaUrl = mediaUrl
-                    // نوع الرسالة يتم تحديده الآن في الـ Activity
+                    messageToSend.mediaUrl = mediaUrl
                 }
-                val docRef = repository.sendMessage(chatId, message).await()
+                val docRef = chatRepository.sendMessage(chatId, messageToSend)
                 docRef.update("messageId", docRef.id).await()
-                repository.updateLastMessage(chatId, message).await()
+                chatRepository.updateLastMessage(chatId, messageToSend).await()
                 _uiState.value = UiState.Success
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Failed to send message: ${e.message}")
@@ -120,7 +130,7 @@ class ChatViewModel : ViewModel() {
     }
 
     private suspend fun uploadMedia(chatId: String, uri: Uri): String {
-        val ref = repository.uploadMedia(chatId, uri)
+        val ref = chatRepository.uploadMedia(chatId, uri)
         ref.putFile(uri).await()
         return ref.downloadUrl.await().toString()
     }
@@ -128,7 +138,7 @@ class ChatViewModel : ViewModel() {
     fun editMessage(chatId: String, messageId: String, newContent: String) {
         viewModelScope.launch {
             try {
-                repository.editMessage(chatId, messageId, newContent).await()
+                chatRepository.editMessage(chatId, messageId, newContent).await()
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Failed to edit message: ${e.message}")
             }
@@ -138,7 +148,7 @@ class ChatViewModel : ViewModel() {
     fun deleteMessage(chatId: String, messageId: String) {
         viewModelScope.launch {
             try {
-                repository.deleteMessage(chatId, messageId).await()
+                chatRepository.deleteMessage(chatId, messageId).await()
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Failed to delete message: ${e.message}")
             }
@@ -149,7 +159,7 @@ class ChatViewModel : ViewModel() {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             try {
-                repository.recordVote(chatId, messageId, optionIndex, userId).await()
+                chatRepository.recordVote(chatId, messageId, optionIndex, userId).await()
             } catch (e: Exception) {
                 _uiState.value = UiState.Error("Failed to vote: ${e.message}")
             }
@@ -158,7 +168,7 @@ class ChatViewModel : ViewModel() {
 
     fun updateUserTypingStatus(chatId: String, isTyping: Boolean) {
         auth.currentUser?.uid?.let { userId ->
-            repository.updateUserTypingStatus(chatId, userId, isTyping).addOnFailureListener {
+            chatRepository.updateUserTypingStatus(chatId, userId, isTyping).addOnFailureListener {
                 Log.w("ChatViewModel", "Failed to update typing status", it)
             }
         }

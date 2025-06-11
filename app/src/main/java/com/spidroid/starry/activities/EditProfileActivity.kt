@@ -31,7 +31,9 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityEditProfileBinding
 import com.spidroid.starry.models.UserModel
 import java.util.Locale
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class EditProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityEditProfileBinding

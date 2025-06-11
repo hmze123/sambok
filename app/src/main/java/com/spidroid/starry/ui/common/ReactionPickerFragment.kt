@@ -10,7 +10,9 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.spidroid.starry.R
 import com.spidroid.starry.adapters.PostInteractionListener
 import com.spidroid.starry.models.PostModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ReactionPickerFragment : BottomSheetDialogFragment() {
 
     private var interactionListener: PostInteractionListener? = null

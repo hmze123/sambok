@@ -9,6 +9,9 @@ import com.spidroid.starry.databinding.FragmentSearchResultListBinding
 
 // حاليًا، هذا الـ Fragment سيكون مجرد واجهة فارغة
 // يمكننا تفعيله في خطوة مستقبلية
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
 class HashtagsSearchFragment : Fragment() {
     private var _binding: FragmentSearchResultListBinding? = null
     private val binding get() = _binding!!

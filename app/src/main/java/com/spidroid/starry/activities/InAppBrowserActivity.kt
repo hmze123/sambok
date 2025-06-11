@@ -12,7 +12,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import com.spidroid.starry.R
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class InAppBrowserActivity : AppCompatActivity() {
     private var webView: WebView? = null
     private var progressBar: ProgressBar? = null

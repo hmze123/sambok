@@ -17,7 +17,9 @@ import com.bumptech.glide.Glide
 import com.spidroid.starry.R // ✨ تم التأكد من الاستيراد
 import com.spidroid.starry.databinding.MediaItemVideoBinding
 import com.spidroid.starry.models.StoryModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class StoryContentFragment : Fragment() {
 
     private var _binding: MediaItemVideoBinding? = null

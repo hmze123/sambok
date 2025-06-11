@@ -31,7 +31,9 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.ui.common.ReactionPickerFragment
 import com.spidroid.starry.viewmodels.PostViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ForYouFragment : Fragment(), PostInteractionListener {
 
     private var _binding: FragmentFeedBinding? = null

@@ -14,7 +14,9 @@ import com.spidroid.starry.viewmodels.PageViewModel
 import com.spidroid.starry.viewmodels.UiState
 import java.text.NumberFormat
 import java.util.*
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PageActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPageBinding

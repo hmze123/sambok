@@ -34,7 +34,9 @@ import com.spidroid.starry.databinding.ActivityStoryViewerBinding
 import com.spidroid.starry.models.StoryModel
 import com.spidroid.starry.models.UserModel
 import java.util.*
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class StoryViewerActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityStoryViewerBinding

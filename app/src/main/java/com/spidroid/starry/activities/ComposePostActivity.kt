@@ -34,7 +34,9 @@ import com.spidroid.starry.utils.LinkPreviewFetcher
 import kotlinx.coroutines.launch
 import java.util.*
 import java.util.regex.Pattern
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ComposePostActivity : AppCompatActivity(), MediaPreviewAdapter.OnMediaInteraction {
 
     private lateinit var binding: ActivityComposePostBinding

@@ -11,9 +11,11 @@ import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
+import dagger.hilt.android.HiltAndroidApp
+
 // يمكنك إزالة هذا السطر إذا كنت لا تستخدم BuildConfig في مكان آخر
 // import com.spidroid.starry.BuildConfig
-
+@HiltAndroidApp
 class StarryApplication : Application() {
 
     private companion object {

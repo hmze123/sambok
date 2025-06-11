@@ -31,7 +31,9 @@ import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.R
 import com.spidroid.starry.activities.MainActivity
 import com.spidroid.starry.models.UserModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SignUpActivity : AppCompatActivity() {
 
     private val auth: FirebaseAuth by lazy { Firebase.auth }

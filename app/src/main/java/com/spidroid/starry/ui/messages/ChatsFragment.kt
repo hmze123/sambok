@@ -29,7 +29,9 @@ import java.util.Date
 import java.util.HashMap
 import java.util.HashSet
 
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ChatsFragment : Fragment(), ChatClickListener {
 
     private var _binding: FragmentChatsBinding? = null

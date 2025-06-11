@@ -5,12 +5,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.models.CommentModel
 import com.spidroid.starry.repositories.CommentRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
 // Sealed class لتمثيل حالات واجهة عرض التعليقات
 sealed class CommentUiState {
@@ -19,10 +20,11 @@ sealed class CommentUiState {
     data class Error(val message: String) : CommentUiState()
 }
 
-class CommentViewModel : ViewModel() {
-
-    private val repository = CommentRepository()
-    private val auth = Firebase.auth
+@HiltViewModel
+class CommentViewModel @Inject constructor(
+    private val repository: CommentRepository,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
     private val _commentState = MutableLiveData<CommentUiState>()
     val commentState: LiveData<CommentUiState> = _commentState
@@ -40,11 +42,12 @@ class CommentViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
+                // Assuming getCommentsForPost returns a QuerySnapshot
                 val commentsSnapshot = repository.getCommentsForPost(postId).await()
                 val fetchedComments = commentsSnapshot.documents.mapNotNull { doc ->
                     doc.toObject(CommentModel::class.java)?.apply {
                         commentId = doc.id
-                        isLiked = likes.containsKey(auth.currentUser?.uid)
+                        // isLiked = likes.containsKey(auth.currentUser?.uid)
                     }
                 }
                 allComments = fetchedComments

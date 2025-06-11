@@ -36,7 +36,9 @@ import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.util.Date
 import java.util.UUID
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CreateGroupActivity : AppCompatActivity(), UserSelectionAdapter.OnUserSelectionChangedListener {
 
     private lateinit var binding: ActivityCreateGroupBinding

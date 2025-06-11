@@ -23,7 +23,9 @@ import com.spidroid.starry.activities.ChatActivity
 import com.spidroid.starry.activities.MainActivity
 import com.spidroid.starry.activities.PostDetailActivity
 import com.spidroid.starry.activities.ProfileActivity
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {

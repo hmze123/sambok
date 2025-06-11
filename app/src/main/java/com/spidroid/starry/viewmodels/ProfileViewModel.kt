@@ -9,25 +9,25 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ktx.toObject
 import com.spidroid.starry.models.CommentModel
 import com.spidroid.starry.models.PostModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class ProfileViewModel : ViewModel() {
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val db: FirebaseFirestore,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
-
-    // StateFlow للمنشورات
     private val _postsState = MutableStateFlow<ProfilePostState>(ProfilePostState.Loading)
     val postsState: StateFlow<ProfilePostState> = _postsState
 
-    // StateFlow جديد للردود (التعليقات)
     private val _repliesState = MutableStateFlow<ProfileRepliesState>(ProfileRepliesState.Loading)
     val repliesState: StateFlow<ProfileRepliesState> = _repliesState
 
-    // StateFlow جديد للوسائط
     private val _mediaState = MutableStateFlow<ProfileMediaState>(ProfileMediaState.Loading)
     val mediaState: StateFlow<ProfileMediaState> = _mediaState
 
@@ -47,13 +47,7 @@ class ProfileViewModel : ViewModel() {
                     .await()
 
                 val fetchedPosts = postsSnapshot.documents.mapNotNull { doc ->
-                    doc.toObject(PostModel::class.java)?.apply {
-                        postId = doc.id
-                        val currentAuthUserId = auth.currentUser?.uid
-                        isLiked = currentAuthUserId != null && likes.containsKey(currentAuthUserId)
-                        isBookmarked = currentAuthUserId != null && bookmarks.containsKey(currentAuthUserId)
-                        isReposted = currentAuthUserId != null && reposts.containsKey(currentAuthUserId)
-                    }
+                    doc.toObject(PostModel::class.java)
                 }
 
                 if (fetchedPosts.isEmpty()) {
@@ -69,16 +63,14 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    // دالة جديدة لجلب ردود المستخدم
     fun fetchRepliesForUser(userId: String) {
         _repliesState.value = ProfileRepliesState.Loading
         viewModelScope.launch {
             try {
-                // استعلام لجلب كل التعليقات التي كتبها المستخدم
                 val repliesSnapshot = db.collectionGroup("comments")
                     .whereEqualTo("authorId", userId)
                     .orderBy("timestamp", Query.Direction.DESCENDING)
-                    .limit(50) // حد مبدئي
+                    .limit(50)
                     .get()
                     .await()
 
@@ -97,20 +89,19 @@ class ProfileViewModel : ViewModel() {
         }
     }
 
-    // دالة جديدة لجلب منشورات الوسائط
     fun fetchMediaForUser(userId: String) {
         _mediaState.value = ProfileMediaState.Loading
         viewModelScope.launch {
             try {
-                // استعلام لجلب المنشورات التي تحتوي على وسائط (صور أو فيديو)
                 val mediaSnapshot = db.collection("posts")
                     .whereEqualTo("authorId", userId)
-                    .whereIn("contentType", listOf(PostModel.TYPE_IMAGE, PostModel.TYPE_VIDEO))
                     .orderBy("createdAt", Query.Direction.DESCENDING)
                     .get()
                     .await()
 
+                // --- ١. تم تصحيح الفلترة هنا لاستخدام الاسم الصحيح ---
                 val fetchedMediaPosts = mediaSnapshot.documents.mapNotNull { it.toObject(PostModel::class.java) }
+                    .filter { it.mediaUrls.isNotEmpty() }
 
                 if (fetchedMediaPosts.isEmpty()) {
                     _mediaState.value = ProfileMediaState.Empty
@@ -125,7 +116,6 @@ class ProfileViewModel : ViewModel() {
     }
 }
 
-// Sealed classes جديدة لحالات الردود والوسائط
 sealed class ProfileRepliesState {
     object Loading : ProfileRepliesState()
     data class Success(val replies: List<CommentModel>) : ProfileRepliesState()

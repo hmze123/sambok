@@ -7,7 +7,7 @@ plugins {
     id("com.google.gms.google-services")
     id("kotlin-parcelize")
     id("kotlin-kapt")
-    // --- هذا هو السطر الجديد والمهم ---
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -24,6 +24,10 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+    }
+
+    kapt {
+        correctErrorTypes = true
     }
 
     buildFeatures {
@@ -74,13 +78,11 @@ dependencies {
     implementation("com.google.firebase:firebase-storage-ktx")
     implementation("com.firebaseui:firebase-ui-storage:9.0.0")
 
-
     // App Check dependencies
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("com.google.firebase:firebase-appcheck-debug")
     implementation("com.google.mlkit:translate:17.0.3")
-
 
     // App Check
     implementation("com.google.firebase:firebase-appcheck-playintegrity")
@@ -100,7 +102,6 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
-
     // Media3 (ExoPlayer)
     val media3_version = "1.7.1"
     implementation("androidx.media3:media3-exoplayer:$media3_version")
@@ -110,10 +111,15 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:$media3_version")
     implementation("androidx.media3:media3-common:$media3_version")
 
+    // Hilt
+    implementation("com.google.dagger:hilt-android:2.56.2")
+    kapt("com.google.dagger:hilt-compiler:2.56.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.9.0")
+
     // CameraX
     val camerax_version = "1.4.2"
     implementation("androidx.camera:camera-core:$camerax_version")
-    implementation("androidx.camera:camera-camera2:$camerax_version")
+    implementation("androidx.camera:camera-camera2:camerax_version")
     implementation("androidx.camera:camera-lifecycle:$camerax_version")
     implementation("androidx.camera:camera-video:$camerax_version")
     implementation("androidx.camera:camera-view:$camerax_version")

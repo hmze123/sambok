@@ -1,54 +1,45 @@
+// المسار: app/src/main/java/com/spidroid/starry/viewmodels/BookmarksViewModel.kt
+
 package com.spidroid.starry.viewmodels
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.repositories.PostRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await // --- هذا السطر مهم جدًا ---
+import javax.inject.Inject
 
-class BookmarksViewModel : ViewModel() {
-
-    private val postRepository = PostRepository()
-    private val auth = Firebase.auth
+@HiltViewModel
+class BookmarksViewModel @Inject constructor(
+    private val postRepository: PostRepository,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
     private val _bookmarkedPosts = MutableLiveData<List<PostModel>>()
     val bookmarkedPosts: LiveData<List<PostModel>> = _bookmarkedPosts
 
-    private val _uiState = MutableLiveData<UiState<Nothing>>()
-    val uiState: LiveData<UiState<Nothing>> = _uiState
+    private val _isLoading = MutableLiveData<Boolean>()
+    val isLoading: LiveData<Boolean> = _isLoading
 
-    fun fetchBookmarkedPosts() {
-        val userId = auth.currentUser?.uid
-        if (userId == null) {
-            _uiState.value = UiState.Error("User not authenticated")
-            return
-        }
+    private val _error = MutableLiveData<String?>()
+    val error: LiveData<String?> = _error
 
-        _uiState.value = UiState.Loading
+    fun loadBookmarkedPosts() {
+        val userId = auth.currentUser?.uid ?: return
+        _isLoading.value = true
         viewModelScope.launch {
             try {
-                // await() ستعمل الآن بسبب وجود السطر import kotlinx.coroutines.tasks.await
-                val snapshot = postRepository.getBookmarkedPosts(userId).await()
-
-                // toObject() ستعمل الآن لأن snapshot أصبح من النوع الصحيح
-                val posts = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(PostModel::class.java)?.apply {
-                        // id و postId سيعملان الآن
-                        postId = doc.id
-                    }
-                }
-                _bookmarkedPosts.postValue(posts)
-                _uiState.value = UiState.Success
+                // استدعاء الدالة الجديدة التي سنضيفها إلى الـ Repository
+                val result = postRepository.getBookmarkedPosts(userId)
+                _bookmarkedPosts.postValue(result)
             } catch (e: Exception) {
-                Log.e("BookmarksViewModel", "Failed to fetch bookmarks", e)
-                _uiState.value = UiState.Error("Failed to load bookmarks: ${e.message}")
+                _error.postValue("Failed to load bookmarks: ${e.message}")
+            } finally {
+                _isLoading.postValue(false)
             }
         }
     }

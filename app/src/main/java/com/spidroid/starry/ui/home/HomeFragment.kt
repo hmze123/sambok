@@ -26,9 +26,11 @@ import com.spidroid.starry.databinding.FragmentHomeBinding
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.StoryFeedState
 import com.spidroid.starry.viewmodels.StoryViewModel
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class HomeFragment : Fragment(), OnStoryClickListener {
 
     private var _binding: FragmentHomeBinding? = null

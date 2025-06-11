@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/viewmodels/StoryViewModel.kt
 package com.spidroid.starry.viewmodels
 
 import android.util.Log
@@ -6,20 +5,19 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.firestore.Query
-import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ktx.toObject
-import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.models.StoryModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.repositories.UserRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
-import kotlin.math.min
+import javax.inject.Inject
 
 // Sealed class to represent the different states of the Story Feed UI
 sealed class StoryFeedState {
@@ -37,11 +35,12 @@ data class StoryPreview(
     val hasUnseenStories: Boolean
 )
 
-class StoryViewModel : ViewModel() {
-
-    private val auth = Firebase.auth
-    private val db = Firebase.firestore
-    private val userRepository = UserRepository()
+@HiltViewModel
+class StoryViewModel @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore,
+    private val userRepository: UserRepository
+) : ViewModel() {
 
     private val _storyFeedState = MutableStateFlow<StoryFeedState>(StoryFeedState.Loading)
     val storyFeedState: StateFlow<StoryFeedState> = _storyFeedState
@@ -58,10 +57,18 @@ class StoryViewModel : ViewModel() {
         fetchStoriesForCurrentUserAndFollowing()
     }
 
+    // --- تم تعديل هذه الدالة بالكامل ---
     fun fetchCurrentUser() {
         auth.currentUser?.uid?.let { userId ->
-            userRepository.getUserById(userId).observeForever { user ->
-                _currentUser.postValue(user)
+            viewModelScope.launch {
+                try {
+                    // استدعاء الدالة الصحيحة من الـ Repository
+                    val user = userRepository.getUser(userId)
+                    _currentUser.postValue(user)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to fetch current user", e)
+                    _currentUser.postValue(null)
+                }
             }
         }
     }
@@ -75,34 +82,28 @@ class StoryViewModel : ViewModel() {
         viewModelScope.launch {
             _storyFeedState.value = StoryFeedState.Loading
             try {
-                // 1. Get the list of users the current user is following
                 val followingSnapshot = db.collection("users").document(currentUserId).get().await()
-                val followingMap = followingSnapshot.get("following") as? Map<String, Boolean> ?: emptyMap()
-                val followingIds = followingMap.keys.toMutableList()
+                val userModel = followingSnapshot.toObject<UserModel>()
+                val followingIds = userModel?.following?.keys?.toMutableList() ?: mutableListOf()
 
-                // 2. Fetch active stories for the followed users
-                // Note: Firestore 'in' query is limited. For more than 10 users, you need to chunk the list.
                 val storyPreviews = mutableListOf<StoryPreview>()
                 if (followingIds.isNotEmpty()) {
-                    val chunks = followingIds.chunked(10) // ✨ تقسيم followingIds إلى أجزاء (chunks)
+                    val chunks = followingIds.chunked(10)
 
-                    for (chunk in chunks) { // ✨ المرور على كل جزء
+                    for (chunk in chunks) {
                         val storiesSnapshot = db.collection("stories")
-                            .whereIn("userId", chunk) // ✨ استخدام الجزء الحالي
+                            .whereIn("userId", chunk)
                             .whereGreaterThan("expiresAt", Date())
                             .get()
                             .await()
 
-                        // Group stories by userId
                         val storiesByUserId = storiesSnapshot.documents.mapNotNull { it.toObject<StoryModel>() }
                             .groupBy { it.userId }
 
-                        // Fetch user details for each user who has stories in this chunk
                         for (userIdWithStory in storiesByUserId.keys) {
                             val userDoc = db.collection("users").document(userIdWithStory!!).get().await()
                             val user = userDoc.toObject<UserModel>()
                             user?.let {
-                                // Check if at least one story is unseen
                                 val viewedStoriesSnapshot = db.collection("users").document(currentUserId)
                                     .collection("viewed_stories").get().await()
                                 val viewedStoryIds = viewedStoriesSnapshot.documents.map { it.id }.toSet()
@@ -114,7 +115,6 @@ class StoryViewModel : ViewModel() {
                     }
                 }
 
-                // 3. Check if the current user has an active story
                 val myStoriesSnapshot = db.collection("stories")
                     .whereEqualTo("userId", currentUserId)
                     .whereGreaterThan("expiresAt", Date())
@@ -123,7 +123,6 @@ class StoryViewModel : ViewModel() {
                     .await()
                 val hasMyStory = !myStoriesSnapshot.isEmpty
 
-                // 4. Update the state with the final list
                 _storyFeedState.value = StoryFeedState.Success(storyPreviews, hasMyStory)
 
             } catch (e: Exception) {

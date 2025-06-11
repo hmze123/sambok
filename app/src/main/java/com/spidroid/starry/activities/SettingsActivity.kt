@@ -32,7 +32,9 @@ import com.spidroid.starry.auth.LoginActivity
 import com.spidroid.starry.databinding.ActivitySettingsBinding
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.UserViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivitySettingsBinding

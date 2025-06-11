@@ -23,7 +23,9 @@ import com.spidroid.starry.activities.ProfileActivity
 import com.spidroid.starry.databinding.FragmentMessagesBinding
 import com.spidroid.starry.models.UserModel
 
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MessagesFragment : Fragment() {
     private var binding: FragmentMessagesBinding? = null
     private var auth: FirebaseAuth? = null

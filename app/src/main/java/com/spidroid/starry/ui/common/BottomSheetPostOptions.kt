@@ -12,7 +12,9 @@ import com.spidroid.starry.R // ✨ تم إضافة هذا الاستيراد
 import com.spidroid.starry.adapters.PostInteractionListener // ✨ تم إضافة هذا الاستيراد
 import com.spidroid.starry.models.PostModel // ✨ تم إضافة هذا الاستيراد
 
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class BottomSheetPostOptions : BottomSheetDialogFragment() {
     private var post: PostModel? = null
     private var interactionListener: PostInteractionListener? = null

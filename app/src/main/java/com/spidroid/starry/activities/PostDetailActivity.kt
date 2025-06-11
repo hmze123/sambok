@@ -27,7 +27,9 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.CommentUiState
 import com.spidroid.starry.viewmodels.CommentViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PostDetailActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityPostDetailBinding

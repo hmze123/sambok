@@ -19,7 +19,9 @@ import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityReportBinding
 import java.util.Locale // ✨ تم إضافة هذا الاستيراد
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ReportActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityReportBinding

@@ -29,7 +29,9 @@ import com.spidroid.starry.fragments.ProfileRepliesFragment
 import com.spidroid.starry.models.UserModel
 import java.util.Locale
 import com.spidroid.starry.activities.FollowersListActivity // ✨ تم إضافة هذا الاستيراد
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ProfileActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityProfileBinding

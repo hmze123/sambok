@@ -30,7 +30,9 @@ import com.spidroid.starry.ui.messages.*
 import com.spidroid.starry.viewmodels.ChatViewModel
 import com.spidroid.starry.viewmodels.UiState
 import java.util.*
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ChatActivity : AppCompatActivity(), MessageClickListener, MessageContextMenuListener, PollDialog.OnPollCreatedListener {
 
     private lateinit var binding: ActivityChatBinding

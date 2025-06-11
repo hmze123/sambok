@@ -1,83 +1,80 @@
 package com.spidroid.starry.repositories
 
-import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import com.google.android.gms.tasks.Task
-import com.google.android.gms.tasks.Tasks
-import com.google.firebase.firestore.CollectionReference
-import com.google.firebase.firestore.DocumentReference
+import android.net.Uri
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
+import com.google.firebase.firestore.QuerySnapshot
+import com.google.firebase.storage.FirebaseStorage
 import com.spidroid.starry.models.UserModel
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class UserRepository {
-    private val db: FirebaseFirestore = FirebaseFirestore.getInstance()
-    private val usersRef: CollectionReference = db.collection("users")
+@Singleton
+class UserRepository @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage
+) {
 
-    fun searchUsers(query: String): Task<List<UserModel>> {
-        if (query.isBlank()) {
-            return Tasks.forResult(emptyList())
+    private val usersCollection = firestore.collection("users")
+
+    suspend fun createUser(uid: String, email: String, username: String, name: String) {
+        val user = UserModel(
+            userId = uid, // <-- ١. تم التعديل من 'uid' إلى 'userId'
+            username = username,
+            displayName = name, // <-- ٢. تم التعديل من 'name' إلى 'displayName'
+            email = email
+        )
+        usersCollection.document(uid).set(user).await()
+    }
+
+    suspend fun getUser(uid: String): UserModel? {
+        val document = usersCollection.document(uid).get().await()
+        return document.toObject(UserModel::class.java)
+    }
+
+    suspend fun updateUserProfile(uid: String, name: String, bio: String, link: String) {
+        val updates = mapOf(
+            "displayName" to name, // <-- التأكد من استخدام الاسم الصحيح هنا أيضًا
+            "bio" to bio,
+            "link" to link
+        )
+        usersCollection.document(uid).update(updates).await()
+    }
+
+    suspend fun uploadProfileImage(uid: String, imageUri: Uri): String {
+        val storageRef = storage.reference.child("profile_images/$uid")
+        storageRef.putFile(imageUri).await()
+        return storageRef.downloadUrl.await().toString()
+    }
+
+    suspend fun followUser(currentUserId: String, targetUserId: String) {
+        usersCollection.document(currentUserId).update("following.$targetUserId", true).await()
+        usersCollection.document(targetUserId).update("followers.$currentUserId", true).await()
+    }
+
+    suspend fun unfollowUser(currentUserId: String, targetUserId: String) {
+        usersCollection.document(currentUserId).update("following.$targetUserId", FieldValue.delete()).await()
+        usersCollection.document(targetUserId).update("followers.$currentUserId", FieldValue.delete()).await()
+    }
+
+    suspend fun isFollowing(currentUserId: String, targetUserId: String): Boolean {
+        return try {
+            val doc = usersCollection.document(currentUserId).get().await()
+            val user = doc.toObject(UserModel::class.java)
+            user?.following?.containsKey(targetUserId) ?: false
+        } catch (e: Exception) {
+            false
         }
-        // A simple search by username. You can expand this to search by displayName as well.
-        return usersRef.orderBy("username")
-            .startAt(query)
-            .endAt(query + '\uf8ff')
+    }
+
+    fun searchUsers(query: String): com.google.android.gms.tasks.Task<QuerySnapshot> {
+        return usersCollection
+            .whereGreaterThanOrEqualTo("username", query)
+            .whereLessThanOrEqualTo("username", query + '\uf8ff')
             .limit(20)
             .get()
-            .continueWith { task ->
-                if (!task.isSuccessful) {
-                    throw task.exception ?: Exception("Unknown Firestore error")
-                }
-                task.result?.toObjects(UserModel::class.java) ?: emptyList()
-            }
-    }
-
-    fun toggleFollow(currentUserId: String, targetUserId: String): Task<Void> {
-        val currentUserRef = usersRef.document(currentUserId)
-        val targetUserRef = usersRef.document(targetUserId)
-
-        return db.runTransaction { transaction ->
-            val targetUserDoc = transaction.get(targetUserRef)
-            val currentFollowers = (targetUserDoc.get("followers") as? Map<String, Boolean>) ?: emptyMap()
-
-            // Decide whether to follow or unfollow
-            if (currentFollowers.containsKey(currentUserId)) {
-                // Unfollow
-                transaction.update(targetUserRef, "followers.$currentUserId", FieldValue.delete())
-                transaction.update(currentUserRef, "following.$targetUserId", FieldValue.delete())
-            } else {
-                // Follow
-                transaction.update(targetUserRef, "followers.$currentUserId", true)
-                transaction.update(currentUserRef, "following.$targetUserId", true)
-            }
-            null // Transaction must return null in Kotlin
-        }
-    }
-
-    fun getUserById(userId: String): LiveData<UserModel?> {
-        val userLiveData = MutableLiveData<UserModel?>()
-        if (userId.isBlank()) {
-            userLiveData.value = null
-            return userLiveData
-        }
-        usersRef.document(userId).addSnapshotListener { snapshot, error ->
-            if (error != null) {
-                Log.e("UserRepository", "Listen failed for user ID: $userId", error)
-                userLiveData.value = null
-                return@addSnapshotListener
-            }
-
-            if (snapshot != null && snapshot.exists()) {
-                val user = snapshot.toObject(UserModel::class.java)
-                user?.userId = snapshot.id // Ensure the document ID is set on the model
-                userLiveData.value = user
-            } else {
-                Log.d("UserRepository", "User document does not exist for ID: $userId")
-                userLiveData.value = null
-            }
-        }
-        return userLiveData
     }
 }

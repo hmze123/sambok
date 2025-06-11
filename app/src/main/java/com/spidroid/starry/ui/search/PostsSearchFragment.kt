@@ -19,7 +19,9 @@ import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.PostViewModel
 import com.spidroid.starry.viewmodels.SearchViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PostsSearchFragment : Fragment(), PostInteractionListener {
 
     private var _binding: FragmentSearchResultListBinding? = null

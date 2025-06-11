@@ -10,7 +10,9 @@ import androidx.core.os.bundleOf
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.firestore.FirebaseFirestore
 import com.spidroid.starry.R
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class TermsBottomSheetFragment : BottomSheetDialogFragment() {
 
     // A lazy-initialized property for the Firestore instance.

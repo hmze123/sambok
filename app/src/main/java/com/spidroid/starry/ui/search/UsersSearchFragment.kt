@@ -13,7 +13,9 @@ import com.spidroid.starry.adapters.UserAdapter
 import com.spidroid.starry.databinding.FragmentSearchResultListBinding
 import com.spidroid.starry.models.UserModel
 import com.spidroid.starry.viewmodels.SearchViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class UsersSearchFragment : Fragment(), UserAdapter.OnUserClickListener {
     private var _binding: FragmentSearchResultListBinding? = null
     private val binding get() = _binding!!

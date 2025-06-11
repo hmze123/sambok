@@ -40,7 +40,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CreateStoryActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCreateStoryBinding

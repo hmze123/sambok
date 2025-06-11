@@ -26,7 +26,9 @@ import com.spidroid.starry.databinding.FragmentNotificationsBinding
 import com.spidroid.starry.models.NotificationModel
 import com.spidroid.starry.models.PostModel
 import com.spidroid.starry.models.UserModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 // ★ تطبيق الواجهة OnNotificationClickListener
 class NotificationsFragment : Fragment(), NotificationAdapter.OnNotificationClickListener {
 

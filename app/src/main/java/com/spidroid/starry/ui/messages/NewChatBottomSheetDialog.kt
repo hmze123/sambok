@@ -37,7 +37,9 @@ import java.util.HashSet
 import java.util.Locale
 import kotlin.math.min
 
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class NewChatBottomSheetDialog : BottomSheetDialogFragment() { // ✨ تم تصحيح التهجئة
 
     private var adapter: UsersAdapter? = null

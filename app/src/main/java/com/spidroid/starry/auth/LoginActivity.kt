@@ -1,6 +1,5 @@
 package com.spidroid.starry.auth
 
-import android.animation.ValueAnimator
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -10,30 +9,31 @@ import android.util.Patterns
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.cardview.widget.CardView
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-import com.spidroid.starry.R
 import com.spidroid.starry.activities.MainActivity
 import com.spidroid.starry.databinding.ActivityLoginBinding
+import com.spidroid.starry.utils.Resource
+import com.spidroid.starry.viewmodels.AuthViewModel
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class LoginActivity : AppCompatActivity() {
 
-    private val auth: FirebaseAuth by lazy { Firebase.auth }
+    private val viewModel: AuthViewModel by viewModels()
     private lateinit var binding: ActivityLoginBinding
     private lateinit var sharedPreferences: SharedPreferences
+    private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Redirect if user is already logged in
         if (auth.currentUser != null) {
             startMainActivity()
             return
@@ -46,6 +46,7 @@ class LoginActivity : AppCompatActivity() {
 
         setupListeners()
         loadSavedEmail()
+        observeViewModel()
     }
 
     private fun setupListeners() {
@@ -55,6 +56,36 @@ class LoginActivity : AppCompatActivity() {
 
         binding.emailInput.addTextChangedListener(ClearErrorTextWatcher(binding.emailLayout))
         binding.passwordInput.addTextChangedListener(ClearErrorTextWatcher(binding.passwordLayout))
+    }
+
+    private fun observeViewModel() {
+        viewModel.loginResult.observe(this) { resource ->
+            // ٢. استخدام الطريقة الصحيحة للتحقق من الحالة
+            showProgress(resource.status == Resource.Status.LOADING)
+            when (resource.status) {
+                Resource.Status.SUCCESS -> {
+                    sharedPreferences.edit { putString("user_email", binding.emailInput.text.toString().trim()) }
+                    startMainActivity()
+                }
+                Resource.Status.ERROR -> {
+                    handleLoginError(resource.message)
+                }
+                else -> { /* لا تفعل شيئًا للحالات الأخرى */ }
+            }
+        }
+
+        viewModel.resetPasswordResult.observe(this) { resource ->
+            showProgress(resource.status == Resource.Status.LOADING)
+            when (resource.status) {
+                Resource.Status.SUCCESS -> {
+                    Toast.makeText(this, "Password reset link sent.", Toast.LENGTH_LONG).show()
+                }
+                Resource.Status.ERROR -> {
+                    Toast.makeText(this, resource.message, Toast.LENGTH_LONG).show()
+                }
+                else -> { /* لا تفعل شيئًا للحالات الأخرى */ }
+            }
+        }
     }
 
     private fun loadSavedEmail() {
@@ -67,20 +98,9 @@ class LoginActivity : AppCompatActivity() {
     private fun attemptLogin() {
         val email = binding.emailInput.text.toString().trim()
         val password = binding.passwordInput.text.toString().trim()
-
-        if (!validateLoginForm(email, password)) return
-
-        showProgress(true)
-        auth.signInWithEmailAndPassword(email, password)
-            .addOnCompleteListener(this) { task ->
-                showProgress(false)
-                if (task.isSuccessful) {
-                    sharedPreferences.edit { putString("user_email", email) }
-                    startMainActivity()
-                } else {
-                    handleLoginError(task.exception)
-                }
-            }
+        if (validateLoginForm(email, password)) {
+            viewModel.loginUser(email, password)
+        }
     }
 
     private fun validateLoginForm(email: String, password: String): Boolean {
@@ -92,17 +112,15 @@ class LoginActivity : AppCompatActivity() {
             binding.emailLayout.error = "Please enter a valid email"
             isValid = false
         }
-
         if (password.length < 6) {
             binding.passwordLayout.error = "Password must be at least 6 characters"
             isValid = false
         }
-
         return isValid
     }
 
-    private fun handleLoginError(exception: Exception?) {
-        val error = exception?.message ?: "Authentication failed. Please check your credentials."
+    private fun handleLoginError(message: String?) {
+        val error = message ?: "Authentication failed. Please check your credentials."
         Toast.makeText(this, error, Toast.LENGTH_LONG).show()
     }
 
@@ -112,13 +130,11 @@ class LoginActivity : AppCompatActivity() {
             inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
             setText(binding.emailInput.text.toString())
         }
-
         val container = FrameLayout(this).apply {
             val padding = (20 * resources.displayMetrics.density).toInt()
             setPadding(padding, padding, padding, 0)
             addView(resetEmailInput)
         }
-
         MaterialAlertDialogBuilder(this)
             .setTitle("Reset Password")
             .setMessage("Enter your email to receive a password reset link.")
@@ -126,27 +142,13 @@ class LoginActivity : AppCompatActivity() {
             .setPositiveButton("Send Link") { _, _ ->
                 val email = resetEmailInput.text.toString().trim()
                 if (Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-                    sendPasswordResetEmail(email)
+                    viewModel.sendPasswordResetEmail(email)
                 } else {
                     Toast.makeText(this, "Please enter a valid email address.", Toast.LENGTH_SHORT).show()
                 }
             }
             .setNegativeButton("Cancel", null)
             .show()
-    }
-
-    private fun sendPasswordResetEmail(email: String) {
-        showProgress(true)
-        auth.sendPasswordResetEmail(email)
-            .addOnCompleteListener { task ->
-                showProgress(false)
-                if (task.isSuccessful) {
-                    Toast.makeText(this, "Password reset link sent to $email", Toast.LENGTH_LONG).show()
-                } else {
-                    val error = task.exception?.message ?: "Failed to send reset link."
-                    Toast.makeText(this, error, Toast.LENGTH_LONG).show()
-                }
-            }
     }
 
     private fun startMainActivity() {
@@ -168,9 +170,7 @@ class LoginActivity : AppCompatActivity() {
 
     private class ClearErrorTextWatcher(private val layout: TextInputLayout) : TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            layout.error = null
-        }
+        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) { layout.error = null }
         override fun afterTextChanged(s: Editable?) {}
     }
 }

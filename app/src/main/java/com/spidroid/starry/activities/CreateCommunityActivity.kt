@@ -10,7 +10,9 @@ import com.google.firebase.ktx.Firebase
 import com.spidroid.starry.databinding.ActivityCreateCommunityBinding // قم بتفعيل ViewBinding
 import com.spidroid.starry.viewmodels.CommunityViewModel
 import com.spidroid.starry.viewmodels.UiState
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CreateCommunityActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCreateCommunityBinding
     private val viewModel: CommunityViewModel by viewModels()

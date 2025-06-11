@@ -8,7 +8,6 @@ class Resource<T> private constructor(val status: Status?, val data: T?, val mes
         LOADING,
         EMPTY
     }
-
     companion object {
         fun <T> success(data: T?): Resource<T?> {
             return Resource<T?>(Status.SUCCESS, data, null)

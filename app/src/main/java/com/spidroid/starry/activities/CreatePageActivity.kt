@@ -14,7 +14,9 @@ import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityCreatePageBinding
 import com.spidroid.starry.viewmodels.CreatePageViewModel
 import com.spidroid.starry.viewmodels.UiState
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CreatePageActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCreatePageBinding

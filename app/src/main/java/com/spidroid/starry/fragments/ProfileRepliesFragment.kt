@@ -25,7 +25,9 @@ import com.spidroid.starry.viewmodels.ProfileViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class ProfileRepliesFragment : Fragment(), ProfileRepliesAdapter.OnReplyClickListener {
 
     private var _binding: FragmentProfilePostsBinding? = null
