@@ -37,7 +37,6 @@
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="8dp"
                 android:src="@drawable/ic_default_group"
-                app:civ_border_color="@color/m3_outline"
                 app:civ_border_width="1dp" />
 
             <Button
@@ -141,7 +140,6 @@
         android:layout_margin="16dp"
         android:contentDescription="Create Group"
         android:src="@drawable/ic_check"
-        app:backgroundTint="?attr/colorPrimary"
-        app:tint="@color/m3_onPrimary" />
+        app:backgroundTint="?attr/colorPrimary" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

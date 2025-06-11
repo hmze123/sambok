@@ -29,7 +29,6 @@
                  android:layout_width="40dp"
                  android:src="@drawable/ic_default_avatar"
                  app:civ_border_width="1dp"
-                 app:civ_border_color="@color/primary"
                  android:id="@+id/profileImage" />
 
             <LinearLayout
@@ -43,7 +42,6 @@
                      android:layout_width="match_parent"
                      android:ellipsize="end"
                      android:textSize="12sp"
-                     android:textColor="@color/text_primary"
                      android:maxLines="1"
                      android:textStyle="bold"
                      android:id="@+id/displayName" />
@@ -53,7 +51,6 @@
                      android:layout_width="match_parent"
                      android:ellipsize="end"
                      android:textSize="14sp"
-                     android:textColor="@color/text_secondary"
                      android:maxLines="1"
                      android:id="@+id/username" />
 

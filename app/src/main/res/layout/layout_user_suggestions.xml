@@ -1,34 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
-     android:layout_height="wrap_content"
-     android:layout_width="match_parent"
-     android:background="@color/card_bg">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="?attr/colorSurface"  android:paddingTop="8dp"
+    android:paddingBottom="8dp">
 
     <TextView
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:padding="8dp"
-         android:textSize="16sp"
-         android:id="@+id/title"
-         android:text="People you might know"
-         android:textStyle="bold" />
-
-    <LinearLayout
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:padding="8dp"
-         android:orientation="vertical">
-
-        <androidx.recyclerview.widget.RecyclerView
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:paddingEnd="8dp"
-             android:clipToPadding="false"
-             android:paddingStart="8dp"
-             android:id="@+id/usersRecyclerView" />
-
-    </LinearLayout>
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="8dp"
+        android:text="People you might know"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorOnSurface" />
+    <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/usersRecyclerView"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clipToPadding="false"
+    android:paddingStart="8dp"
+    android:paddingEnd="8dp" />
 
 </LinearLayout>

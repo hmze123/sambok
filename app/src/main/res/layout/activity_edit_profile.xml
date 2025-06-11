@@ -1,53 +1,53 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout
-     xmlns:android="http://schemas.android.com/apk/res/android"
-     xmlns:app="http://schemas.android.com/apk/res-auto"
-     xmlns:tools="http://schemas.android.com/tools"
-     android:layout_height="match_parent"
-     android:layout_width="match_parent"
-     android:background="@color/surface">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_height="match_parent"
+    android:layout_width="match_parent"
+    android:background="@color/surface">
 
     <com.google.android.material.appbar.AppBarLayout
-         android:layout_height="wrap_content"
-         android:layout_width="match_parent"
-         android:background="@color/background">
+        android:layout_height="wrap_content"
+        android:layout_width="match_parent"
+        android:background="@color/background">
 
         <androidx.appcompat.widget.Toolbar
-             android:layout_height="?attr/actionBarSize"
-             android:layout_width="match_parent"
-             android:background="@color/surface">
+            android:layout_height="?attr/actionBarSize"
+            android:layout_width="match_parent"
+            android:background="@color/surface">
 
             <LinearLayout
-                 android:layout_height="match_parent"
-                 android:layout_width="match_parent"
-                 android:gravity="center_vertical"
-                 android:orientation="horizontal">
+                android:layout_height="match_parent"
+                android:layout_width="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <ImageButton
-                     android:layout_height="48dp"
-                     android:layout_width="48dp"
-                     android:src="@drawable/ic_back"
-                     android:background="@null"
-                     app:tint="@color/text_primary"
-                     android:id="@+id/btnBack" />
+                    android:layout_height="48dp"
+                    android:layout_width="48dp"
+                    android:src="@drawable/ic_back"
+                    android:background="@null"
+                    app:tint="@color/text_primary"
+                    android:id="@+id/btnBack" />
 
                 <TextView
-                     android:layout_height="wrap_content"
-                     android:layout_width="0dp"
-                     android:gravity="center"
-                     android:textSize="20sp"
-                     android:textColor="@color/text_primary"
-                     android:layout_weight="1"
-                     android:text="Edit Profile" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="0dp"
+                    android:gravity="center"
+                    android:textSize="20sp"
+                    android:textColor="@color/text_primary"
+                    android:layout_weight="1"
+                    android:text="Edit Profile" />
 
                 <Button
-                     android:layout_height="36dp"
-                     android:layout_width="wrap_content"
-                     app:backgroundTint="@color/primary"
-                     app:cornerRadius="18dp"
-                     android:textColor="@android:color/white"
-                     android:id="@+id/btnSave"
-                     android:text="Save" />
+                    android:layout_height="36dp"
+                    android:layout_width="wrap_content"
+                    app:backgroundTint="@color/primary"
+                    app:cornerRadius="18dp"
+                    android:textColor="@android:color/white"
+                    android:id="@+id/btnSave"
+                    android:text="Save" />
 
             </LinearLayout>
 
@@ -56,175 +56,175 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <ScrollView
-         android:layout_height="match_parent"
-         android:layout_width="match_parent"
-         app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:padding="16dp"
-             android:orientation="vertical">
+            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:padding="16dp"
+            android:orientation="vertical">
 
             <RelativeLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="24dp">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="24dp">
 
                 <de.hdodenhof.circleimageview.CircleImageView
-                     android:layout_height="80dp"
-                     android:layout_width="80dp"
-                     android:src="@drawable/ic_default_avatar"
-                     app:civ_border_width="2dp"
-                     app:civ_border_color="@color/background"
-                     android:id="@+id/ivProfile" />
+                    android:layout_height="80dp"
+                    android:layout_width="80dp"
+                    android:src="@drawable/ic_default_avatar"
+                    app:civ_border_width="2dp"
+                    app:civ_border_color="@color/background"
+                    android:id="@+id/ivProfile" />
 
                 <com.google.android.material.button.MaterialButton
-                     android:layout_height="36dp"
-                     android:layout_width="wrap_content"
-                     android:layout_alignEnd="@id/ivProfile"
-                     app:icon="@drawable/ic_camera"
-                     app:iconSize="18dp"
-                     app:cornerRadius="18dp"
-                     app:iconTint="@android:color/white"
-                     app:iconPadding="4dp"
-                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                     android:layout_alignBottom="@id/ivProfile"
-                     android:id="@+id/btnChangePhoto" />
+                    android:layout_height="36dp"
+                    android:layout_width="wrap_content"
+                    android:layout_alignEnd="@id/ivProfile"
+                    app:icon="@drawable/ic_camera"
+                    app:iconSize="18dp"
+                    app:cornerRadius="18dp"
+                    app:iconTint="@android:color/white"
+                    app:iconPadding="4dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_alignBottom="@id/ivProfile"
+                    android:id="@+id/btnChangePhoto" />
 
             </RelativeLayout>
 
             <RelativeLayout
-                 android:layout_height="150dp"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="24dp">
+                android:layout_height="150dp"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="24dp">
 
                 <ImageView
-                     android:layout_height="match_parent"
-                     android:layout_width="match_parent"
-                     android:scaleType="centerCrop"
-                     android:background="@color/surface"
-                     android:id="@+id/ivCover" />
+                    android:layout_height="match_parent"
+                    android:layout_width="match_parent"
+                    android:scaleType="centerCrop"
+                    android:background="@color/surface"
+                    android:id="@+id/ivCover" />
 
                 <com.google.android.material.button.MaterialButton
-                     android:layout_height="36dp"
-                     android:layout_width="wrap_content"
-                     app:iconSize="18dp"
-                     android:layout_alignParentEnd="true"
-                     app:iconTint="@android:color/white"
-                     app:iconPadding="4dp"
-                     app:icon="@drawable/ic_camera"
-                     android:layout_margin="8dp"
-                     app:cornerRadius="18dp"
-                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                     android:layout_alignParentBottom="true"
-                     android:id="@+id/btnChangeCover"
-                     android:text="Edit" />
+                    android:layout_height="36dp"
+                    android:layout_width="wrap_content"
+                    app:iconSize="18dp"
+                    android:layout_alignParentEnd="true"
+                    app:iconTint="@android:color/white"
+                    app:iconPadding="4dp"
+                    app:icon="@drawable/ic_camera"
+                    android:layout_margin="8dp"
+                    app:cornerRadius="18dp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_alignParentBottom="true"
+                    android:id="@+id/btnChangeCover"
+                    android:text="Edit" />
 
             </RelativeLayout>
 
             <com.google.android.material.textfield.TextInputLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="16dp"
-                 app:hintTextColor="@color/text_secondary"
-                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="16dp"
+                app:hintTextColor="@color/text_secondary"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:hint="Display Name"
-                     android:maxLines="1"
-                     android:inputType="textPersonName"
-                     android:id="@+id/etDisplayName" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:hint="Display Name"
+                    android:maxLines="1"
+                    android:inputType="textPersonName"
+                    android:id="@+id/etDisplayName" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="16dp"
-                 app:hintTextColor="@color/text_secondary"
-                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="16dp"
+                app:hintTextColor="@color/text_secondary"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:hint="Username"
-                     android:maxLines="1"
-                     android:inputType="text"
-                     android:id="@+id/etUsername" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:hint="Username"
+                    android:maxLines="1"
+                    android:inputType="text"
+                    android:id="@+id/etUsername" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
             <com.google.android.material.textfield.TextInputLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="16dp"
-                 app:hintTextColor="@color/text_secondary"
-                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="16dp"
+                app:hintTextColor="@color/text_secondary"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
                 <com.google.android.material.textfield.TextInputEditText
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:hint="Bio"
-                     android:maxLines="3"
-                     android:inputType="textMultiLine"
-                     android:id="@+id/etBio" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:hint="Bio"
+                    android:maxLines="3"
+                    android:inputType="textMultiLine"
+                    android:id="@+id/etBio" />
 
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="8dp"
-                 android:textSize="16sp"
-                 android:textColor="@color/text_primary"
-                 android:text="Social Links" />
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="8dp"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:text="Social Links" />
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:orientation="vertical"
-                 android:id="@+id/layoutSocialLinks">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:orientation="vertical"
+                android:id="@+id/layoutSocialLinks">
 
             </LinearLayout>
 
             <Button
-                 android:layout_height="wrap_content"
-                 android:layout_width="wrap_content"
-                 android:backgroundTint="@android:color/transparent"
-                 android:textColor="@color/primary"
-                 android:id="@+id/btnAddSocial"
-                 android:text="Add Social Link" />
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:backgroundTint="@android:color/transparent"
+                android:textColor="@color/primary"
+                android:id="@+id/btnAddSocial"
+                android:text="Add Social Link" />
 
             <TextView
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:layout_marginBottom="8dp"
-                 android:textSize="16sp"
-                 android:textColor="@color/text_primary"
-                 android:layout_marginTop="16dp"
-                 android:text="Privacy Settings" />
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_marginBottom="8dp"
+                android:textSize="16sp"
+                android:textColor="@color/text_primary"
+                android:layout_marginTop="16dp"
+                android:text="Privacy Settings" />
 
             <LinearLayout
-                 android:layout_height="wrap_content"
-                 android:layout_width="match_parent"
-                 android:orientation="vertical">
+                android:layout_height="wrap_content"
+                android:layout_width="match_parent"
+                android:orientation="vertical">
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:textColor="@color/text_primary"
-                     android:id="@+id/switchPrivate"
-                     android:text="Private Account" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:textColor="@color/text_primary"
+                    android:id="@+id/switchPrivate"
+                    android:text="Private Account" />
 
                 <com.google.android.material.switchmaterial.SwitchMaterial
-                     android:layout_height="wrap_content"
-                     android:layout_width="match_parent"
-                     android:textColor="@color/text_primary"
-                     android:id="@+id/switchActivity"
-                     android:text="Show Activity Status" />
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:textColor="@color/text_primary"
+                    android:id="@+id/switchActivity"
+                    android:text="Show Activity Status" />
 
             </LinearLayout>
 
@@ -233,10 +233,10 @@
     </ScrollView>
 
     <com.spidroid.starry.auth.CircularProgressBar
-         android:layout_height="wrap_content"
-         android:layout_width="wrap_content"
-         android:visibility="gone"
-         android:id="@+id/progressBar"
-         android:layout_gravity="center" />
+        android:layout_height="wrap_content"
+        android:layout_width="wrap_content"
+        android:visibility="gone"
+        android:id="@+id/progressBar"
+        android:layout_gravity="center" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

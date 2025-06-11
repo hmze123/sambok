@@ -167,7 +167,7 @@ class ProfileActivity : AppCompatActivity() {
         binding.ivVerified.visibility = if (user.isVerified) View.VISIBLE else View.GONE
 
         Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivAvatar)
-        Glide.with(this).load(user.coverImageUrl).placeholder(R.color.m3_surfaceContainerLow).into(binding.ivCover)
+        Glide.with(this).load(user.coverImageUrl).placeholder(R.color.md_theme_primary).into(binding.ivCover)
 
         binding.tvFollowersCount.text = user.followers.size.toString()
         binding.tvFollowingCount.text = user.following.size.toString()

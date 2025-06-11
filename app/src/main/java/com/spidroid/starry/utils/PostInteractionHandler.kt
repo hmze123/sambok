@@ -6,6 +6,7 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.google.android.material.color.MaterialColors
 import com.spidroid.starry.R
 import com.spidroid.starry.adapters.PostInteractionListener
 import com.spidroid.starry.models.PostModel
@@ -125,7 +126,9 @@ class PostInteractionHandler(
     ) {
         context ?: return
         button.setImageResource(if (isActive) filledRes else outlineRes)
-        val color = ContextCompat.getColor(context, if (isActive) activeColorRes else R.color.text_secondary)
+        val color = ContextCompat.getColor(context, if (isActive) activeColorRes else R.color.md_theme_primary)
+        //  val Color = MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, "default color")
+
         button.setColorFilter(color)
     }
 

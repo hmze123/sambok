@@ -5,8 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="16dp"
-    android:background="?attr/colorSurface">
+    android:paddingTop="16dp">
 
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
@@ -19,9 +18,7 @@
             android:id="@+id/et_search"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:hint="Search people..."
-            android:textColor="?attr/colorOnSurface"
-            android:textColorHint="?attr/colorOnSurfaceVariant" />
+            android:hint="Search people..." />
 
     </com.google.android.material.textfield.TextInputLayout>
 
@@ -39,8 +36,6 @@
             android:layout_height="48dp"
             android:layout_weight="1"
             android:text="New Group"
-            android:textColor="?attr/colorPrimary"
-            app:backgroundTint="?attr/colorSurfaceVariant"
             app:icon="@drawable/ic_group_add"
             app:iconTint="?attr/colorPrimary" />
 
