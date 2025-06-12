@@ -17,6 +17,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.google.firebase.auth.FirebaseAuth
+import com.spidroid.starry.R
 import com.spidroid.starry.activities.MainActivity
 import com.spidroid.starry.databinding.ActivityLoginBinding
 import com.spidroid.starry.utils.Resource
@@ -60,7 +61,6 @@ class LoginActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         viewModel.loginResult.observe(this) { resource ->
-            // ٢. استخدام الطريقة الصحيحة للتحقق من الحالة
             showProgress(resource.status == Resource.Status.LOADING)
             when (resource.status) {
                 Resource.Status.SUCCESS -> {
@@ -70,7 +70,7 @@ class LoginActivity : AppCompatActivity() {
                 Resource.Status.ERROR -> {
                     handleLoginError(resource.message)
                 }
-                else -> { /* لا تفعل شيئًا للحالات الأخرى */ }
+                else -> { /* No-op for other states */ }
             }
         }
 
@@ -83,7 +83,7 @@ class LoginActivity : AppCompatActivity() {
                 Resource.Status.ERROR -> {
                     Toast.makeText(this, resource.message, Toast.LENGTH_LONG).show()
                 }
-                else -> { /* لا تفعل شيئًا للحالات الأخرى */ }
+                else -> { /* No-op for other states */ }
             }
         }
     }
@@ -109,11 +109,11 @@ class LoginActivity : AppCompatActivity() {
         var isValid = true
 
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            binding.emailLayout.error = "Please enter a valid email"
+            binding.emailLayout.error = getString(R.string.error_invalid_email)
             isValid = false
         }
         if (password.length < 6) {
-            binding.passwordLayout.error = "Password must be at least 6 characters"
+            binding.passwordLayout.error = getString(R.string.error_password_min_chars)
             isValid = false
         }
         return isValid
@@ -164,7 +164,8 @@ class LoginActivity : AppCompatActivity() {
     }
 
     private fun showProgress(show: Boolean) {
-        binding.progressContainer.visibility = if (show) View.VISIBLE else View.GONE
+        // **[تم التعديل هنا]**
+        binding.progressContainer.root.visibility = if (show) View.VISIBLE else View.GONE
         binding.loginButton.isEnabled = !show
     }
 

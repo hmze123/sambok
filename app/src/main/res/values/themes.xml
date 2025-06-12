@@ -65,7 +65,17 @@
         <item name="textAppearanceLabelMedium">@style/TextAppearance.Material3.LabelMedium</item>
         <item name="textAppearanceLabelSmall">@style/TextAppearance.Material3.LabelSmall</item>
     </style>
-
+    <style name="ComposeAction" parent="Widget.AppCompat.TextView">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:gravity">center</item>
+        <item name="android:padding">8dp</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:drawablePadding">4dp</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="drawableTint">@color/compose_action_tint</item>
+    </style>
     <style name="Theme.Twitter" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/twitter_primary</item>
         <item name="android:statusBarColor">@color/twitter_background</item>

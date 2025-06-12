@@ -29,12 +29,12 @@
                 app:tint="@android:color/white"
                 android:layout_centerVertical="true"
                 android:layout_alignParentStart="true"
-                android:contentDescription="Close" />
+                android:contentDescription="@string/create_story_close_description" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="New Story"
+                android:text="@string/create_story_title"
                 android:textColor="@android:color/white"
                 android:textSize="20sp"
                 android:textStyle="bold"
@@ -44,7 +44,7 @@
                 android:id="@+id/btnPublishStory"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Post"
+                android:text="@string/create_story_post_button"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:textColor="@color/twitter_primary"
                 android:layout_alignParentEnd="true"
@@ -121,7 +121,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@android:color/white"
             android:scaleType="centerInside"
-            android:contentDescription="Open Gallery"/>
+            android:contentDescription="@string/create_story_gallery_description"/>
 
         <View
             android:layout_width="0dp"
@@ -135,7 +135,7 @@
             android:src="@drawable/ic_capture_story_button"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:scaleType="centerInside"
-            android:contentDescription="Capture Story"/>
+            android:contentDescription="@string/create_story_capture_description"/>
 
         <View
             android:layout_width="0dp"
@@ -150,7 +150,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@android:color/white"
             android:scaleType="centerInside"
-            android:contentDescription="Switch Camera"/>
+            android:contentDescription="@string/create_story_switch_camera_description"/>
     </LinearLayout>
 
     <LinearLayout
@@ -172,7 +172,7 @@
             android:src="@drawable/ic_text_fields"
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@android:color/white"
-            android:contentDescription="Add Text"/>
+            android:contentDescription="@string/create_story_add_text_description"/>
 
         <ImageButton
             android:id="@+id/btn_draw_story"
@@ -182,7 +182,7 @@
             android:layout_marginTop="12dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="@android:color/white"
-            android:contentDescription="Draw"/>
+            android:contentDescription="@string/create_story_draw_description"/>
 
     </LinearLayout>
 

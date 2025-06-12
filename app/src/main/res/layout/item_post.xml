@@ -24,7 +24,8 @@
             app:civ_border_width="0.5dp"
             app:civ_border_color="?attr/colorOutline"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            android:contentDescription="@string/user_profile_image" />
 
         <LinearLayout
             android:id="@+id/authorInfoLayout"
@@ -58,13 +59,15 @@
                     android:visibility="gone"
                     android:layout_marginStart="4dp"
                     app:tint="?attr/colorPrimary"
-                    app:srcCompat="@drawable/ic_verified" />
+                    app:srcCompat="@drawable/ic_verified"
+                    tools:visibility="visible"
+                    android:contentDescription="@string/verified_user_badge" />
 
                 <TextView
                     android:id="@+id/tvDotSeparator"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="·"
+                    android:text="@string/dot_separator"
                     android:textColor="?attr/colorOnSurfaceVariant"
                     android:layout_marginHorizontal="4dp"
                     style="?attr/textAppearanceLabelSmall"
@@ -98,11 +101,12 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@id/authorInfoLayout"
             app:layout_constraintBottom_toBottomOf="@id/authorInfoLayout"
-            android:contentDescription="Post options menu" />
+            android:contentDescription="@string/post_options_menu_description" />
 
         <TextView
             android:id="@+id/tvPostContent"
-            android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             style="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnSurface"
@@ -120,7 +124,7 @@
             android:textColor="?attr/colorPrimary"
             android:background="?attr/selectableItemBackground"
             android:padding="4dp"
-            android:text="@string/translate"
+            android:text="@string/translate_button_text"
             android:visibility="gone"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvPostContent"
@@ -198,7 +202,7 @@
                     android:background="@android:color/transparent"
                     app:srcCompat="@drawable/ic_like_outline"
                     app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="Like post"/>
+                    android:contentDescription="@string/like_post_description"/>
 
                 <ImageView
                     android:id="@+id/ivLikeReaction"
@@ -238,7 +242,7 @@
                     android:background="@android:color/transparent"
                     app:srcCompat="@drawable/ic_comment"
                     app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="Comment on post"/>
+                    android:contentDescription="@string/comment_on_post_description"/>
                 <TextView
                     android:id="@+id/tvCommentCount"
                     android:layout_width="wrap_content"
@@ -267,7 +271,7 @@
                     android:background="@android:color/transparent"
                     app:srcCompat="@drawable/ic_repost_outline"
                     app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="Repost post"/>
+                    android:contentDescription="@string/repost_post_description"/>
                 <TextView
                     android:id="@+id/tvRepostCount"
                     android:layout_width="wrap_content"
@@ -296,7 +300,7 @@
                     android:background="@android:color/transparent"
                     app:srcCompat="@drawable/ic_bookmark_outline"
                     app:tint="?attr/colorOnSurfaceVariant"
-                    android:contentDescription="Bookmark post"/>
+                    android:contentDescription="@string/bookmark_post_description"/>
                 <TextView
                     android:id="@+id/tvBookmarkCount"
                     android:layout_width="wrap_content"

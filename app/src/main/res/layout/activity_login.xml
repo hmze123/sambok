@@ -2,13 +2,14 @@
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_height="match_parent"
     android:layout_width="match_parent">
 
     <ScrollView
         android:layout_height="match_parent"
         android:layout_width="match_parent"
-        android:background="@color/surface"
+        android:background="?attr/colorSurface"
         android:padding="24dp">
 
         <LinearLayout
@@ -21,7 +22,7 @@
                 android:layout_width="64dp"
                 android:layout_marginVertical="48dp"
                 android:src="@drawable/ic_launcher_foreground"
-                android:tint="@color/primary"
+                app:tint="?attr/colorPrimary"
                 android:layout_gravity="center_horizontal" />
 
             <TextView
@@ -29,16 +30,16 @@
                 android:layout_width="match_parent"
                 android:layout_marginBottom="32dp"
                 android:textSize="24sp"
-                android:textColor="@color/text_primary"
-                android:text="Log in to Starry"
+                android:textColor="?attr/colorOnSurface"
+                android:text="@string/login_title"
                 android:textStyle="bold" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/emailLayout"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
-                android:hint="Email or username"
-                app:hintTextColor="@color/text_secondary"
+                android:hint="@string/email_or_username_hint"
+                app:hintTextColor="?attr/colorOnSurfaceVariant"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 app:errorEnabled="true">
 
@@ -54,8 +55,8 @@
                 android:id="@+id/passwordLayout"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
-                android:hint="Password"
-                app:hintTextColor="@color/text_secondary"
+                android:hint="@string/password_hint"
+                app:hintTextColor="?attr/colorOnSurfaceVariant"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_marginTop="16dp"
                 app:errorEnabled="true">
@@ -72,8 +73,8 @@
                 android:id="@+id/forgotPasswordPrompt"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Forgot password?"
-                android:textColor="@color/primary"
+                android:text="@string/forgot_password_prompt"
+                android:textColor="?attr/colorPrimary"
                 android:textStyle="bold"
                 android:layout_gravity="end"
                 android:layout_marginTop="8dp"
@@ -82,49 +83,43 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/loginButton"
-                android:layout_height="48dp"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
                 android:layout_width="match_parent"
                 app:cornerRadius="24dp"
-                android:backgroundTint="@color/grey"
-                android:textColor="@android:color/white"
+                android:textColor="@color/md_theme_onPrimary"
                 android:layout_marginTop="32dp"
-                android:text="Log in" />
+                android:text="@string/login_button" />
 
             <TextView
                 android:id="@+id/signUpPrompt"
                 android:layout_height="wrap_content"
                 android:layout_width="match_parent"
                 android:gravity="center"
-                android:textColor="@color/primary"
+                android:textColor="?attr/colorPrimary"
                 android:layout_marginTop="32dp"
-                android:text="Dont have an account? Sign up"
+                android:text="@string/signup_prompt"
                 android:textStyle="bold" />
 
         </LinearLayout>
 
     </ScrollView>
 
-    <androidx.cardview.widget.CardView
+    <include
         android:id="@+id/progressContainer"
-        android:layout_height="80dp"
-        android:layout_width="80dp"
+        layout="@layout/progress_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
         android:visibility="gone"
-        app:cardBackgroundColor="#80000000"
-        app:cardCornerRadius="16dp"
-        android:layout_gravity="center">
+        tools:visibility="visible"/>
 
-        <com.spidroid.starry.auth.CircularProgressBar
-            android:id="@+id/progressBar"
-            android:layout_height="40dp"
-            android:layout_width="40dp"
-            android:layout_gravity="center" />
-
-    </androidx.cardview.widget.CardView>
     <include
         android:id="@+id/error_view"
         layout="@layout/layout_error_view"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:visibility="gone"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"

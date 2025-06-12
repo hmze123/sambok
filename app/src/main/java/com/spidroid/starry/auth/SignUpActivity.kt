@@ -119,26 +119,29 @@ class SignUpActivity : AppCompatActivity() {
 
     private fun setupTermsText(termsText: TextView) {
         val spannable = buildSpannedString {
-            append("I agree to the ")
+            append(getString(R.string.terms_agreement_prefix))
+            append(" ")
             inSpans(
                 StyleSpan(Typeface.BOLD),
-                ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.primary)),
+                ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.md_theme_primary)),
                 object : ClickableSpan() {
                     override fun onClick(widget: View) {
                         showTermsBottomSheet("terms")
                     }
                 }
-            ) { append("Terms of Service") }
-            append(" and ")
+            ) { append(getString(R.string.terms_of_service)) }
+            append(" ")
+            append(getString(R.string.terms_agreement_and))
+            append(" ")
             inSpans(
                 StyleSpan(Typeface.BOLD),
-                ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.primary)),
+                ForegroundColorSpan(ContextCompat.getColor(this@SignUpActivity, R.color.md_theme_primary)),
                 object : ClickableSpan() {
                     override fun onClick(widget: View) {
                         showTermsBottomSheet("privacy")
                     }
                 }
-            ) { append("Privacy Policy") }
+            ) { append(getString(R.string.privacy_policy)) }
         }
 
         termsText.text = spannable

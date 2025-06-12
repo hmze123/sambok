@@ -1,193 +1,48 @@
-<?xml version="1.0" encoding="utf-8"?>
-<PreferenceScreen
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory
-        android:title="Account"
-        android:key="account_category"
-        android:iconSpaceReserved="true">
-
-        <Preference
-            android:key="username"
-            android:title="Username"
-            android:icon="@drawable/ic_id"
-            android:summary="@{model.username}" />
-
-        <Preference
-            android:key="email"
-            android:title="Email"
-            android:icon="@drawable/ic_email"
-            android:summary="@{model.email}" />
-
-        <Preference
-            android:key="email_verification"
-            android:title="Verify Email"
-            android:icon="@drawable/ic_check"
-            android:summary="Verify your email address for account security." />
-
-        <Preference
-            android:key="phone_number"
-            android:title="Phone Number"
-            android:icon="@drawable/ic_call"
-            android:summary="@{model.phoneNumber}" />
-
-        <Preference
-            android:key="social_connections"
-            android:title="Connected Accounts"
-            android:icon="@drawable/ic_social_connections"
-            android:summary="Manage social connections" />
-        <Preference
-            android:key="create_page"
-            android:title="Create New Page"
-            android:icon="@drawable/ic_group_add"
-            android:summary="Start a page for your business or community"/>
-
-        <Preference
-            android:key="bookmarks"
-            android:title="Bookmarks"
-            android:icon="@drawable/ic_bookmark_outline"
-            android:summary="View your saved posts"/>
-
-
-
-
+    <PreferenceCategory android:title="@string/settings_category_account">
+        <Preference android:key="username" android:title="@string/settings_username_title" android:icon="@drawable/ic_id"/>
+        <Preference android:key="email" android:title="@string/settings_email_title" android:icon="@drawable/ic_email"/>
+        <Preference android:key="email_verification" android:title="@string/settings_email_verification_title" android:icon="@drawable/ic_check" android:summary="@string/settings_email_verification_summary"/>
+        <Preference android:key="phone_number" android:title="@string/settings_phone_title" android:icon="@drawable/ic_call"/>
+        <Preference android:key="social_connections" android:title="@string/settings_connected_accounts_title" android:icon="@drawable/ic_social_connections" android:summary="@string/settings_connected_accounts_summary"/>
+        <Preference android:key="create_page" android:title="@string/settings_create_page_title" android:icon="@drawable/ic_group_add" android:summary="@string/settings_create_page_summary"/>
+        <Preference android:key="bookmarks" android:title="@string/settings_bookmarks_title" android:icon="@drawable/ic_bookmark_outline" android:summary="@string/settings_bookmarks_summary"/>
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:title="Privacy"
-        android:iconSpaceReserved="false">
-
-        <SwitchPreference
-            android:key="private_account"
-            android:title="Private Account"
-            android:icon="@drawable/ic_anonymous"
-            android:summary="Approve follow requests"
-            android:defaultValue="false" />
-
-        <SwitchPreference
-            android:key="show_activity"
-            android:title="Show Activity Status"
-            android:icon="@drawable/ic_activity_status"
-            android:summary="Share when you're active"
-            android:defaultValue="true" />
-
-        <SwitchPreference
-            android:key="allow_dms"
-            android:title="Allow Direct Messages"
-            android:icon="@drawable/ic_block_messages"
-            android:summary="Control who can message you"
-            android:defaultValue="true" />
-
-        <Preference
-            android:key="blocked_users"
-            android:title="Blocked Accounts"
-            android:icon="@drawable/ic_blocked_users"
-            android:summary="Manage blocked users" />
-
+    <PreferenceCategory android:title="@string/settings_category_privacy">
+        <SwitchPreference android:key="private_account" android:title="@string/settings_private_account_title" android:icon="@drawable/ic_anonymous" android:summary="@string/settings_private_account_summary" android:defaultValue="false" />
+        <SwitchPreference android:key="show_activity" android:title="@string/settings_show_activity_title" android:icon="@drawable/ic_activity_status" android:summary="@string/settings_show_activity_summary" android:defaultValue="true" />
+        <SwitchPreference android:key="allow_dms" android:title="@string/settings_allow_dms_title" android:icon="@drawable/ic_block_messages" android:summary="@string/settings_allow_dms_summary" android:defaultValue="true" />
+        <Preference android:key="blocked_users" android:title="@string/settings_blocked_accounts_title" android:icon="@drawable/ic_blocked_users" android:summary="@string/settings_blocked_accounts_summary" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:title="Notifications"
-        android:icon="@drawable/ic_notifications_filled"
-        android:iconSpaceReserved="false">
-
-        <SwitchPreference
-            android:key="notify_messages"
-            android:title="New Messages"
-            android:icon="@drawable/ic_messages_filled"
-            android:summary="Notify about direct messages"
-            android:defaultValue="true" />
-
-        <SwitchPreference
-            android:key="notify_comments"
-            android:icon="@drawable/ic_comment"
-            android:title="Comments &amp; Mentions"
-            android:summary="Notify about post interactions"
-            android:defaultValue="true" />
-
-        <SwitchPreference
-            android:key="notify_reposts"
-            android:title="Reposts"
-            android:icon="@drawable/ic_repost_filled"
-            android:summary="Notify when someone shares your post"
-            android:defaultValue="true" />
-
+    <PreferenceCategory android:title="@string/settings_category_notifications">
+        <SwitchPreference android:key="notify_messages" android:title="@string/settings_notify_messages_title" android:icon="@drawable/ic_messages_filled" android:summary="@string/settings_notify_messages_summary" android:defaultValue="true" />
+        <SwitchPreference android:key="notify_comments" android:icon="@drawable/ic_comment" android:title="@string/settings_notify_comments_title" android:summary="@string/settings_notify_comments_summary" android:defaultValue="true" />
+        <SwitchPreference android:key="notify_reposts" android:title="@string/settings_notify_reposts_title" android:icon="@drawable/ic_repost_filled" android:summary="@string/settings_notify_reposts_summary" android:defaultValue="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:title="Security"
-        android:iconSpaceReserved="false">
-
-        <Preference
-            android:key="two_factor"
-            android:icon="@drawable/ic_two_fac_auth"
-            android:title="Two-Factor Authentication"
-            android:summary="Extra layer of security"
-            android:defaultValue="false" />
-
-        <Preference
-            android:key="trusted_devices"
-            android:title="Trusted Devices"
-            android:icon="@drawable/ic_phone"
-            android:summary="Manage logged-in devices" />
-
-        <Preference
-            android:key="change_password"
-            android:icon="@drawable/ic_lock"
-            android:title="Change Password" />
-
+    <PreferenceCategory android:title="@string/settings_category_security">
+        <Preference android:key="two_factor" android:icon="@drawable/ic_two_fac_auth" android:title="@string/settings_2fa_title" android:summary="@string/settings_2fa_summary"/>
+        <Preference android:key="trusted_devices" android:title="@string/settings_trusted_devices_title" android:icon="@drawable/ic_phone" android:summary="@string/settings_trusted_devices_summary" />
+        <Preference android:key="change_password" android:icon="@drawable/ic_lock" android:title="@string/settings_change_password_title" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:title="Appearance"
-        android:iconSpaceReserved="false">
-
-        <ListPreference
-            android:key="app_theme"
-            android:title="Theme"
-            android:icon="@drawable/ic_themes"
-            android:summary="Choose visual style"
-            android:entries="@array/theme_entries"
-            android:entryValues="@array/theme_values"
-            android:defaultValue="bluesky" />
-
+    <PreferenceCategory android:title="@string/settings_category_appearance">
+        <ListPreference android:key="app_theme" android:title="@string/settings_theme_title" android:icon="@drawable/ic_themes" android:summary="@string/settings_theme_summary" android:entries="@array/theme_entries" android:entryValues="@array/theme_values" android:defaultValue="bluesky" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:title="Feedback"
-        android:iconSpaceReserved="false">
-
-        <Preference
-            android:key="bug report"
-            android:title="Report a bug"
-            android:icon="@drawable/ic_bug"
-            android:summary="Report a bug"/>
-
+    <PreferenceCategory android:title="@string/settings_category_feedback">
+        <Preference android:key="bug report" android:title="@string/settings_bug_report_title" android:icon="@drawable/ic_bug" android:summary="@string/settings_bug_report_summary"/>
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:iconSpaceReserved="false">
-
-        <Preference
-            android:key="logout"
-            android:title="Logout"
-            android:icon="@drawable/ic_logout"
-            android:summary="Sign out from your account" />
-
+    <PreferenceCategory>
+        <Preference android:key="logout" android:title="@string/settings_logout_title" android:icon="@drawable/ic_logout" android:summary="@string/settings_logout_summary" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-        android:iconSpaceReserved="false">
-
-        <Preference
-            android:key="about"
-            android:title="About Starry"
-            android:icon="@drawable/ic_launcher_foreground"
-            android:summary="Learn more about Starry" />
-
+    <PreferenceCategory>
+        <Preference android:key="about" android:title="@string/settings_about_title" android:icon="@drawable/ic_launcher_foreground" android:summary="@string/settings_about_summary" />
     </PreferenceCategory>
 
 </PreferenceScreen>

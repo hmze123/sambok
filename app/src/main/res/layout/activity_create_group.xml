@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -15,7 +16,7 @@
             android:layout_height="?attr/actionBarSize"
             android:background="?attr/colorSurfaceContainer"
             app:navigationIcon="@drawable/ic_close"
-            app:title="Create New Group"
+            app:title="@string/create_group_title"
             app:titleTextColor="?attr/colorOnSurface" />
     </com.google.android.material.appbar.AppBarLayout>
 
@@ -46,14 +47,14 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="24dp"
-                android:text="Select Group Image" />
+                android:text="@string/create_group_select_image_button" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/til_group_name"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Group Name">
+                android:hint="@string/create_group_name_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_group_name"
@@ -69,7 +70,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:hint="Group Description (Optional)">
+                android:hint="@string/create_group_description_hint">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/et_group_description"
@@ -85,7 +86,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="Select Members:"
+                android:text="@string/create_group_select_members_title"
                 android:textAppearance="?attr/textAppearanceLabelLarge"
                 android:textColor="?attr/colorOnSurface" />
 
@@ -94,7 +95,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:hint="Search users to add"
+                android:hint="@string/create_group_search_members_hint"
                 android:inputType="text"
                 android:background="@drawable/circular_ends"
                 android:paddingStart="16dp"
@@ -138,7 +139,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="Create Group"
+        android:contentDescription="@string/create_group_fab_description"
         android:src="@drawable/ic_check"
         app:backgroundTint="?attr/colorPrimary" />
 

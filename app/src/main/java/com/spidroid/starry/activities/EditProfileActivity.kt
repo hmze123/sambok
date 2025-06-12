@@ -1,13 +1,9 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/EditProfileActivity.kt
 package com.spidroid.starry.activities
 
-import android.app.Activity
-import android.content.DialogInterface
-import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.text.Editable // ✨ تم إضافة هذا الاستيراد
-import android.text.TextWatcher // ✨ تم إضافة هذا الاستيراد
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -21,7 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.bumptech.glide.Glide
 import com.google.android.gms.tasks.Task
 import com.google.android.gms.tasks.Tasks
-import com.google.android.material.dialog.MaterialAlertDialogBuilder // ✨ تم إضافة هذا الاستيراد
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -30,7 +26,7 @@ import com.google.firebase.storage.StorageReference
 import com.spidroid.starry.R
 import com.spidroid.starry.databinding.ActivityEditProfileBinding
 import com.spidroid.starry.models.UserModel
-import java.util.Locale
+import java.util.*
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -50,9 +46,8 @@ class EditProfileActivity : AppCompatActivity() {
     private lateinit var pickCoverImageLauncher: ActivityResultLauncher<String>
 
     private companion object {
-        private const val TAG = "EditProfileActivity" // ✨ تم تعريف TAG
+        private const val TAG = "EditProfileActivity"
     }
-
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -60,7 +55,7 @@ class EditProfileActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         if (auth.currentUser == null) {
-            Toast.makeText(this, "Authentication required.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_authentication_required), Toast.LENGTH_SHORT).show()
             finish()
             return
         }
@@ -87,21 +82,18 @@ class EditProfileActivity : AppCompatActivity() {
         }
     }
 
-
     private fun setupUI() {
         binding.btnBack.setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         binding.btnSave.setOnClickListener { saveProfile() }
         binding.btnAddSocial.setOnClickListener { showAddSocialDialog() }
         binding.btnChangePhoto.setOnClickListener { pickProfileImageLauncher.launch("image/*") }
         binding.btnChangeCover.setOnClickListener { pickCoverImageLauncher.launch("image/*") }
-
-        // ✨ إضافة مستمعين لـ SwitchPreference
         binding.switchPrivate.setOnCheckedChangeListener { _, _ -> hasChanges = true }
         binding.switchActivity.setOnCheckedChangeListener { _, _ -> hasChanges = true }
     }
 
     private fun loadUserData() {
-        binding.progressBar.visibility = View.VISIBLE
+        binding.progressContainer.root.visibility = View.VISIBLE
         auth.currentUser?.uid?.let { userId ->
             db.collection("users").document(userId).get()
                 .addOnSuccessListener { document ->
@@ -109,14 +101,14 @@ class EditProfileActivity : AppCompatActivity() {
                         originalUser = document.toObject(UserModel::class.java)
                         originalUser?.let { populateFields(it) }
                     } else {
-                        Toast.makeText(this, "User profile not found.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, getString(R.string.toast_user_profile_not_found), Toast.LENGTH_SHORT).show()
                     }
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Failed to load profile: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_failed_to_load_profile, e.message), Toast.LENGTH_SHORT).show()
                 }
                 .addOnCompleteListener {
-                    binding.progressBar.visibility = View.GONE
+                    binding.progressContainer.root.visibility = View.GONE
                 }
         }
     }
@@ -124,16 +116,13 @@ class EditProfileActivity : AppCompatActivity() {
     private fun populateFields(user: UserModel) {
         Glide.with(this).load(user.profileImageUrl).placeholder(R.drawable.ic_default_avatar).into(binding.ivProfile)
         Glide.with(this).load(user.coverImageUrl).placeholder(R.drawable.ic_cover_placeholder).into(binding.ivCover)
-
         binding.etDisplayName.setText(user.displayName)
         binding.etUsername.setText(user.username)
         binding.etBio.setText(user.bio)
-
         binding.switchPrivate.isChecked = user.privacySettings.privateAccount
         binding.switchActivity.isChecked = user.privacySettings.showActivityStatus
-
         updateSocialLinksUI(user.socialLinks)
-        setupTextWatchers() // Setup watchers after populating fields
+        setupTextWatchers()
     }
 
     private fun updateSocialLinksUI(socialLinks: Map<String, String>) {
@@ -146,34 +135,27 @@ class EditProfileActivity : AppCompatActivity() {
     private fun addSocialLinkView(platform: String, url: String) {
         val linkView = LayoutInflater.from(this).inflate(R.layout.item_social_link, binding.layoutSocialLinks, false)
         linkView.tag = platform
-
         val icon = linkView.findViewById<ImageView>(R.id.ivPlatform)
         val etUrl = linkView.findViewById<EditText>(R.id.etUrl)
         val btnRemove = linkView.findViewById<ImageButton>(R.id.btnRemove)
-
         icon.setImageResource(getPlatformIcon(platform))
         etUrl.setText(url)
         etUrl.addTextChangedListener(textWatcher)
-
         btnRemove.setOnClickListener {
             binding.layoutSocialLinks.removeView(linkView)
             hasChanges = true
         }
-
         binding.layoutSocialLinks.addView(linkView)
     }
 
     private fun getPlatformIcon(platform: String): Int {
         return when (platform.lowercase(Locale.getDefault())) {
-            UserModel.SOCIAL_TWITTER -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة تويتر الفعلية
-            UserModel.SOCIAL_INSTAGRAM -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة انستجرام الفعلية
-            UserModel.SOCIAL_FACEBOOK -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة فيسبوك الفعلية
-            UserModel.SOCIAL_LINKEDIN -> R.drawable.ic_link // ✨ يفضل استخدام أيقونة لينكدإن الفعلية
+            UserModel.SOCIAL_TWITTER, UserModel.SOCIAL_INSTAGRAM, UserModel.SOCIAL_FACEBOOK, UserModel.SOCIAL_LINKEDIN -> R.drawable.ic_link
             else -> R.drawable.ic_link
         }
     }
 
-    private val textWatcher = object: TextWatcher {
+    private val textWatcher = object : TextWatcher {
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
             hasChanges = true
@@ -191,10 +173,9 @@ class EditProfileActivity : AppCompatActivity() {
         val platforms = arrayOf(UserModel.SOCIAL_TWITTER.replaceFirstChar { it.titlecase(Locale.getDefault()) },
             UserModel.SOCIAL_INSTAGRAM.replaceFirstChar { it.titlecase(Locale.getDefault()) },
             UserModel.SOCIAL_FACEBOOK.replaceFirstChar { it.titlecase(Locale.getDefault()) },
-            UserModel.SOCIAL_LINKEDIN.replaceFirstChar { it.titlecase(Locale.getDefault()) }) // ✨ استخدام ثوابت UserModel
-
+            UserModel.SOCIAL_LINKEDIN.replaceFirstChar { it.titlecase(Locale.getDefault()) })
         MaterialAlertDialogBuilder(this)
-            .setTitle("Add Social Link")
+            .setTitle(getString(R.string.add_social_link))
             .setItems(platforms) { _, which ->
                 val platform = platforms[which].lowercase(Locale.getDefault())
                 addSocialLinkView(platform, "")
@@ -213,38 +194,30 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun showDiscardDialog() {
         MaterialAlertDialogBuilder(this)
-            .setTitle("Discard Changes?")
-            .setMessage("You have unsaved changes. Are you sure you want to discard them?")
-            .setPositiveButton("Discard") { _, _ -> finish() }
-            .setNegativeButton("Cancel", null)
+            .setTitle(getString(R.string.dialog_discard_changes_title))
+            .setMessage(getString(R.string.dialog_discard_changes_message))
+            .setPositiveButton(getString(R.string.dialog_button_discard)) { _, _ -> finish() }
+            .setNegativeButton(getString(R.string.cancel), null)
             .show()
     }
 
     private fun saveProfile() {
         if (!validateInputs()) return
-
-        binding.progressBar.visibility = View.VISIBLE
+        binding.progressContainer.root.visibility = View.VISIBLE
         binding.btnSave.isEnabled = false
-
         val profileImageTask = profileImageUri?.let { uploadImage(it, "profile") }
         val coverImageTask = coverImageUri?.let { uploadImage(it, "cover") }
-
         val allTasks = listOfNotNull(profileImageTask, coverImageTask)
-
         Tasks.whenAllSuccess<Uri>(allTasks).addOnSuccessListener { uris ->
-            // الحصول على URLs بترتيب صحيح بناءً على المهام
             var currentUriIndex = 0
             val profileUrl = if (profileImageTask != null) uris[currentUriIndex++].toString() else null
             val coverUrl = if (coverImageTask != null) uris[currentUriIndex].toString() else null
-
             updateFirestore(profileUrl, coverUrl)
         }.addOnFailureListener { e ->
-            binding.progressBar.visibility = View.GONE
+            binding.progressContainer.root.visibility = View.GONE
             binding.btnSave.isEnabled = true
-            Toast.makeText(this, "Image upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_image_upload_failed, e.message), Toast.LENGTH_SHORT).show()
         }
-
-        // If no new images to upload
         if (allTasks.isEmpty()){
             updateFirestore(null, null)
         }
@@ -265,18 +238,13 @@ class EditProfileActivity : AppCompatActivity() {
         val user = originalUser ?: return
         val userId = user.userId ?: return
 
-        // تحديث البيانات من حقول الإدخال
         user.displayName = binding.etDisplayName.text.toString().trim()
         user.username = binding.etUsername.text.toString().trim()
         user.bio = binding.etBio.text.toString().trim()
-
         user.privacySettings.privateAccount = binding.switchPrivate.isChecked
         user.privacySettings.showActivityStatus = binding.switchActivity.isChecked
-
-        // تحديث عناوين URL للصور إذا كانت موجودة
         if (newProfileUrl != null) user.profileImageUrl = newProfileUrl
         if (newCoverUrl != null) user.coverImageUrl = newCoverUrl
-
         val socialLinks = mutableMapOf<String, String>()
         for (i in 0 until binding.layoutSocialLinks.childCount) {
             val view = binding.layoutSocialLinks.getChildAt(i)
@@ -284,30 +252,28 @@ class EditProfileActivity : AppCompatActivity() {
             val platform = view.tag as? String
             val url = etUrl.text.toString().trim()
             if (platform != null && url.isNotEmpty()) {
-                // ✨ التحقق من صحة URL قبل الإضافة
                 if (android.util.Patterns.WEB_URL.matcher(url).matches()) {
                     socialLinks[platform] = url
                 } else {
-                    Toast.makeText(this, "Invalid URL for $platform: $url", Toast.LENGTH_SHORT).show()
-                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this, getString(R.string.error_invalid_url, platform, url), Toast.LENGTH_SHORT).show()
+                    binding.progressContainer.root.visibility = View.GONE
                     binding.btnSave.isEnabled = true
-                    return // إيقاف عملية الحفظ إذا كان هناك رابط غير صالح
+                    return
                 }
             }
         }
         user.socialLinks = socialLinks
-
         db.collection("users").document(userId).set(user, SetOptions.merge())
             .addOnSuccessListener {
-                Toast.makeText(this, "Profile updated", Toast.LENGTH_SHORT).show()
-                updateUserPosts(user) // Update posts after profile is saved
+                Toast.makeText(this, getString(R.string.toast_profile_updated), Toast.LENGTH_SHORT).show()
+                updateUserPosts(user)
                 finish()
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_update_failed, e.message), Toast.LENGTH_SHORT).show()
             }
             .addOnCompleteListener {
-                binding.progressBar.visibility = View.GONE
+                binding.progressContainer.root.visibility = View.GONE
                 binding.btnSave.isEnabled = true
             }
     }
@@ -315,10 +281,9 @@ class EditProfileActivity : AppCompatActivity() {
     private fun validateInputs(): Boolean {
         val username = binding.etUsername.text.toString().trim()
         if (username.length < 4) {
-            binding.etUsername.error = "Username must be at least 4 characters"
+            binding.etUsername.error = getString(R.string.toast_username_min_chars)
             return false
         }
-        // لا يوجد تحقق هنا على الروابط الاجتماعية، يتم التحقق منها في updateFirestore
         return true
     }
 
@@ -328,7 +293,6 @@ class EditProfileActivity : AppCompatActivity() {
             "authorDisplayName" to updatedUser.displayName,
             "authorAvatarUrl" to updatedUser.profileImageUrl
         )
-
         db.collection("posts").whereEqualTo("authorId", updatedUser.userId)
             .get()
             .addOnSuccessListener { querySnapshot ->
@@ -337,7 +301,7 @@ class EditProfileActivity : AppCompatActivity() {
                     batch.update(document.reference, updates)
                 }
                 batch.commit().addOnFailureListener { e->
-                    Log.e(TAG, "Failed to update user's posts.", e)
+                    Log.e(TAG, getString(R.string.log_error_update_posts_failed), e)
                 }
             }
     }

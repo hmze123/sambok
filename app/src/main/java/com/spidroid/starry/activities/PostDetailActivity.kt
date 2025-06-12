@@ -1,4 +1,3 @@
-// hmze123/sambok/sambok-main/app/src/main/java/com/spidroid/starry/activities/PostDetailActivity.kt
 package com.spidroid.starry.activities
 
 import android.content.DialogInterface
@@ -58,10 +57,10 @@ class PostDetailActivity : AppCompatActivity() {
             this.post = receivedPost
             initializeActivity()
         } else if (!postId.isNullOrEmpty()) {
-            // إذا استقبلنا ID فقط، قم بجلبه من Firestore
             fetchPostFromId(postId)
         } else {
-            Log.e(TAG, "No Post data or Post ID received.")
+            // --[ تم التعديل هنا ]--
+            Log.e(TAG, getString(R.string.log_error_no_post_data))
             Toast.makeText(this, getString(R.string.error_post_data_missing), Toast.LENGTH_LONG).show()
             finish()
             return
@@ -69,19 +68,18 @@ class PostDetailActivity : AppCompatActivity() {
     }
 
     private fun fetchPostFromId(postId: String) {
-        // يمكنك إظهار مؤشر تحميل هنا
         FirebaseFirestore.getInstance().collection("posts").document(postId).get()
             .addOnSuccessListener { document ->
                 if (document.exists()) {
                     this.post = document.toObject(PostModel::class.java)?.apply { this.postId = document.id }
                     initializeActivity()
                 } else {
-                    Toast.makeText(this, "Post not found.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, getString(R.string.toast_post_not_found), Toast.LENGTH_SHORT).show()
                     finish()
                 }
             }
             .addOnFailureListener { e ->
-                Toast.makeText(this, "Error loading post: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.error_loading_post, e.message), Toast.LENGTH_SHORT).show()
                 finish()
             }
     }
@@ -104,17 +102,17 @@ class PostDetailActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         binding.ivBack.setOnClickListener { finish() }
-        binding.tvAppName.text = getString(R.string.post)
+        binding.tvAppName.text = getString(R.string.post_detail_title)
     }
 
     private fun bindPostData() {
         val currentPost = post ?: return
         with(binding.includedPostLayout) {
             tvAuthorName.text = currentPost.authorDisplayName ?: currentPost.authorUsername
-            tvUsername.text = "@${currentPost.authorUsername ?: "unknown"}"
+            // --[ تم التعديل هنا ]--
+            tvUsername.text = "@${currentPost.authorUsername ?: getString(R.string.unknown_user)}"
             tvPostContent.text = currentPost.content ?: ""
             ivVerified.visibility = if (currentPost.isAuthorVerified) View.VISIBLE else View.GONE
-            // إخفاء منطقة التفاعل الخاصة بالمنشور الرئيسي لأنها غير ضرورية في هذه الشاشة
             interactionContainer.visibility = View.GONE
 
             Glide.with(this@PostDetailActivity)
@@ -136,7 +134,7 @@ class PostDetailActivity : AppCompatActivity() {
         commentViewModel.commentState.observe(this) { state ->
             when (state) {
                 is CommentUiState.Loading -> {
-                    // يمكنك إظهار مؤشر تحميل هنا إذا أردت
+                    // يمكنك إظهار مؤشر تحميل هنا
                 }
                 is CommentUiState.Success -> {
                     commentAdapter.submitList(state.comments)
@@ -164,11 +162,12 @@ class PostDetailActivity : AppCompatActivity() {
                     binding.inputSection.postInput.hint = getString(R.string.post_your_reply)
                     updatePostButtonState()
                 } else {
-                    handleProfileLoadError(R.string.user_profile_not_found)
+                    handleProfileLoadError(R.string.toast_user_profile_not_found)
                 }
             }
             .addOnFailureListener { e ->
-                Log.e(TAG, "Failed to load current user profile", e)
+                // --[ تم التعديل هنا ]--
+                Log.e(TAG, getString(R.string.log_error_load_user_profile_failed), e)
                 handleProfileLoadError(R.string.error_loading_profile)
             }
     }
@@ -184,7 +183,6 @@ class PostDetailActivity : AppCompatActivity() {
             charCounter.text = CommentModel.MAX_CONTENT_LENGTH.toString()
             postButton.isEnabled = false
 
-            // إخفاء الأزرار غير المستخدمة في هذه الشاشة
             addMedia.visibility = View.GONE
             addGif.visibility = View.GONE
             addPoll.visibility = View.GONE
@@ -214,15 +212,15 @@ class PostDetailActivity : AppCompatActivity() {
             return
         }
         if (user == null) {
-            Toast.makeText(this, getString(R.string.error_user_data_not_loaded_wait), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_user_data_not_loaded), Toast.LENGTH_SHORT).show()
             return
         }
         if (currentPost?.postId == null) {
-            Toast.makeText(this, getString(R.string.error_invalid_post_for_comment), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_post_data_missing), Toast.LENGTH_SHORT).show()
             return
         }
 
-        val commentData: Map<String, Any> = mapOf( // ✨ تم التصريح صراحةً بنوع الخريطة
+        val commentData: Map<String, Any> = mapOf(
             "content" to content,
             "authorId" to user.userId,
             "authorDisplayName" to (user.displayName ?: ""),
@@ -232,12 +230,11 @@ class PostDetailActivity : AppCompatActivity() {
             "timestamp" to FieldValue.serverTimestamp() as Any,
             "likeCount" to 0,
             "repliesCount" to 0,
-            "parentPostId" to currentPost.postId!! // ✨ تم التأكيد على عدم كون القيمة null
+            "parentPostId" to currentPost.postId!!
         )
 
         commentViewModel.addComment(currentPost.postId, commentData)
 
-        // مسح حقل الإدخال وإخفاء لوحة المفاتيح
         binding.inputSection.postInput.text.clear()
         val imm = ContextCompat.getSystemService(this, InputMethodManager::class.java)
         imm?.hideSoftInputFromWindow(currentFocus?.windowToken, 0)
@@ -265,21 +262,21 @@ class PostDetailActivity : AppCompatActivity() {
 
         override fun onDeleteComment(comment: CommentModel) {
             if (currentUser?.uid != comment.authorId) {
-                Toast.makeText(this@PostDetailActivity, getString(R.string.error_delete_own_comment_only), Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@PostDetailActivity, getString(R.string.error_delete_own_comment), Toast.LENGTH_SHORT).show()
                 return
             }
             androidx.appcompat.app.AlertDialog.Builder(this@PostDetailActivity)
-                .setTitle(getString(R.string.delete_comment_title))
-                .setMessage(getString(R.string.delete_comment_confirmation))
-                .setPositiveButton(getString(R.string.delete_button)) { _, _ ->
+                .setTitle(getString(R.string.delete_comment_dialog_title))
+                .setMessage(getString(R.string.delete_comment_dialog_message))
+                .setPositiveButton(getString(R.string.delete)) { _, _ ->
                     commentViewModel.deleteComment(post?.postId, comment)
                 }
-                .setNegativeButton(getString(R.string.cancel_button), null)
+                .setNegativeButton(getString(R.string.cancel), null)
                 .show()
         }
 
         override fun onReportComment(comment: CommentModel) {
-            Toast.makeText(this@PostDetailActivity, getString(R.string.comment_reported_toast, comment.commentId), Toast.LENGTH_SHORT).show()
+            Toast.makeText(this@PostDetailActivity, getString(R.string.toast_comment_reported), Toast.LENGTH_SHORT).show()
             val intent = Intent(this@PostDetailActivity, ReportActivity::class.java).apply {
                 putExtra(ReportActivity.EXTRA_REPORTED_ITEM_ID, comment.commentId)
                 putExtra(ReportActivity.EXTRA_REPORT_TYPE, "comment")

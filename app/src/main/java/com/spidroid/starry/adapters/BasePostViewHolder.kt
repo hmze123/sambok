@@ -27,18 +27,16 @@ import java.util.Locale
 import java.util.regex.Pattern
 
 abstract class BasePostViewHolder(
-    private val binding: ViewBinding,
+    private val binding: ItemPostBinding, // تم التأكيد على أنه يستقبل ItemPostBinding
     private val listener: PostInteractionListener?,
     private val context: Context,
     private val currentUserId: String?
 ) : RecyclerView.ViewHolder(binding.root) {
 
     protected val interactionHandler: PostInteractionHandler =
-        PostInteractionHandler(binding.root, listener, context, currentUserId)
+        PostInteractionHandler(binding, listener, context, currentUserId) // يتم تمرير الـ binding مباشرة
 
     open fun bindCommon(post: PostModel) {
-        val itemBinding = binding as? ItemPostBinding ?: return
-
         if (post.authorId.isNullOrEmpty()) {
             Log.e("BasePostViewHolder", "Post with null or empty authorId. Hiding view. Post ID: ${post.postId}")
             itemView.visibility = View.GONE
@@ -52,38 +50,38 @@ abstract class BasePostViewHolder(
             ViewGroup.LayoutParams.WRAP_CONTENT
         )
 
-        itemBinding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
-        itemBinding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
-        itemBinding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
-        itemBinding.tvTimestamp.text = formatTimestamp(post.createdAt)
+        binding.tvAuthorName.text = post.authorDisplayName ?: post.authorUsername ?: "Unknown User"
+        binding.tvUsername.text = "@${post.authorUsername ?: "unknown"}"
+        binding.ivVerified.visibility = if (post.isAuthorVerified) View.VISIBLE else View.GONE
+        binding.tvTimestamp.text = formatTimestamp(post.createdAt)
 
         Glide.with(context)
             .load(post.authorAvatarUrl)
             .placeholder(R.drawable.ic_default_avatar)
             .error(R.drawable.ic_default_avatar)
-            .into(itemBinding.ivAuthorAvatar)
+            .into(binding.ivAuthorAvatar)
 
         interactionHandler.bind(post)
 
         val userModel = UserModel(
             userId = post.authorId!!,
             username = post.authorUsername ?: "unknown",
-            email = "",
+            email = "", // Email is not needed for this user model instance
         ).apply {
             displayName = post.authorDisplayName
             profileImageUrl = post.authorAvatarUrl
             isVerified = post.isAuthorVerified
         }
 
-        itemBinding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(userModel) }
-        itemBinding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(userModel) }
+        binding.ivAuthorAvatar.setOnClickListener { listener?.onUserClicked(userModel) }
+        binding.authorInfoLayout.setOnClickListener { listener?.onUserClicked(userModel) }
 
         // Bind different content types
-        bindQuotedPost(itemBinding, post)
-        setupTranslation(itemBinding, post)
+        bindQuotedPost(post)
+        setupTranslation(post)
     }
 
-    private fun bindQuotedPost(binding: ItemPostBinding, post: PostModel) {
+    private fun bindQuotedPost(post: PostModel) {
         val quotedPostContainer = binding.layoutQuotedPost.root
         val quotedPostData = post.quotedPost
 
@@ -114,7 +112,7 @@ abstract class BasePostViewHolder(
         }
     }
 
-    private fun setupTranslation(binding: ItemPostBinding, post: PostModel) {
+    private fun setupTranslation(post: PostModel) {
         val originalText = post.content ?: ""
         val translateButton = binding.tvTranslate
 

@@ -51,7 +51,7 @@
                         android:src="@drawable/ic_back"
                         android:background="@drawable/circle_background"
                         app:tint="?attr/colorOnSurface"
-                        android:contentDescription="Back"/>
+                        android:contentDescription="@string/profile_back_button_description"/>
 
                     <View
                         android:layout_height="0dp"
@@ -65,7 +65,7 @@
                         android:src="@drawable/ic_settings"
                         android:background="@drawable/circle_background"
                         app:tint="?attr/colorOnSurface"
-                        android:contentDescription="Settings"/>
+                        android:contentDescription="@string/profile_settings_button_description"/>
                 </LinearLayout>
             </androidx.appcompat.widget.Toolbar>
 
@@ -111,7 +111,7 @@
                     android:textColor="?attr/colorPrimary"
                     style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                     android:layout_marginTop="8dp"
-                    tools:text="Follow"/>
+                    tools:text="@string/profile_button_follow"/>
             </RelativeLayout>
 
             <LinearLayout
@@ -192,7 +192,7 @@
                             android:layout_height="wrap_content"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:layout_marginStart="4dp"
-                            android:text="@string/following" />
+                            android:text="@string/profile_following_label" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -218,14 +218,15 @@
                             android:layout_height="wrap_content"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:layout_marginStart="4dp"
-                            android:text="@string/followers" />
+                            android:text="@string/profile_followers_label" />
                     </LinearLayout>
                 </LinearLayout>
+
                 <TextView
                     android:id="@+id/tvAboutTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Social Links"
+                    android:text="@string/profile_social_links_title"
                     android:textAppearance="?attr/textAppearanceTitleMedium"
                     android:textColor="?attr/colorOnSurface"
                     android:layout_marginTop="24dp"

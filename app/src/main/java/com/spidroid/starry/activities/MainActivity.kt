@@ -15,7 +15,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -23,11 +22,31 @@ class MainActivity : AppCompatActivity() {
 
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment
-
-        // ثم الحصول على NavController منه
         val navController = navHostFragment.navController
 
-        // ربط NavController بشريط التنقل السفلي
         binding.navView.setupWithNavController(navController)
+
+        // ١. استدعاء الدالة الجديدة لإعداد أزرار شريط الأدوات
+        setupToolbarListeners()
+    }
+
+    /**
+     * دالة جديدة لإعداد أوامر الضغط على عناصر شريط الأدوات
+     */
+    private fun setupToolbarListeners() {
+        // الوصول إلى عناصر شريط الأدوات من خلال binding.mainToolbar
+        // main_toolbar هو الـ id الخاص بالـ <include> في activity_main.xml
+
+        // عند الضغط على أيقونة الإشعارات
+        binding.mainToolbar.toolbarNotificationsIcon.setOnClickListener {
+            // انتقل إلى واجهة الإشعارات
+            binding.navView.selectedItemId = R.id.navigation_notifications
+        }
+
+        // عند الضغط على شريط البحث
+        binding.mainToolbar.toolbarSearch.setOnClickListener {
+            // انتقل إلى واجهة البحث
+            binding.navView.selectedItemId = R.id.navigation_search
+        }
     }
 }

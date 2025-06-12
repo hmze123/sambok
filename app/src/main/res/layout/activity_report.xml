@@ -5,105 +5,118 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp"
+    android:background="?attr/colorSurface"
     tools:context=".activities.ReportActivity">
 
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar_report"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
-        android:background="?attr/colorPrimary"
-        app:title="Report Content"
-        app:titleTextColor="@android:color/white" />
+        android:background="?attr/colorSurfaceContainer"
+        app:title="@string/report_activity_title"
+        app:titleTextColor="?attr/colorOnSurface" />
 
-    <TextView
-        android:id="@+id/tv_reporting_item_info"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="16dp"
-        android:text="You are reporting..."
-        android:textAppearance="?attr/textAppearanceSubtitle1" />
+        android:layout_height="match_parent">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Reason for reporting:"
-        android:layout_marginBottom="8dp"
-        android:textAppearance="?attr/textAppearanceLabelLarge" />
-
-    <RadioGroup
-        android:id="@+id/rg_report_reasons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <RadioButton
-            android:id="@+id/rb_reason_spam"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Spam or misleading" />
+            android:orientation="vertical"
+            android:padding="16dp">
 
-        <RadioButton
-            android:id="@+id/rb_reason_harassment"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Harassment or hateful conduct" />
+            <TextView
+                android:id="@+id/tv_reporting_item_info"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="@string/report_info_text"
+                android:textAppearance="?attr/textAppearanceSubtitle1" />
 
-        <RadioButton
-            android:id="@+id/rb_reason_nudity"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Nudity or sexual activity" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/report_reason_label"
+                android:layout_marginBottom="8dp"
+                android:textAppearance="?attr/textAppearanceLabelLarge" />
 
-        <RadioButton
-            android:id="@+id/rb_reason_violence"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Violence or dangerous organizations" />
+            <RadioGroup
+                android:id="@+id/rg_report_reasons"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
 
-        <RadioButton
-            android:id="@+id/rb_reason_copyright"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Copyright infringement" />
+                <RadioButton
+                    android:id="@+id/rb_reason_spam"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_spam" />
 
-        <RadioButton
-            android:id="@+id/rb_reason_other"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Other" />
-    </RadioGroup>
+                <RadioButton
+                    android:id="@+id/rb_reason_harassment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_harassment" />
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/til_report_details"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:hint="Additional details (optional)">
+                <RadioButton
+                    android:id="@+id/rb_reason_nudity"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_nudity" />
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/et_report_details"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="top"
-            android:inputType="textMultiLine"
-            android:minLines="3" />
-    </com.google.android.material.textfield.TextInputLayout>
+                <RadioButton
+                    android:id="@+id/rb_reason_violence"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_violence" />
 
-    <ProgressBar
-        android:id="@+id/pb_report_loading"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:indeterminate="true"
-        android:visibility="gone" />
+                <RadioButton
+                    android:id="@+id/rb_reason_copyright"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_copyright" />
 
-    <Button
-        android:id="@+id/btn_submit_report"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="Submit Report" />
+                <RadioButton
+                    android:id="@+id/rb_reason_other"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/report_reason_other" />
+            </RadioGroup>
 
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/til_report_details"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:hint="@string/report_details_hint">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/et_report_details"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="top"
+                    android:inputType="textMultiLine"
+                    android:minLines="3" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <ProgressBar
+                android:id="@+id/pb_report_loading"
+                style="?android:attr/progressBarStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btn_submit_report"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/report_submit_button" />
+
+        </LinearLayout>
+    </ScrollView>
 </LinearLayout>

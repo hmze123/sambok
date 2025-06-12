@@ -40,7 +40,7 @@ class ReportActivity : AppCompatActivity() {
 
         currentUser = auth.currentUser
         if (currentUser == null) {
-            Toast.makeText(this, "You must be logged in to report content.", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.report_must_be_logged_in), Toast.LENGTH_LONG).show()
             finish()
             return
         }

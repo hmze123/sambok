@@ -69,7 +69,7 @@
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
                 android:textColor="?attr/colorPrimary"
-                tools:text="Replying to John Doe"/>
+                tools:text="@string/chat_replying_to_placeholder"/>
 
             <TextView
                 android:id="@+id/tv_reply_preview_text"
@@ -78,7 +78,7 @@
                 android:maxLines="1"
                 android:ellipsize="end"
                 android:textColor="?attr/colorOnSurface"
-                tools:text="This is the message being replied to..."/>
+                tools:text="@string/chat_reply_preview_placeholder"/>
 
         </LinearLayout>
 
@@ -90,7 +90,7 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             app:tint="?attr/colorOnSurfaceVariant"
             android:layout_gravity="center_vertical"
-            android:contentDescription="Cancel reply"/>
+            android:contentDescription="@string/chat_cancel_reply_description"/>
 
     </LinearLayout>
 
@@ -109,12 +109,11 @@
             android:scaleType="centerCrop"
             android:src="@drawable/ic_add"
             android:background="?attr/selectableItemBackgroundBorderless"
-            tools:contentDescription="Trigger button"
+            android:contentDescription="@string/chat_trigger_button_description"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintBottom_toBottomOf="parent"
-            android:layout_marginStart="16dp"
-            tools:ignore="ContentDescription" />
+            android:layout_marginStart="16dp"/>
 
         <EditText
             android:id="@+id/postInput"
@@ -122,15 +121,15 @@
             android:layout_width="0dp"
             android:layout_marginEnd="12dp"
             android:textSize="16sp"
-            android:textColor="@color/text_primary"
+            android:textColor="?attr/colorOnSurface"
             app:layout_constraintEnd_toStartOf="@+id/sendOrRecord"
             app:layout_constraintStart_toEndOf="@id/triggerButton"
             app:layout_constraintBottom_toBottomOf="parent"
             android:layout_marginStart="12dp"
             android:background="@drawable/circular_ends"
-            android:hint="Say something..."
+            android:hint="@string/chat_input_hint"
             app:layout_constraintTop_toTopOf="parent"
-            android:textColorHint="@color/text_secondary"
+            android:textColorHint="?attr/colorOnSurfaceVariant"
             app:layout_goneMarginEnd="8dp"
             android:maxLines="3"
             android:inputType="textMultiLine" />
@@ -152,10 +151,9 @@
                 android:layout_marginEnd="8dp"
                 android:src="@drawable/ic_mic"
                 android:background="@drawable/bg_media_counter"
-                tools:contentDescription="Record audio"
+                android:contentDescription="@string/chat_record_audio_description"
                 app:tint="@android:color/white"
-                android:enabled="false"
-                tools:ignore="ContentDescription" />
+                android:enabled="false" />
 
             <ImageButton
                 android:id="@+id/btnSend"
@@ -165,10 +163,9 @@
                 android:layout_marginEnd="8dp"
                 android:src="@drawable/ic_send"
                 android:background="@drawable/bg_media_counter"
-                tools:contentDescription="Send message"
+                android:contentDescription="@string/chat_send_message_description"
                 app:tint="@android:color/white"
-                android:enabled="false"
-                tools:ignore="ContentDescription" />
+                android:enabled="false" />
 
         </LinearLayout>
 
@@ -192,9 +189,8 @@
             android:layout_width="48dp"
             android:src="@drawable/ic_add_photo"
             android:background="?attr/selectableItemBackgroundBorderless"
-            tools:contentDescription="Add photo"
-            app:tint="@color/twitter_primary"
-            tools:ignore="ContentDescription" />
+            android:contentDescription="@string/chat_add_photo_description"
+            app:tint="?attr/colorPrimary" />
 
         <ImageButton
             android:id="@+id/addVideo"
@@ -202,9 +198,8 @@
             android:layout_width="48dp"
             android:src="@drawable/ic_add_video"
             android:background="?attr/selectableItemBackgroundBorderless"
-            tools:contentDescription="Add video"
-            app:tint="@color/twitter_primary"
-            tools:ignore="ContentDescription" />
+            android:contentDescription="@string/chat_add_video_description"
+            app:tint="?attr/colorPrimary" />
 
         <ImageButton
             android:id="@+id/addGif"
@@ -212,10 +207,9 @@
             android:layout_width="48dp"
             android:src="@drawable/ic_gif"
             android:background="?attr/selectableItemBackgroundBorderless"
-            tools:contentDescription="Add GIF"
+            android:contentDescription="@string/chat_add_gif_description"
             android:layout_marginHorizontal="4dp"
-            app:tint="@color/twitter_primary"
-            tools:ignore="ContentDescription" />
+            app:tint="?attr/colorPrimary" />
 
         <ImageButton
             android:id="@+id/addPoll"
@@ -223,9 +217,8 @@
             android:layout_width="48dp"
             android:src="@drawable/ic_poll"
             android:background="?attr/selectableItemBackgroundBorderless"
-            tools:contentDescription="Add poll"
-            app:tint="@color/twitter_primary"
-            tools:ignore="ContentDescription" />
+            android:contentDescription="@string/chat_add_poll_description"
+            app:tint="?attr/colorPrimary" />
 
         <View
             android:layout_height="0dp"

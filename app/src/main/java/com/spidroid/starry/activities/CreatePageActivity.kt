@@ -69,15 +69,15 @@ class CreatePageActivity : AppCompatActivity() {
         val description = binding.etPageDescription.text.toString().trim()
 
         if (pageName.isEmpty()) {
-            binding.layoutPageName.error = "Page name is required"
+            binding.layoutPageName.error = getString(R.string.error_name_required)
             return
         }
         if (pageUsername.isEmpty()) {
-            binding.layoutPageUsername.error = "Page username is required"
+            binding.layoutPageUsername.error = getString(R.string.error_username_required)
             return
         }
         if (category.isEmpty()) {
-            Toast.makeText(this, "Please select a category", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.error_category_required), Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -95,12 +95,14 @@ class CreatePageActivity : AppCompatActivity() {
                 }
                 is UiState.SuccessWithData -> {
                     setLoading(false)
-                    Toast.makeText(this, "Page '${state.data.pageName}' created successfully!", Toast.LENGTH_LONG).show()
+                    // --[ تم التعديل هنا ]--
+                    Toast.makeText(this, getString(R.string.create_page_success, state.data.pageName), Toast.LENGTH_LONG).show()
                     finish()
                 }
                 is UiState.Error -> {
                     setLoading(false)
-                    Toast.makeText(this, state.message, Toast.LENGTH_LONG).show()
+                    // --[ تم التعديل هنا ]--
+                    Toast.makeText(this, getString(R.string.create_page_failed, state.message), Toast.LENGTH_LONG).show()
                 }
                 else -> setLoading(false)
             }

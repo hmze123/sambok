@@ -1,8 +1,230 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Starry</string>
-    <string name="app_name_full">Starry Social App</string>
+    <string name="toast_username_min_chars">Username must be at least 4 characters</string>
+    <string name="log_error_update_posts_failed">Failed to update user\'s posts.</string>
+    <string name="toast_authentication_required">Authentication required.</string>>
+    <string name="url_hint">URL</string>
+    <string name="add_social_link">Add Social Link</string>
+    <string name="private_account_switch">Private Account</string>
+    <string name="show_activity_status_switch">Show Activity Status</string>
+    <string name="display_name_hint">Display Name</string>
+    <string name="bio_hint">Bio</string>
+    <string name="social_links_title">Social Links</string>
+    <string name="privacy_settings_title">Privacy Settings</string>
+    <string name="error_invalid_email">Please enter a valid email</string>
+    <string name="error_password_min_chars">Password must be at least 6 characters</string>
+    <string name="toast_copied_to_clipboard">Copied to clipboard</string>
+    <string name="toast_image_upload_failed">Image upload failed: %s</string>
+    <string name="toast_profile_updated">Profile updated</string>
+    <string name="toast_update_failed">Update failed: %s</string>
+    <string name="toast_password_updated">Password updated successfully.</string>>
+    <string name="error_invalid_url">Invalid URL for %1$s: %2$s</string>
 
+    <string name="post_detail_title">Post</string>
+    <string name="error_user_data_not_loaded">User data not loaded. Please wait.</string>
+    <string name="error_delete_own_comment">You can only delete your own comments.</string>
+    <string name="delete_comment_dialog_title">Delete Comment?</string>
+    <string name="delete_comment_dialog_message">Are you sure you want to delete this comment?</string>
+    <string name="toast_comment_reported">Comment reported successfully.</string>
+
+
+    <string name="create_group_selected_members_format">%d selected</string>
+    <string name="create_page_success">Page \'%s\' created successfully!</string>
+    <string name="create_page_failed">Failed to create page: %s</string>
+    <string name="unknown_user">unknown</string>
+    <string name="log_error_no_post_data">No Post data or Post ID received.</string>
+    <string name="log_error_load_user_profile_failed">Failed to load current user profile</string>
+    <string name="error_loading_post">Error loading post: %s</string>
+    <string name="reply_preview_attachment">an attachment</string>
+    <string name="reply_preview_to_user">Replying to %s</string>
+    <string name="reply_preview_to_someone">Replying to Someone</string>
+    <string name="error_cannot_edit_message">Cannot edit this message.</string>
+    <string name="error_deleting_message">Error deleting message.</string>
+    <string name="poll_dialog_question_hint">Poll Question</string>
+    <string name="poll_dialog_option_1_hint">Option 1</string>
+    <string name="poll_dialog_option_2_hint">Option 2</string>
+    <string name="poll_dialog_add_option_button">Add Option</string>
+    <string name="poll_dialog_create_button">Create Poll</string>
+
+    <string name="app_name_full">Starry Social App</string>
+    <string name="edit_profile_title">Edit Profile</string>
+    <string name="edit_profile_save_button">Save</string>
+    <string name="edit_profile_change_photo">Change Photo</string>
+    <string name="edit_profile_change_cover">Edit</string>
+    <string name="edit_profile_display_name_hint">Display Name</string>
+    <string name="edit_profile_username_hint">Username</string>
+    <string name="edit_profile_bio_hint">Bio</string>
+    <string name="edit_profile_social_links_title">Social Links</string>
+    <string name="edit_profile_add_social_link">Add Social Link</string>
+    <string name="edit_profile_privacy_settings_title">Privacy Settings</string>
+    <string name="edit_profile_private_account_switch">Private Account</string>
+    <string name="edit_profile_show_activity_switch">Show Activity Status</string>
+    <string name="edit_profile_url_hint">URL</string>
+
+    <string name="create_page_title">Create a New Page</string>
+    <string name="create_page_add_picture_prompt">Add Profile Picture</string>
+    <string name="create_page_name_hint">Page Name</string>
+    <string name="create_page_username_hint">Page Username</string>
+    <string name="create_page_category_hint">Category</string>
+    <string name="create_page_description_hint">Description (Optional)</string>
+    <string name="create_page_create_button">Create Page</string>
+
+    <string name="create_story_close_description">Close</string>
+    <string name="create_story_title">New Story</string>
+    <string name="create_story_post_button">Post</string>
+    <string name="create_story_gallery_description">Open Gallery</string>
+    <string name="create_story_capture_description">Capture Story</string>
+    <string name="create_story_switch_camera_description">Switch Camera</string>
+    <string name="create_story_add_text_description">Add Text</string>
+    <string name="create_story_draw_description">Draw</string>
+    <string name="create_story_quick_reply_hint">Send message...</string>
+    <string name="create_story_send_reply_description">Send Reply</string>
+    <string name="create_story_more_options_description">More Options</string>
+
+    <string name="media_viewer_close_description">Close</string>
+    <string name="media_viewer_share_description">Share</string>
+    <string name="media_viewer_menu_description">Menu</string>
+    <string name="media_viewer_download_action">Download</string>
+    <string name="chat_back_button_description">Back button</string>
+    <string name="chat_typing_indicator">typing...</string>
+    <string name="chat_replying_to_placeholder">Replying to John Doe</string>
+    <string name="chat_reply_preview_placeholder">This is the message being replied to...</string>
+    <string name="chat_cancel_reply_description">Cancel reply</string>
+    <string name="chat_trigger_button_description">Trigger button</string>
+    <string name="chat_input_hint">Say something...</string>
+    <string name="chat_record_audio_description">Record audio</string>
+    <string name="chat_send_message_description">Send message</string>
+    <string name="chat_add_photo_description">Add photo</string>
+    <string name="chat_add_video_description">Add video</string>
+    <string name="chat_add_gif_description">Add GIF</string>
+    <string name="chat_add_poll_description">Add poll</string>
+
+    <string name="new_chat_search_hint">Search people...</string>
+    <string name="new_chat_create_group_button">New Group</string>
+    <string name="new_chat_create_community_button">Community</string>
+
+    <string name="create_group_title">Create New Group</string>
+    <string name="create_group_select_image_button">Select Group Image</string>
+    <string name="create_group_name_hint">Group Name</string>
+    <string name="create_group_description_hint">Group Description (Optional)</string>
+    <string name="create_group_select_members_title">Select Members:</string>
+    <string name="create_group_search_members_hint">Search users to add</string>
+    <string name="create_group_fab_description">Create Group</string>
+
+    <string name="report_content_title">Report Content</string>
+    <string name="report_item_info_placeholder">You are reporting...</string>
+    <string name="report_reason_title">Reason for reporting:</string>
+    <string name="report_reason_spam">Spam or misleading</string>
+    <string name="report_reason_harassment">Harassment or hateful conduct</string>
+    <string name="report_reason_nudity">Nudity or sexual activity</string>
+    <string name="report_reason_violence">Violence or dangerous organizations</string>
+    <string name="report_reason_copyright">Copyright infringement</string>
+    <string name="report_reason_other">Other</string>
+    <string name="report_details_hint">Additional details (optional)</string>
+    <string name="report_submit_button">Submit Report</string>
+
+    <string name="verified_user_badge">Verified user badge</string>
+    <string name="post_media_content">Post media content</string>
+    <string name="quoted_post_author_avatar">Quoted post author avatar</string>
+    <string name="link_preview_image">Link preview image</string>
+    <string name="remove_link_preview_button">Remove link preview</string>
+    <string name="dot_separator" translatable="false">·</string>
+
+        <string name="post_options_menu_description">Post options menu</string>
+        <string name="like_post_description">Like post</string>
+        <string name="comment_on_post_description">Comment on post</string>
+        <string name="repost_post_description">Repost post</string>
+        <string name="bookmark_post_description">Bookmark post</string>
+        <string name="translate_button_text">Translate</string>
+
+        <string name="compose_prompt">بماذا تفكر؟</string>
+        <string name="compose_action_video">Video</string>
+        <string name="compose_action_photo">Photo</string>
+        <string name="compose_action_feeling">Feeling</string>
+
+        <string name="profile_back_button_description">Back</string>
+        <string name="profile_settings_button_description">Settings</string>
+        <string name="profile_button_edit_profile">Edit Profile</string>
+        <string name="profile_button_follow">Follow</string>
+        <string name="profile_button_following">Following</string>
+        <string name="profile_followers_label">Followers</string>
+        <string name="profile_following_label">Following</string>
+        <string name="profile_social_links_title">Social Links</string>
+
+        <string name="compose_new_post_title">New Post</string>
+        <string name="compose_post_button">Post</string>
+        <string name="compose_whats_happening_hint">What\'s happening?</string>
+        <string name="compose_char_count_format">%d/280</string>
+
+        <string name="settings_category_account">Account</string>
+        <string name="settings_username_title">Username</string>
+        <string name="settings_email_title">Email</string>
+        <string name="settings_email_verification_title">Verify Email</string>
+        <string name="settings_email_verification_summary">Verify your email address for account security.</string>
+        <string name="settings_phone_title">Phone Number</string>
+        <string name="settings_connected_accounts_title">Connected Accounts</string>
+        <string name="settings_connected_accounts_summary">Manage social connections</string>
+        <string name="settings_create_page_title">Create New Page</string>
+        <string name="settings_create_page_summary">Start a page for your business or community</string>
+        <string name="settings_bookmarks_title">Bookmarks</string>
+        <string name="settings_bookmarks_summary">View your saved posts</string>
+
+        <string name="settings_category_privacy">Privacy</string>
+        <string name="settings_private_account_title">Private Account</string>
+        <string name="settings_private_account_summary">Approve follow requests</string>
+        <string name="settings_show_activity_title">Show Activity Status</string>
+        <string name="settings_show_activity_summary">Share when you\'re active</string>
+        <string name="settings_allow_dms_title">Allow Direct Messages</string>
+        <string name="settings_allow_dms_summary">Control who can message you</string>
+        <string name="settings_blocked_accounts_title">Blocked Accounts</string>
+        <string name="settings_blocked_accounts_summary">Manage blocked users</string>
+
+        <string name="settings_category_notifications">Notifications</string>
+        <string name="settings_notify_messages_title">New Messages</string>
+        <string name="settings_notify_messages_summary">Notify about direct messages</string>
+        <string name="settings_notify_comments_title">Comments &amp; Mentions</string>
+        <string name="settings_notify_comments_summary">Notify about post interactions</string>
+        <string name="settings_notify_reposts_title">Reposts</string>
+        <string name="settings_notify_reposts_summary">Notify when someone shares your post</string>
+
+        <string name="settings_category_security">Security</string>
+        <string name="settings_2fa_title">Two-Factor Authentication</string>
+        <string name="settings_2fa_summary">Extra layer of security</string>
+        <string name="settings_trusted_devices_title">Trusted Devices</string>
+        <string name="settings_trusted_devices_summary">Manage logged-in devices</string>
+        <string name="settings_change_password_title">Change Password</string>
+
+        <string name="settings_category_appearance">Appearance</string>
+        <string name="settings_theme_title">Theme</string>
+        <string name="settings_theme_summary">Choose visual style</string>
+
+        <string name="settings_category_feedback">Feedback</string>
+        <string name="settings_bug_report_title">Report a bug</string>
+        <string name="settings_bug_report_summary">Report a bug</string>
+
+        <string name="settings_logout_title">Logout</string>
+        <string name="settings_logout_summary">Sign out from your account</string>
+
+        <string name="settings_about_title">About Starry</string>
+        <string name="settings_about_summary">Learn more about Starry</string>
+
+    <string name="username_hint">Username</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Password</string>
+    <string name="login_title">Log in to Starry</string>
+    <string name="email_or_username_hint">Email or username</string>
+    <string name="forgot_password_prompt">Forgot password?</string>
+    <string name="login_button">Log in</string>
+    <string name="signup_prompt">Don\'t have an account? Sign up</string>
+
+    <string name="create_account_title">Create your account</string>
+    <string name="signup_button">Sign up</string>
+    <string name="login_prompt">Already have an account? Login</string>
+    <string name="terms_agreement_prefix">I agree to the</string>
+    <string name="terms_agreement_and">and</string>
+    <string name="terms_of_service">Terms of Service</string>
+    <string name="privacy_policy">Privacy Policy</string>
     <string name="home">Home</string>
     <string name="search">Search</string>
     <string name="notifications">Notifications</string>
@@ -340,7 +562,42 @@
     <string name="visibility_on_icon">Visibility on icon</string>
     <string name="visibility_off_icon">Visibility off icon</string>
     <string name="password_visibility_toggle">Password visibility toggle</string>
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_loading_data">Failed to load data.</string>
+    <string name="error_no_internet">No internet connection. Please check your network.</string>
+    <string name="error_user_not_authenticated">Authentication required. Please log in.</string>
+    <string name="retry">Retry</string>
+    <string name="no_results_found">No results found</string>
 
+    <string name="report_activity_title">Report Content</string>
+    <string name="report_info_text">You are reporting...</string>
+    <string name="report_reason_label">Reason for reporting:</string>
+    <string name="report_error_select_reason">Please select a reason for reporting.</string>
+    <string name="report_success">Report submitted successfully. Thank you.</string>
+    <string name="report_failure">Failed to submit report: %s</string>
+    <string name="report_invalid_data">Invalid report data provided.</string>
+    <string name="report_must_be_logged_in">You must be logged in to report content.</string>
+
+    <string name="error_name_required">Name is required</string>
+    <string name="error_username_required">Username is required</string>
+    <string name="error_category_required">Please select a category</string>
+    <string name="create_group_select_one_member">Please select at least one member.</string>
+    <string name="edit_message_dialog_title">Edit Message</string>
+    <string name="save">Save</string>
+
+    <string name="toast_coming_soon">%s feature coming soon!</string>
+    <string name="toast_no_email_app">No email app found.</string>
+    <string name="toast_failed_to_load_profile">Failed to load profile: %s</string>
+    <string name="toast_user_profile_not_found">User profile not found.</string>
+    <string name="toast_post_not_found">Post not found.</string>
+    <string name="toast_error_opening_post">Error opening post.</string>
+    <string name="dialog_discard_changes_title">Discard Changes?</string>
+    <string name="dialog_discard_changes_message">You have unsaved changes. Are you sure you want to discard them?</string>
+    <string name="dialog_button_discard">Discard</string>
+    <string name="cd_change_cover_image">Change cover image</string>
+    <string name="cd_remove_social_link">Remove social link</string>
+    <string name="cd_close_button">Close</string>
+    <string name="cd_play_video_button">Play video button</string>
     <string name="title_home">Home</string>
     <string name="title_search">Search</string>
     <string name="title_notifications">Notifications</string>

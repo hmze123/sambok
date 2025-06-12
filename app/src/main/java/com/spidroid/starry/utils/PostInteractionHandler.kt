@@ -6,29 +6,31 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
-import com.google.android.material.color.MaterialColors
 import com.spidroid.starry.R
 import com.spidroid.starry.adapters.PostInteractionListener
+import com.spidroid.starry.databinding.ItemPostBinding
 import com.spidroid.starry.models.PostModel
 import java.util.Locale
 
 class PostInteractionHandler(
-    rootView: View,
+    private val binding: ItemPostBinding, // الكائن الذي يحتوي على كل عناصر الواجهة
     private val listener: PostInteractionListener?,
     private val context: Context?,
     private val currentUserId: String?
 ) {
-    private val btnLike: ImageButton = rootView.findViewById(R.id.btnLike)
-    private val btnBookmark: ImageButton = rootView.findViewById(R.id.btnBookmark)
-    private val btnRepost: ImageButton = rootView.findViewById(R.id.btnRepost)
-    private val btnComment: ImageButton = rootView.findViewById(R.id.btnComment)
-    private val tvLikeCount: TextView = rootView.findViewById(R.id.tvLikeCount)
-    private val tvBookmarkCount: TextView = rootView.findViewById(R.id.tvBookmarkCount)
-    private val tvRepostCount: TextView = rootView.findViewById(R.id.tvRepostCount)
-    private val tvCommentCount: TextView = rootView.findViewById(R.id.tvCommentCount)
-    private val ivLikeReaction: ImageView? = rootView.findViewById(R.id.ivLikeReaction)
+    // **[تم التعديل هنا]** تعريف كل عنصر كمتغير مستقل لضمان الوصول إليه
+    private val btnLike: ImageButton = binding.btnLike
+    private val btnBookmark: ImageButton = binding.btnBookmark
+    private val btnRepost: ImageButton = binding.btnRepost
+    private val btnComment: ImageButton = binding.btnComment
+    private val tvLikeCount: TextView = binding.tvLikeCount
+    private val tvBookmarkCount: TextView = binding.tvBookmarkCount
+    private val tvRepostCount: TextView = binding.tvRepostCount
+    private val tvCommentCount: TextView = binding.tvCommentCount
+    private val ivLikeReaction: ImageView = binding.ivLikeReaction
+    private val btnMenu: ImageButton = binding.btnMenu
+
     private var currentPost: PostModel? = null
-    private val btnMenu: ImageButton? = rootView.findViewById(R.id.btnMenu)
 
     init {
         setupClickListeners()
@@ -42,8 +44,6 @@ class PostInteractionHandler(
     }
 
     private fun setupClickListeners() {
-        // --- تم تعديل هذه الدوال ---
-        // الآن هي تستدعي الـ listener مباشرة بدلاً من محاولة تعديل المنشور
         btnLike.setOnClickListener {
             currentPost?.let { listener?.onLikeClicked(it) }
         }
@@ -53,8 +53,6 @@ class PostInteractionHandler(
         btnRepost.setOnClickListener {
             currentPost?.let { listener?.onRepostClicked(it) }
         }
-        // --- نهاية التعديل ---
-
         btnLike.setOnLongClickListener {
             currentPost?.let { post ->
                 listener?.onLikeButtonLongClicked(post, btnLike)
@@ -64,7 +62,7 @@ class PostInteractionHandler(
         btnComment.setOnClickListener {
             currentPost?.let { listener?.onCommentClicked(it) }
         }
-        btnMenu?.setOnClickListener {
+        btnMenu.setOnClickListener {
             currentPost?.let { post -> listener?.onMenuClicked(post, btnMenu) }
         }
     }
@@ -126,36 +124,33 @@ class PostInteractionHandler(
     ) {
         context ?: return
         button.setImageResource(if (isActive) filledRes else outlineRes)
-        val color = ContextCompat.getColor(context, if (isActive) activeColorRes else R.color.md_theme_primary)
-        //  val Color = MaterialColors.getColor(context, com.google.android.material.R.attr.colorPrimary, "default color")
-
+        val color = ContextCompat.getColor(context, if (isActive) activeColorRes else R.color.md_theme_onSurfaceVariant)
         button.setColorFilter(color)
     }
 
     private fun updateLikeReactionIcon() {
         val post = currentPost
-        val reactionIcon = ivLikeReaction
-        val localContext = context
+        val reactionIcon = ivLikeReaction // استخدام المتغير المحلي الذي تم تعريفه
         val userId = currentUserId
-        if (post == null || reactionIcon == null || localContext == null || userId == null) {
-            reactionIcon?.visibility = View.GONE
+
+        if (post == null || userId == null) {
+            reactionIcon.visibility = View.GONE
             return
         }
 
-        // --- تم تعديل هذا الجزء ---
         val userReaction = post.reactions[userId]
 
         if (post.isLiked && userReaction != null && userReaction != "❤️") {
             val drawableId = getDrawableIdForEmoji(userReaction, true)
             if (drawableId != 0 && drawableId != R.drawable.ic_emoji) {
-                reactionIcon.setImageResource(drawableId)
-                reactionIcon.clearColorFilter()
-                reactionIcon.visibility = View.VISIBLE
+                reactionIcon.setImageResource(drawableId) // **[تم التصحيح]**
+                reactionIcon.clearColorFilter() // **[تم التصحيح]**
+                reactionIcon.visibility = View.VISIBLE // **[تم التصحيح]**
             } else {
-                reactionIcon.visibility = View.GONE
+                reactionIcon.visibility = View.GONE // **[تم التصحيح]**
             }
         } else {
-            reactionIcon.visibility = View.GONE
+            reactionIcon.visibility = View.GONE // **[تم التصحيح]**
         }
     }
 
